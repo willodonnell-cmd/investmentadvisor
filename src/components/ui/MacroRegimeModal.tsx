@@ -18,12 +18,12 @@ const DIMS: { key: DimKey; label: string; options: string[] }[] = [
 ]
 
 const DOT_COLORS: Record<string, string> = {
-  Low: '#4ade80', Normal: '#888888', High: '#f87171', Rising: '#fb923c', Falling: '#4ade80',
-  Expansion: '#4ade80', LateCycle: '#fb923c', Contraction: '#f87171', Recovery: '#facc15',
-  Abundant: '#4ade80', Tight: '#f87171',
-  RiskOn: '#4ade80', Neutral: '#888888', RiskOff: '#f87171', Bifurcated: '#fb923c',
-  Strong: '#f87171', Weak: '#4ade80', Strengthening: '#fb923c', Weakening: '#facc15',
-  Permissive: '#4ade80', Restrictive: '#f87171', Activist: '#fb923c',
+  Low: '#2E6E4A', Normal: '#A8A098', High: '#A83030', Rising: '#7A4A10', Falling: '#2E6E4A',
+  Expansion: '#2E6E4A', LateCycle: '#7A4A10', Contraction: '#A83030', Recovery: '#9A7A50',
+  Abundant: '#2E6E4A', Tight: '#A83030',
+  RiskOn: '#2E6E4A', Neutral: '#A8A098', RiskOff: '#A83030', Bifurcated: '#7A4A10',
+  Strong: '#A83030', Weak: '#2E6E4A', Strengthening: '#7A4A10', Weakening: '#9A7A50',
+  Permissive: '#2E6E4A', Restrictive: '#A83030', Activist: '#7A4A10',
 }
 
 export const MacroRegimeModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
@@ -52,10 +52,17 @@ export const MacroRegimeModal: React.FC<{ onClose: () => void }> = ({ onClose })
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-        <div className="pointer-events-auto w-[520px] bg-surface-2 border border-border rounded-2xl shadow-2xl p-6 space-y-5">
-
+        <div
+          className="pointer-events-auto w-[520px] p-6 space-y-5"
+          style={{
+            background: 'rgba(242,236,226,0.97)',
+            border: '1px solid #D8D0C4',
+            borderRadius: 14,
+            boxShadow: '0 8px 40px rgba(60,40,10,0.18), 0 2px 8px rgba(60,40,10,0.10)',
+          }}
+        >
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold text-text-primary">Macro Regime</h2>
@@ -66,7 +73,8 @@ export const MacroRegimeModal: React.FC<{ onClose: () => void }> = ({ onClose })
             <button
               onClick={onClose}
               className="w-7 h-7 flex items-center justify-center rounded-lg text-text-muted
-                hover:text-text-secondary hover:bg-[#222] transition-colors text-lg"
+                hover:text-text-secondary transition-colors text-lg"
+              style={{ background: 'rgba(60,40,10,0.06)' }}
             >
               ×
             </button>
@@ -75,7 +83,7 @@ export const MacroRegimeModal: React.FC<{ onClose: () => void }> = ({ onClose })
           <div className="space-y-3">
             {DIMS.map(({ key, label, options }) => {
               const val = draft[key]
-              const color = DOT_COLORS[val] ?? '#555'
+              const color = DOT_COLORS[val] ?? '#A8A098'
               return (
                 <div key={key} className="flex items-center gap-3">
                   <div
@@ -88,11 +96,16 @@ export const MacroRegimeModal: React.FC<{ onClose: () => void }> = ({ onClose })
                       <button
                         key={opt}
                         onClick={() => setDraft((d) => ({ ...d, [key]: opt }))}
-                        className={`px-2.5 py-0.5 text-[10px] rounded-full border transition-colors ${
-                          val === opt
-                            ? 'border-accent/50 bg-accent/10 text-accent font-semibold'
-                            : 'border-border text-text-muted hover:border-[#3a3a3a] hover:text-text-secondary'
-                        }`}
+                        className="px-2.5 py-0.5 text-[10px] rounded-full border transition-colors"
+                        style={val === opt ? {
+                          borderColor: 'rgba(154,122,80,0.5)',
+                          background: 'rgba(154,122,80,0.12)',
+                          color: '#7A5A38',
+                          fontWeight: 700,
+                        } : {
+                          borderColor: '#D8D0C4',
+                          color: '#A8A098',
+                        }}
                       >
                         {opt}
                       </button>
@@ -103,17 +116,17 @@ export const MacroRegimeModal: React.FC<{ onClose: () => void }> = ({ onClose })
             })}
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+          <div className="flex items-center justify-end gap-2 pt-2" style={{ borderTop: '1px solid #D8D0C4' }}>
             <button
               onClick={onClose}
               className="px-4 py-1.5 text-xs text-text-muted border border-border
-                hover:border-[#3a3a3a] rounded-lg transition-colors"
+                hover:border-accent/40 rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="px-4 py-1.5 text-xs text-text-primary bg-accent/90
+              className="px-4 py-1.5 text-xs text-white bg-accent/90
                 hover:bg-accent rounded-lg transition-colors font-semibold"
             >
               Save

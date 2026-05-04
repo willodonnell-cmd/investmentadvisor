@@ -4,11 +4,14 @@ import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 
 export const Shell: React.FC = () => (
-  <div className="flex h-screen w-screen overflow-hidden bg-background text-text-primary font-sans">
+  <div style={{
+    display: 'flex', height: '100vh', width: '100vw',
+    overflow: 'hidden', background: '#EDE8DE',
+  }}>
     <Sidebar />
-    <div className="flex flex-col flex-1 min-w-0">
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
       <TopBar />
-      <main className="flex-1 overflow-y-auto">
+      <main style={{ flex: 1, overflowY: 'auto' }}>
         <Outlet />
       </main>
     </div>

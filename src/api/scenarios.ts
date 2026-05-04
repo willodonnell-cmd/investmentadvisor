@@ -46,14 +46,40 @@ Return ONLY valid JSON. No preamble, no markdown, no explanation.
     {
       "type": "ContestedPath",
       "name": "evocative name for the contested / partial outcome",
-      ...same fields...
-      "probability": 0.40
+      "coreNarrative": "2-3 sentences on the specific path where thesis is partially right but something prevents full expression",
+      "keyAssumptions": ["assumption that must hold", "..."],
+      "causalChain": ["step 1", "step 2", "step 3", "step 4"],
+      "confirmingEvidence": ["observable evidence confirming this path"],
+      "disconfirmingEvidence": ["observable evidence disconfirming this path"],
+      "shiftTriggers": {
+        "towardConfirmed": "event that increases probability of full thesis confirmation",
+        "towardBroken": "event that pushes toward thesis broken"
+      },
+      "returnRangeMin": 5,
+      "returnRangeMax": 25,
+      "probability": 0.40,
+      "momentumScore": 40,
+      "baseRateAnchor": 0.40,
+      "primaryMispricedVariableFocus": "the mispriced variable this scenario hinges on"
     },
     {
       "type": "ThesisBroken",
       "name": "evocative name for the broken thesis outcome",
-      ...same fields...
-      "probability": 0.25
+      "coreNarrative": "2-3 sentences on the specific path by which the thesis fails — different causal path from ThesisConfirmed",
+      "keyAssumptions": ["assumption whose failure breaks the thesis"],
+      "causalChain": ["step 1", "step 2", "step 3", "step 4"],
+      "confirmingEvidence": ["observable evidence confirming this broken path"],
+      "disconfirmingEvidence": ["observable evidence disconfirming the broken path"],
+      "shiftTriggers": {
+        "towardConfirmed": "event that would rescue the thesis",
+        "towardBroken": "event that accelerates thesis breakdown"
+      },
+      "returnRangeMin": -40,
+      "returnRangeMax": -15,
+      "probability": 0.25,
+      "momentumScore": 25,
+      "baseRateAnchor": 0.30,
+      "primaryMispricedVariableFocus": "the mispriced variable whose mispricing is revealed to be wrong"
     }
   ]
 }
@@ -71,8 +97,23 @@ Requirements:
     SCENARIOS_SYSTEM, prompt, true, 4000,
   )
 
+  // Deduplicate: keep at most one scenario per type (first occurrence wins)
+  const seen = new Set<string>()
+  const deduped = result.scenarios.filter(s => {
+    if (seen.has(s.type)) return false
+    seen.add(s.type)
+    return true
+  })
+
+  // Normalize probabilities to sum to exactly 1.0
+  const total = deduped.reduce((sum, s) => sum + (s.probability ?? 0), 0)
+  const normalized = deduped.map(s => ({
+    ...s,
+    probability: total > 0 ? s.probability / total : 1 / deduped.length,
+  }))
+
   const now = new Date()
-  return result.scenarios.map((s) => ({
+  return normalized.map((s) => ({
     ...s,
     id: uuid(),
     linkedThesisId: thesis.id,

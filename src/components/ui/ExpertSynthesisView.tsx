@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import {
   ExpertSynthesisResult, VoiceContribution, VerdictType, PanelPosture,
 } from '../../types'
-import { MISPRICED_VARIABLE_LABELS } from '../../constants'
+import { MISPRICED_VARIABLE_LABELS, EXPERT_BENCH } from '../../constants'
 
 const VERDICT_CONFIG: Record<VerdictType, { color: string }> = {
   Endorse:   { color: 'text-success  border-green-800  bg-green-950' },
@@ -34,7 +34,12 @@ const VoiceCard: React.FC<{ contribution: VoiceContribution }> = ({ contribution
         <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wider flex-shrink-0 ${verdict.color}`}>
           {c.verdict}
         </span>
-        <span className="text-xs font-semibold text-text-primary flex-1">{c.voiceId}</span>
+        <div className="flex-1 min-w-0">
+          <span className="text-xs font-semibold text-text-primary">
+            {EXPERT_BENCH[c.voiceId]?.name ?? c.voiceId}
+          </span>
+          <span className="text-[10px] text-text-muted ml-1.5">{c.voiceId}</span>
+        </div>
         <span className="text-[10px] text-text-muted truncate max-w-[200px] hidden sm:block">{c.lensApplied}</span>
         <span className={`text-[10px] font-medium flex-shrink-0 ${CONFIDENCE_COLORS[c.confidence] ?? 'text-text-muted'}`}>
           {c.confidence}

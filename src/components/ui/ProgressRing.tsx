@@ -9,11 +9,11 @@ interface ProgressRingProps {
 }
 
 const ZONE_COLORS: Record<string, string> = {
-  Green:   '#4ade80',
-  Yellow:  '#facc15',
-  Orange:  '#fb923c',
-  Red:     '#f87171',
-  Overdue: '#dc2626',
+  Green:   '#2E6E4A',
+  Yellow:  '#9A7A50',
+  Orange:  '#7A4A10',
+  Red:     '#A83030',
+  Overdue: '#8C2828',
 }
 
 export const ProgressRing: React.FC<ProgressRingProps> = ({
@@ -36,7 +36,7 @@ export const ProgressRing: React.FC<ProgressRingProps> = ({
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="#2a2a2a"
+          stroke="rgba(216,208,196,0.8)"
           strokeWidth={strokeWidth}
         />
         <circle

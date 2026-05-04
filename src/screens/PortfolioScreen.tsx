@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useKillStore, useThesisStore, usePortfolioStore, useScenarioStore } from '../store'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ErrorBoundary } from '../components/ui/ErrorBoundary'
@@ -34,15 +35,15 @@ const PATHWAY_LABELS: Record<KillTriggerPathway, string> = {
 // ─── Driver / Factor visual helpers ──────────────────────────────────────
 
 const DRIVER_COLORS: Record<PortfolioMacroSignature['macroDriverExposures'][0]['classification'], string> = {
-  Minimal:     'bg-success/40',
-  Moderate:    'bg-yellow-600/60',
-  Concentrated:'bg-warning/70',
-  Extreme:     'bg-danger/80',
+  Minimal:     'rgba(46,110,74,0.50)',
+  Moderate:    'rgba(154,122,80,0.60)',
+  Concentrated:'rgba(122,74,16,0.70)',
+  Extreme:     'rgba(168,48,48,0.75)',
 }
 
 const DRIVER_TEXT: Record<PortfolioMacroSignature['macroDriverExposures'][0]['classification'], string> = {
   Minimal:     'text-success',
-  Moderate:    'text-yellow-400',
+  Moderate:    'text-accent',
   Concentrated:'text-warning',
   Extreme:     'text-danger',
 }
@@ -55,7 +56,7 @@ const FACTOR_LABELS: Record<FactorType, string> = {
 
 const CLASSIFICATION_DOT: Record<PortfolioMacroSignature['factorProfile'][0]['classification'], string> = {
   Balanced:             'bg-success',
-  ModerateConcentration:'bg-yellow-500',
+  ModerateConcentration:'bg-accent',
   Concentrated:         'bg-warning',
   Extreme:              'bg-danger',
 }
@@ -85,7 +86,7 @@ function TriggerNetwork({
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
       <defs>
         <marker id="arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-          <path d="M0,0 L6,3 L0,6 Z" fill="#555" />
+          <path d="M0,0 L6,3 L0,6 Z" fill="#C8C0B4" />
         </marker>
       </defs>
       {dependencies.map((dep, i) => {
@@ -94,8 +95,8 @@ function TriggerNetwork({
         if (idxA === undefined || idxB === undefined) return null
         const pa = positions[idxA]
         const pb = positions[idxB]
-        const stroke = dep.strength === 'Structural' ? '#fb923c' : '#555'
-        const sw = dep.strength === 'Structural' ? 2.5 : 1.5
+        const stroke = dep.strength === 'Structural' ? '#7A4A10' : '#C8C0B4'
+        const sw = dep.strength === 'Structural' ? 2 : 1.5
         return (
           <line key={i} x1={pa.x} y1={pa.y} x2={pb.x} y2={pb.y}
             stroke={stroke} strokeWidth={sw} strokeDasharray={dep.strength === 'Structural' ? '' : '4,3'}
@@ -111,10 +112,10 @@ function TriggerNetwork({
         return (
           <g key={t.id}>
             <circle cx={p.x} cy={p.y} r={8}
-              fill={isDep ? '#ff6b6b33' : '#1a1a1a'}
-              stroke={isDep ? '#ff6b6b' : '#2a2a2a'} strokeWidth={1.5} />
+              fill={isDep ? 'rgba(168,48,48,0.15)' : 'rgba(236,230,220,0.8)'}
+              stroke={isDep ? '#A83030' : '#D8D0C4'} strokeWidth={1.5} />
             <text x={p.x} y={p.y + 20} textAnchor="middle"
-              fontSize="9" fill="#888" className="select-none">
+              fontSize="9" fill="#A8A098" className="select-none">
               {label}
             </text>
           </g>
@@ -122,6 +123,15 @@ function TriggerNetwork({
       })}
     </svg>
   )
+}
+
+// ─── Shared card style ────────────────────────────────────────────────────
+
+const cardStyle: React.CSSProperties = {
+  background: 'rgba(248,244,238,0.85)',
+  border: '1px solid rgba(216,208,196,0.7)',
+  borderRadius: 12,
+  boxShadow: '0 1px 4px rgba(60,40,10,0.05)',
 }
 
 // ─── Main screen ─────────────────────────────────────────────────────────
@@ -218,16 +228,16 @@ export const PortfolioScreen: React.FC = () => {
   const CORR_COLOR: Record<string, string> = {
     NearIdentical:    'text-danger',
     HighCorrelation:  'text-warning',
-    ModerateCorrelation: 'text-yellow-400',
+    ModerateCorrelation: 'text-accent',
     LowCorrelation:   'text-text-secondary',
     Uncorrelated:     'text-text-muted',
   }
 
-  const STRESS_COLOR = (impact: number) =>
-    impact < -0.12 ? 'border-red-900/60 bg-red-950/20' :
-    impact < -0.06 ? 'border-orange-900/50 bg-orange-950/20' :
-    impact > 0.03  ? 'border-green-900/50 bg-green-950/20' :
-                     'border-border bg-surface'
+  const STRESS_STYLE = (impact: number): React.CSSProperties =>
+    impact < -0.12 ? { background: 'rgba(168,48,48,0.08)', border: '1px solid rgba(168,48,48,0.25)', borderRadius: 12 } :
+    impact < -0.06 ? { background: 'rgba(122,74,16,0.08)', border: '1px solid rgba(122,74,16,0.25)', borderRadius: 12 } :
+    impact > 0.03  ? { background: 'rgba(46,110,74,0.08)', border: '1px solid rgba(46,110,74,0.25)', borderRadius: 12 } :
+                     { ...cardStyle }
 
   const STRESS_TEXT = (impact: number) =>
     impact < -0.12 ? 'text-danger' :
@@ -256,7 +266,7 @@ export const PortfolioScreen: React.FC = () => {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-bold text-text-primary">Portfolio Architecture</h1>
-          <p className="text-xs text-text-muted mt-1">
+          <p className="text-xs text-text-muted mt-1 italic">
             Macro signature · correlation · stress tests · kill record
           </p>
         </div>
@@ -269,7 +279,7 @@ export const PortfolioScreen: React.FC = () => {
           <button
             onClick={handleCompute}
             disabled={computing || activeTheses.length === 0}
-            className="px-4 py-2 text-xs font-semibold text-text-primary bg-accent/90 hover:bg-accent
+            className="px-4 py-2 text-xs font-semibold text-white bg-accent/90 hover:bg-accent
               disabled:opacity-50 disabled:cursor-not-allowed rounded-xl transition-colors"
           >
             {computing ? 'Computing…' : sig ? 'Recompute Signature' : 'Compute Signature'}
@@ -278,10 +288,86 @@ export const PortfolioScreen: React.FC = () => {
       </div>
 
       {computeError && (
-        <div className="bg-red-950/30 border border-red-800/40 rounded-lg px-3 py-2">
+        <div className="rounded-lg px-3 py-2" style={{
+          background: 'rgba(168,48,48,0.08)',
+          border: '1px solid rgba(168,48,48,0.25)',
+        }}>
           <p className="text-xs text-danger">{computeError}</p>
         </div>
       )}
+
+      {/* ── Active Positions ── */}
+      <ErrorBoundary label="Active Positions">
+        <section>
+          <h2 className="text-[10px] uppercase tracking-widest text-text-muted mb-3">Active Positions</h2>
+          {Object.keys(positionsRecord).length === 0 ? (
+            <div className="rounded-xl px-4 py-6 text-center" style={{ border: '1.5px dashed #D8D0C4' }}>
+              <p className="text-xs text-text-muted">No positions committed yet.</p>
+              <p className="text-[11px] text-text-muted mt-1">
+                Use the <Link to="/decision" className="text-accent hover:underline">Capital Allocation</Link> screen to commit a position from a thesis.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl overflow-hidden" style={cardStyle}>
+              <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-x-4 px-4 py-2 text-[10px] uppercase tracking-wider text-text-muted"
+                style={{ borderBottom: '1px solid rgba(216,208,196,0.6)', background: 'rgba(236,230,220,0.7)' }}>
+                <span>Thesis</span>
+                <span className="text-right">Type</span>
+                <span className="text-right">Account</span>
+                <span className="text-right">Action</span>
+                <span className="text-right">Current</span>
+                <span className="text-right">Target</span>
+              </div>
+              {Object.values(positionsRecord).map((pos) => {
+                const thesis = thesesRecord[pos.linkedThesisId]
+                return (
+                  <div
+                    key={pos.id}
+                    className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-x-4 px-4 py-2.5 transition-colors items-center"
+                    style={{ borderBottom: '1px solid rgba(216,208,196,0.4)' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(236,230,220,0.6)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <div className="min-w-0">
+                      <Link
+                        to={`/decision/${pos.linkedThesisId}`}
+                        className="text-xs font-medium text-text-primary hover:text-accent transition-colors truncate block"
+                      >
+                        {thesis?.name ?? pos.linkedThesisId}
+                      </Link>
+                      <p className="text-[10px] text-text-muted mt-0.5 truncate italic">
+                        {thesis?.type} · {thesis?.primaryMispricedVariable}
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-text-secondary text-right">{pos.type}</span>
+                    <span className="text-[11px] text-text-muted text-right">{pos.account === 'PrologisConcentrated' ? 'PLD Acct' : pos.account}</span>
+                    <span className={`text-[11px] font-medium text-right ${
+                      pos.currentAction === 'Exit' || pos.currentAction === 'CoverShort' ? 'text-danger' :
+                      pos.currentAction === 'Start' || pos.currentAction === 'Add' || pos.currentAction === 'InitiateShort' ? 'text-success' :
+                      pos.currentAction === 'Trim' ? 'text-warning' :
+                      'text-text-secondary'
+                    }`}>{pos.currentAction}</span>
+                    <span className="text-xs font-mono font-bold text-text-primary text-right">
+                      {(pos.currentSizePct * 100).toFixed(1)}%
+                    </span>
+                    <span className="text-[11px] font-mono text-text-muted text-right">
+                      {(pos.targetSizePct * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                )
+              })}
+              <div className="px-4 py-2 flex justify-between items-center" style={{ borderTop: '1px solid rgba(216,208,196,0.6)' }}>
+                <span className="text-[10px] text-text-muted">
+                  {Object.keys(positionsRecord).length} position{Object.keys(positionsRecord).length !== 1 ? 's' : ''}
+                </span>
+                <span className="text-[11px] font-mono text-text-secondary">
+                  Total: {(Object.values(positionsRecord).reduce((s, p) => s + p.currentSizePct, 0) * 100).toFixed(1)}% invested
+                </span>
+              </div>
+            </div>
+          )}
+        </section>
+      </ErrorBoundary>
 
       {/* Stats row */}
       <div className="grid grid-cols-4 gap-3">
@@ -291,7 +377,7 @@ export const PortfolioScreen: React.FC = () => {
           { label: 'High Corr Pairs', value: sig ? sig.highCorrelationPairs.filter(p => p.correlationScore >= 0.60).length : '—', color: 'text-warning' },
           { label: 'Divers. Score', value: sig ? `${sig.diversificationQualityScore}/10` : '—', color: 'text-success' },
         ].map(({ label, value, color }) => (
-          <div key={label} className="bg-surface border border-border rounded-xl px-4 py-3 text-center">
+          <div key={label} style={{ ...cardStyle, padding: '12px 16px', textAlign: 'center' }}>
             <p className="text-[10px] uppercase tracking-widest text-text-muted mb-1">{label}</p>
             <p className={`text-2xl font-bold ${color}`}>{value}</p>
           </div>
@@ -308,17 +394,20 @@ export const PortfolioScreen: React.FC = () => {
               </h2>
               <div className="space-y-2">
                 {sig.macroDriverExposures.slice(0, 7).map((e) => (
-                  <div key={e.driver} className="flex items-center gap-3 bg-surface border border-border rounded-lg px-3 py-2">
+                  <div key={e.driver} className="flex items-center gap-3 rounded-lg px-3 py-2" style={cardStyle}>
                     <span className={`text-[10px] font-bold uppercase tracking-wider w-20 flex-shrink-0 ${DRIVER_TEXT[e.classification]}`}>
                       {e.classification.slice(0, 4).toUpperCase()}
                     </span>
                     <span className="text-xs text-text-secondary w-32 flex-shrink-0">
                       {DRIVER_LABEL[e.driver] ?? e.driver}
                     </span>
-                    <div className="flex-1 h-1.5 bg-[#2a2a2a] rounded-full overflow-hidden">
+                    <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(216,208,196,0.8)' }}>
                       <div
-                        className={`h-full rounded-full ${DRIVER_COLORS[e.classification]}`}
-                        style={{ width: `${Math.min(e.weightedExposurePct * 300, 100)}%` }}
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.min(e.weightedExposurePct * 300, 100)}%`,
+                          background: DRIVER_COLORS[e.classification],
+                        }}
                       />
                     </div>
                     <span className="text-[11px] font-mono text-text-muted w-10 text-right">
@@ -345,15 +434,18 @@ export const PortfolioScreen: React.FC = () => {
                   const fillPct = Math.abs(f.netScore) / max * 100
                   const positive = f.netScore >= 0
                   return (
-                    <div key={f.factor} className="bg-surface border border-border rounded-xl p-3">
+                    <div key={f.factor} style={{ ...cardStyle, padding: 12 }}>
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-[10px] text-text-muted">{FACTOR_LABELS[f.factor]}</span>
                         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${CLASSIFICATION_DOT[f.classification]}`} />
                       </div>
-                      <div className="h-1.5 bg-[#2a2a2a] rounded-full overflow-hidden mb-1">
+                      <div className="h-1.5 rounded-full overflow-hidden mb-1" style={{ background: 'rgba(216,208,196,0.8)' }}>
                         <div
-                          className={`h-full rounded-full ${positive ? 'bg-accent/70' : 'bg-text-muted/50'}`}
-                          style={{ width: `${fillPct}%` }}
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${fillPct}%`,
+                            background: positive ? 'rgba(154,122,80,0.65)' : 'rgba(168,168,160,0.45)',
+                          }}
                         />
                       </div>
                       <p className={`text-xs font-bold font-mono ${Math.abs(f.netScore) > 2.5 ? 'text-warning' : 'text-text-secondary'}`}>
@@ -378,10 +470,15 @@ export const PortfolioScreen: React.FC = () => {
                     <button
                       key={s}
                       onClick={() => setPairSort(s)}
-                      className={`px-2.5 py-1 text-[10px] rounded border transition-colors
-                        ${pairSort === s
-                          ? 'border-accent/50 text-text-primary bg-accent/10'
-                          : 'border-border text-text-muted hover:border-[#3a3a3a]'}`}
+                      className="px-2.5 py-1 text-[10px] rounded border transition-colors"
+                      style={pairSort === s ? {
+                        borderColor: 'rgba(154,122,80,0.5)',
+                        color: '#1A1410',
+                        background: 'rgba(154,122,80,0.10)',
+                      } : {
+                        borderColor: '#D8D0C4',
+                        color: '#A8A098',
+                      }}
                     >
                       {s === 'score' ? 'By Score' : 'By Level'}
                     </button>
@@ -395,7 +492,8 @@ export const PortfolioScreen: React.FC = () => {
                 <div className="space-y-1.5">
                   {visiblePairs.map((pair) => (
                     <div key={`${pair.thesisIdA}-${pair.thesisIdB}`}
-                      className="bg-surface border border-border rounded-lg px-4 py-2.5 flex items-center gap-4">
+                      className="rounded-lg px-4 py-2.5 flex items-center gap-4"
+                      style={cardStyle}>
                       <div className="flex-1 min-w-0">
                         <p className="text-xs text-text-secondary truncate">
                           <span className="text-text-primary">{thesisNameById[pair.thesisIdA] ?? '?'}</span>
@@ -415,11 +513,16 @@ export const PortfolioScreen: React.FC = () => {
                           {pair.classification.replace(/([A-Z])/g, ' $1').trim()}
                         </span>
                         {pair.correlationScore >= 0.60 && (
-                          <span className={`text-[10px] border rounded px-1.5 py-0.5 ${
-                            pair.intentional
-                              ? 'text-text-muted border-border'
-                              : 'text-warning border-orange-800 bg-orange-950/20'
-                          }`}>
+                          <span className="text-[10px] rounded px-1.5 py-0.5"
+                            style={pair.intentional ? {
+                              color: '#A8A098',
+                              border: '1px solid #D8D0C4',
+                            } : {
+                              color: '#7A4A10',
+                              border: '1px solid rgba(122,74,16,0.35)',
+                              background: 'rgba(122,74,16,0.08)',
+                            }}
+                          >
                             {pair.intentional ? 'Intentional' : 'Unclassified'}
                           </span>
                         )}
@@ -445,7 +548,7 @@ export const PortfolioScreen: React.FC = () => {
               <h2 className="text-[10px] uppercase tracking-widest text-text-muted mb-3">
                 Trigger Dependency Network
               </h2>
-              <div className="bg-surface border border-border rounded-xl p-4">
+              <div className="p-4" style={cardStyle}>
                 <div className="flex items-start gap-4">
                   <div className="flex-1">
                     <TriggerNetwork
@@ -459,7 +562,7 @@ export const PortfolioScreen: React.FC = () => {
                       <span className="text-text-muted">Structural dependency</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-0.5 border-t border-dashed border-[#555]" />
+                      <div className="w-8 h-0.5 border-t border-dashed border-border" />
                       <span className="text-text-muted">Significant dependency</span>
                     </div>
                     <div className="mt-3 space-y-1">
@@ -486,8 +589,7 @@ export const PortfolioScreen: React.FC = () => {
               </h2>
               <div className="grid grid-cols-5 gap-2">
                 {sig.stressTestResults.map((st) => (
-                  <div key={st.scenario}
-                    className={`border rounded-xl p-3 ${STRESS_COLOR(st.expectedPortfolioImpact)}`}>
+                  <div key={st.scenario} style={{ ...STRESS_STYLE(st.expectedPortfolioImpact), padding: 12 }}>
                     <p className="text-[10px] text-text-muted leading-snug mb-2">{st.scenario}</p>
                     <p className={`text-xl font-bold font-mono ${STRESS_TEXT(st.expectedPortfolioImpact)}`}>
                       {st.expectedPortfolioImpact >= 0 ? '+' : ''}
@@ -510,13 +612,14 @@ export const PortfolioScreen: React.FC = () => {
               <h2 className="text-[10px] uppercase tracking-widest text-text-muted mb-3">
                 Diversification Quality
               </h2>
-              <div className="bg-surface border border-border rounded-xl p-5 flex items-start gap-6">
+              <div className="flex items-start gap-6 p-5" style={cardStyle}>
                 <div className="text-center flex-shrink-0">
                   <p className="text-5xl font-bold text-text-primary">
                     {sig.diversificationQualityScore.toFixed(1)}
                   </p>
                   <p className="text-[10px] text-text-muted mt-1">out of 10</p>
-                  <div className="mt-2 w-20 h-1.5 bg-[#2a2a2a] rounded-full overflow-hidden mx-auto">
+                  <div className="mt-2 w-20 h-1.5 rounded-full overflow-hidden mx-auto"
+                    style={{ background: 'rgba(216,208,196,0.8)' }}>
                     <div
                       className={`h-full rounded-full ${
                         sig.diversificationQualityScore >= 7 ? 'bg-success' :
@@ -534,7 +637,7 @@ export const PortfolioScreen: React.FC = () => {
           </ErrorBoundary>
         </>
       ) : (
-        <div className="border border-dashed border-border rounded-xl p-8 text-center">
+        <div className="rounded-xl p-8 text-center" style={{ border: '1.5px dashed #D8D0C4' }}>
           <p className="text-sm text-text-secondary mb-2">No macro signature computed</p>
           <p className="text-xs text-text-muted">
             {activeTheses.length === 0
@@ -551,7 +654,7 @@ export const PortfolioScreen: React.FC = () => {
 
           {killRecords.length > 0 && (
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="bg-surface border border-border rounded-xl p-4">
+              <div style={{ ...cardStyle, padding: 16 }}>
                 <p className="text-[10px] uppercase tracking-widest text-text-muted mb-3">By Type</p>
                 <div className="space-y-2">
                   {([1, 2, 3, 4, 5] as KillType[]).map((t) => {
@@ -560,8 +663,8 @@ export const PortfolioScreen: React.FC = () => {
                     return (
                       <div key={t} className="flex items-center gap-2">
                         <span className={`text-[11px] font-mono w-4 ${KILL_TYPE_COLORS[t]}`}>{t}</span>
-                        <div className="flex-1 h-1.5 bg-[#2a2a2a] rounded-full overflow-hidden">
-                          <div className="h-full bg-danger/50 rounded-full" style={{ width: `${pct * 100}%` }} />
+                        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(216,208,196,0.8)' }}>
+                          <div className="h-full rounded-full bg-danger/50" style={{ width: `${pct * 100}%` }} />
                         </div>
                         <span className="text-[10px] text-text-muted w-4 text-right">{count}</span>
                         <span className="text-[10px] text-text-muted w-32 truncate">{KILL_TYPE_LABELS[t]}</span>
@@ -570,7 +673,7 @@ export const PortfolioScreen: React.FC = () => {
                   })}
                 </div>
               </div>
-              <div className="bg-surface border border-border rounded-xl p-4">
+              <div style={{ ...cardStyle, padding: 16 }}>
                 <p className="text-[10px] uppercase tracking-widest text-text-muted mb-3">By Pathway</p>
                 <div className="space-y-2">
                   {(['A', 'B', 'C', 'D'] as KillTriggerPathway[]).map((p) => {
@@ -579,7 +682,7 @@ export const PortfolioScreen: React.FC = () => {
                     return (
                       <div key={p} className="flex items-center gap-2">
                         <span className="text-[11px] font-mono text-text-muted w-4">{p}</span>
-                        <div className="flex-1 h-1.5 bg-[#2a2a2a] rounded-full overflow-hidden">
+                        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(216,208,196,0.8)' }}>
                           <div className="h-full bg-warning/50 rounded-full" style={{ width: `${pct * 100}%` }} />
                         </div>
                         <span className="text-[10px] text-text-muted w-4 text-right">{count}</span>
@@ -593,7 +696,7 @@ export const PortfolioScreen: React.FC = () => {
           )}
 
           {killRecords.length === 0 ? (
-            <div className="border border-dashed border-border rounded-xl p-6">
+            <div className="rounded-xl p-6" style={{ border: '1.5px dashed #D8D0C4' }}>
               <EmptyState
                 title="No kills recorded"
                 description="When a thesis is killed, the structured record and lessons appear here."
@@ -602,14 +705,14 @@ export const PortfolioScreen: React.FC = () => {
           ) : (
             <div className="space-y-2">
               {killRecords.map((r) => (
-                <div key={r.id} className="bg-surface border border-border rounded-xl px-4 py-3">
+                <div key={r.id} className="rounded-xl px-4 py-3" style={cardStyle}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className={`text-[11px] font-semibold ${KILL_TYPE_COLORS[r.killType]}`}>
                           {r.killType}. {KILL_TYPE_LABELS[r.killType]}
                         </span>
-                        <span className="text-[10px] border border-border rounded px-1.5 py-0.5 text-text-muted">
+                        <span className="text-[10px] rounded px-1.5 py-0.5 text-text-muted" style={{ border: '1px solid #D8D0C4' }}>
                           {PATHWAY_LABELS[r.triggerPathway]}
                         </span>
                       </div>
@@ -621,7 +724,7 @@ export const PortfolioScreen: React.FC = () => {
                     </span>
                   </div>
                   {r.lessonLearned && (
-                    <div className="mt-2 pt-2 border-t border-border/50">
+                    <div className="mt-2 pt-2" style={{ borderTop: '1px solid rgba(216,208,196,0.5)' }}>
                       <p className="text-[10px] text-text-muted uppercase tracking-wider mb-0.5">Lesson</p>
                       <p className="text-[11px] text-text-secondary leading-relaxed">{r.lessonLearned}</p>
                     </div>
@@ -629,7 +732,7 @@ export const PortfolioScreen: React.FC = () => {
                   {r.learningRoutes.length > 0 && (
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {r.learningRoutes.map((lr, i) => (
-                        <span key={i} className="text-[10px] border border-border rounded px-1.5 py-0.5 text-text-muted">
+                        <span key={i} className="text-[10px] rounded px-1.5 py-0.5 text-text-muted" style={{ border: '1px solid #D8D0C4' }}>
                           {lr.type}
                         </span>
                       ))}

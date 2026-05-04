@@ -16,7 +16,7 @@ import { ReassessmentModal } from '../components/ui/ReassessmentModal'
 import { KillModal } from '../components/ui/KillModal'
 import { THESIS_TYPE_LABELS, MISPRICED_VARIABLE_LABELS } from '../constants'
 import { formatDate, formatHorizon, formatRelativeTime } from '../utils/formatting'
-import { LifecycleStage, Thesis, Signal, KillRecord } from '../types'
+import { LifecycleStage, Thesis, Signal, KillRecord, ThesisLens } from '../types'
 import { LIFECYCLE_ORDER, canAdvanceTo } from '../utils/thesisHelpers'
 import { computeRegimeCompatibility, COMPATIBILITY_LABELS, COMPATIBILITY_COLORS } from '../api/macroRegime'
 import { generateScenarios } from '../api/scenarios'
@@ -32,11 +32,11 @@ const VARIANT_STRENGTH_LABELS: Record<string, string> = {
   BroadlyAgreesWithConsensus:     'Broadly Agrees With Consensus',
 }
 
-const VARIANT_STRENGTH_STYLES: Record<string, string> = {
-  ClearConsensusStrongVariant:    'text-success border-green-800 bg-green-950',
-  MixedConsensusModerateVariant:  'text-warning border-orange-800 bg-orange-950',
-  UnclearConsensusWeakVariant:    'text-text-secondary border-border bg-surface',
-  BroadlyAgreesWithConsensus:     'text-text-muted border-border bg-surface',
+const VARIANT_STRENGTH_STYLES: Record<string, React.CSSProperties> = {
+  ClearConsensusStrongVariant:    { color: '#2E6E4A', background: 'rgba(46,110,74,0.10)', border: '1px solid rgba(46,110,74,0.30)' },
+  MixedConsensusModerateVariant:  { color: '#7A4A10', background: 'rgba(122,74,16,0.10)', border: '1px solid rgba(122,74,16,0.30)' },
+  UnclearConsensusWeakVariant:    { color: '#56504A', background: 'rgba(216,208,196,0.5)', border: '1px solid #D8D0C4' },
+  BroadlyAgreesWithConsensus:     { color: '#A8A098', background: 'rgba(216,208,196,0.3)', border: '1px solid #D8D0C4' },
 }
 
 const DRIFT_STYLES: Record<string, string> = {
@@ -53,10 +53,19 @@ const Section: React.FC<{
   children: React.ReactNode
   accent?: boolean
 }> = ({ title, children, accent }) => (
-  <section className={`border rounded-xl p-4 space-y-3
-    ${accent ? 'border-accent/15 bg-[rgba(255,107,107,0.03)]' : 'border-border bg-surface'}`}>
+  <section
+    className="rounded-xl p-4 space-y-3"
+    style={accent ? {
+      background: 'rgba(154,122,80,0.06)',
+      border: '1px solid rgba(154,122,80,0.18)',
+    } : {
+      background: 'rgba(248,244,238,0.85)',
+      border: '1px solid rgba(216,208,196,0.7)',
+      boxShadow: '0 1px 4px rgba(60,40,10,0.05)',
+    }}
+  >
     <h2 className={`text-[10px] font-bold uppercase tracking-widest
-      ${accent ? 'text-accent/70' : 'text-text-muted'}`}>
+      ${accent ? 'text-accent/80' : 'text-text-muted'}`}>
       {title}
     </h2>
     {children}
@@ -102,7 +111,7 @@ const LifecyclePanel: React.FC<{ thesis: Thesis }> = ({ thesis }) => {
           <button
             onClick={() => setShowAdvance((v) => !v)}
             className="text-[10px] text-text-muted hover:text-text-secondary border border-border
-              hover:border-[#3a3a3a] rounded px-2 py-0.5 transition-colors"
+              hover:border-accent/40 rounded px-2 py-0.5 transition-colors"
           >
             Advance ▾
           </button>
@@ -112,16 +121,23 @@ const LifecyclePanel: React.FC<{ thesis: Thesis }> = ({ thesis }) => {
                 className="fixed inset-0 z-10"
                 onClick={() => setShowAdvance(false)}
               />
-              <div className="absolute left-0 top-full mt-1 z-20 w-64 bg-surface-2 border border-border
-                rounded-xl shadow-xl p-3 space-y-2">
+              <div
+                className="absolute left-0 top-full mt-1 z-20 w-64 rounded-xl shadow-xl p-3 space-y-2"
+                style={{
+                  background: 'rgba(242,236,226,0.97)',
+                  border: '1px solid #D8D0C4',
+                  boxShadow: '0 8px 30px rgba(60,40,10,0.15)',
+                }}
+              >
                 <input
                   autoFocus
                   type="text"
                   placeholder="Reason (optional)"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs
-                    text-text-primary placeholder:text-text-muted focus:outline-none focus:border-accent/40"
+                  className="w-full rounded-lg px-2.5 py-1.5 text-xs
+                    text-text-primary placeholder:text-text-muted focus:outline-none"
+                  style={{ background: 'rgba(216,208,196,0.4)', border: '1px solid #D8D0C4' }}
                 />
                 <div className="space-y-1">
                   {advanceable.map((stage) => (
@@ -129,7 +145,9 @@ const LifecyclePanel: React.FC<{ thesis: Thesis }> = ({ thesis }) => {
                       key={stage}
                       onClick={() => handleAdvance(stage)}
                       className="w-full text-left px-2.5 py-1.5 text-xs text-text-secondary
-                        hover:text-text-primary hover:bg-[#222] rounded-lg transition-colors"
+                        hover:text-text-primary rounded-lg transition-colors"
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(216,208,196,0.5)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
                       → {stage}
                     </button>
@@ -236,6 +254,13 @@ const SCENARIO_ORDER = ['ThesisConfirmed', 'ContestedPath', 'ThesisBroken'] as c
 
 const PRESSURE_TEST_PLUS: LifecycleStage[] = ['PressureTest', 'Actionable', 'Watch', 'Live']
 
+const LENS_CYCLE: ThesisLens[] = ['Standalone', 'PrologisAware', 'CompareVsPrologis']
+const LENS_LABELS: Record<ThesisLens, string> = {
+  Standalone:        'Standalone',
+  PrologisAware:     'Prologis-Aware',
+  CompareVsPrologis: 'vs Prologis',
+}
+
 export const ThesisScreen: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -247,6 +272,8 @@ export const ThesisScreen: React.FC = () => {
   const [showSignalForm, setShowSignalForm] = useState(false)
   const [showReassessment, setShowReassessment] = useState(false)
   const [showKill, setShowKill] = useState(false)
+  const [editingField, setEditingField] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState('')
 
   const thesis = useThesisStore((s) => (id ? s.theses[id] : undefined))
   const removeThesis = useThesisStore((s) => s.removeThesis)
@@ -324,6 +351,41 @@ export const ThesisScreen: React.FC = () => {
           action={{ label: '← Back to Desk', onClick: () => navigate('/') }}
         />
       </div>
+    )
+  }
+
+  const cycleLens = () => {
+    const next = LENS_CYCLE[(LENS_CYCLE.indexOf(thesis.lens) + 1) % LENS_CYCLE.length]
+    updateThesis(thesis.id, { lens: next })
+  }
+
+  const saveEdit = (field: string) => {
+    updateThesis(thesis.id, { [field]: editDraft.trim() } as Partial<Thesis>)
+    setEditingField(null)
+  }
+
+  const inlineText = (field: string, value: string, className = '', rows = 3) => {
+    if (editingField === field) {
+      return (
+        <textarea
+          autoFocus
+          value={editDraft}
+          onChange={(e) => setEditDraft(e.target.value)}
+          onBlur={() => saveEdit(field)}
+          onKeyDown={(e) => { if (e.key === 'Escape') setEditingField(null) }}
+          rows={rows}
+          className={`w-full bg-transparent focus:outline-none resize-none leading-relaxed ${className}`}
+          style={{ borderBottom: '1px solid rgba(154,122,80,0.4)' }}
+        />
+      )
+    }
+    return (
+      <p
+        onClick={() => { setEditingField(field); setEditDraft(value) }}
+        className={`cursor-text hover:bg-black/5 rounded px-1 -mx-1 transition-colors ${className}`}
+      >
+        {value ? value : <span className="text-text-muted italic text-xs">Click to edit…</span>}
+      </p>
     )
   }
 
@@ -407,9 +469,37 @@ export const ThesisScreen: React.FC = () => {
             <div className="flex items-center gap-2 flex-wrap mb-2">
               <LifecyclePanel thesis={thesis} />
               <Badge label={THESIS_TYPE_LABELS[thesis.type] ?? thesis.type} variant="muted" />
-              <Badge label={thesis.lens} variant="muted" />
+              <button
+                onClick={cycleLens}
+                className="text-[10px] text-text-muted border border-border hover:border-accent/40
+                  hover:text-text-secondary rounded px-2 py-0.5 transition-colors"
+                title="Click to change lens"
+              >
+                {LENS_LABELS[thesis.lens] ?? thesis.lens}
+              </button>
             </div>
-            <h1 className="text-xl font-bold text-text-primary leading-tight">{thesis.name}</h1>
+            {editingField === 'name' ? (
+              <input
+                autoFocus
+                type="text"
+                value={editDraft}
+                onChange={(e) => setEditDraft(e.target.value)}
+                onBlur={() => saveEdit('name')}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveEdit('name')
+                  if (e.key === 'Escape') setEditingField(null)
+                }}
+                className="text-xl font-bold text-text-primary bg-transparent focus:outline-none w-full leading-tight"
+                style={{ borderBottom: '1px solid rgba(154,122,80,0.4)' }}
+              />
+            ) : (
+              <h1
+                onClick={() => { setEditingField('name'); setEditDraft(thesis.name) }}
+                className="text-xl font-bold text-text-primary leading-tight cursor-text hover:bg-black/5 rounded px-1 -mx-1 transition-colors"
+              >
+                {thesis.name}
+              </h1>
+            )}
             <p className="text-xs text-text-muted mt-1">
               {formatDate(thesis.createdAt)} · {formatHorizon(thesis.timeHorizon)} horizon
             </p>
@@ -437,14 +527,14 @@ export const ThesisScreen: React.FC = () => {
               <button
                 onClick={() => setDrawerOpen(true)}
                 className="px-3 py-1.5 text-xs text-text-secondary border border-border
-                  hover:border-[#3a3a3a] hover:text-text-primary rounded-lg transition-colors"
+                  hover:border-accent/40 hover:text-text-primary rounded-lg transition-colors"
               >
                 Detail
               </button>
               <button
                 onClick={handleDelete}
                 className="px-3 py-1.5 text-xs text-danger/70 border border-border
-                  hover:border-red-900 hover:text-danger rounded-lg transition-colors"
+                  hover:border-danger/40 hover:text-danger rounded-lg transition-colors"
               >
                 Delete
               </button>
@@ -453,59 +543,47 @@ export const ThesisScreen: React.FC = () => {
         </div>
 
         {/* ── Thesis Statement ── */}
-        {thesis.statement && (
-          <Section title="Thesis Statement" accent>
-            <p className="text-sm text-text-primary leading-relaxed font-medium">
-              {thesis.statement}
-            </p>
-          </Section>
-        )}
+        <Section title="Thesis Statement" accent>
+          {inlineText('statement', thesis.statement, 'text-sm text-text-primary font-medium', 3)}
+        </Section>
 
         {/* ── Why Now + Transmission Path ── */}
-        {(thesis.whyNow || thesis.transmissionPath) && (
-          <div className="grid grid-cols-2 gap-3">
-            {thesis.whyNow && (
-              <Section title="Why Now">
-                <p className="text-xs text-text-secondary leading-relaxed">{thesis.whyNow}</p>
-              </Section>
-            )}
-            {thesis.transmissionPath && (
-              <Section title="Transmission Path" accent>
-                <p className="text-xs text-text-secondary leading-relaxed">{thesis.transmissionPath}</p>
-              </Section>
-            )}
-          </div>
-        )}
+        <div className="grid grid-cols-2 gap-3">
+          <Section title="Why Now">
+            {inlineText('whyNow', thesis.whyNow, 'text-xs text-text-secondary', 3)}
+          </Section>
+          <Section title="Transmission Path" accent>
+            {inlineText('transmissionPath', thesis.transmissionPath, 'text-xs text-text-secondary', 4)}
+          </Section>
+        </div>
 
         {/* ── Variant Perception ── */}
-        {(thesis.consensusView || thesis.variantView) && (
-          <Section title="Variant Perception">
-            <div
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[10px] font-semibold
-                ${VARIANT_STRENGTH_STYLES[thesis.variantPerceptionStrength] ?? 'text-text-muted border-border bg-surface'}`}
-            >
-              {VARIANT_STRENGTH_LABELS[thesis.variantPerceptionStrength] ?? thesis.variantPerceptionStrength}
-            </div>
+        <Section title="Variant Perception">
+          <div
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold"
+            style={VARIANT_STRENGTH_STYLES[thesis.variantPerceptionStrength] ?? { color: '#A8A098' }}
+          >
+            {VARIANT_STRENGTH_LABELS[thesis.variantPerceptionStrength] ?? thesis.variantPerceptionStrength}
+          </div>
 
-            <div className="grid grid-cols-2 gap-4 mt-1">
-              <div>
-                <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1.5">Consensus</p>
-                <p className="text-xs text-text-secondary leading-relaxed">{thesis.consensusView || '—'}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-accent uppercase tracking-wider mb-1.5">Variant</p>
-                <p className="text-xs text-text-primary leading-relaxed">{thesis.variantView || '—'}</p>
-              </div>
+          <div className="grid grid-cols-2 gap-4 mt-1">
+            <div>
+              <p className="text-[10px] text-text-muted uppercase tracking-wider mb-1.5">Consensus</p>
+              {inlineText('consensusView', thesis.consensusView, 'text-xs text-text-secondary', 2)}
             </div>
+            <div>
+              <p className="text-[10px] text-accent uppercase tracking-wider mb-1.5">Variant</p>
+              {inlineText('variantView', thesis.variantView, 'text-xs text-text-primary', 2)}
+            </div>
+          </div>
 
-            <div className="pt-2 border-t border-border/60 flex items-center gap-2">
-              <span className="text-[10px] text-text-muted">Primary mispriced variable:</span>
-              <span className="text-[10px] text-accent font-semibold">
-                {MISPRICED_VARIABLE_LABELS[thesis.primaryMispricedVariable] ?? thesis.primaryMispricedVariable}
-              </span>
-            </div>
-          </Section>
-        )}
+          <div className="pt-2 flex items-center gap-2" style={{ borderTop: '1px solid rgba(216,208,196,0.6)' }}>
+            <span className="text-[10px] text-text-muted">Primary mispriced variable:</span>
+            <span className="text-[10px] text-accent font-semibold">
+              {MISPRICED_VARIABLE_LABELS[thesis.primaryMispricedVariable] ?? thesis.primaryMispricedVariable}
+            </span>
+          </div>
+        </Section>
 
         {/* ── Assumptions & Disconfirmers ── */}
         {(thesis.keyAssumptions.length > 0 || thesis.disconfirmers.length > 0) && (
@@ -574,7 +652,7 @@ export const ThesisScreen: React.FC = () => {
             <button
               onClick={() => setMacroModalOpen(true)}
               className="text-[10px] text-text-muted hover:text-text-secondary border border-border
-                hover:border-[#3a3a3a] rounded px-2 py-0.5 transition-colors"
+                hover:border-accent/40 rounded px-2 py-0.5 transition-colors"
             >
               Edit Regime
             </button>
@@ -587,7 +665,10 @@ export const ThesisScreen: React.FC = () => {
             {scenarios.length > 0 && (
               <>
                 {totalProbPct !== 100 && (
-                  <div className="px-3 py-2 bg-orange-950/40 border border-orange-800/40 rounded-lg mb-3">
+                  <div className="px-3 py-2 rounded-lg mb-3" style={{
+                    background: 'rgba(122,74,16,0.10)',
+                    border: '1px solid rgba(122,74,16,0.30)',
+                  }}>
                     <p className="text-[10px] text-warning">
                       ⚠ Probabilities sum to {totalProbPct}% — must equal 100%
                     </p>
@@ -615,7 +696,7 @@ export const ThesisScreen: React.FC = () => {
                 <button
                   onClick={handleGenerateScenarios}
                   disabled={generatingScenarios}
-                  className="px-3 py-1.5 text-xs font-medium text-text-primary bg-accent/90 hover:bg-accent
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-accent/90 hover:bg-accent
                     disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                 >
                   {generatingScenarios ? 'Generating…' : scenarios.length > 0 ? 'Regenerate' : 'Generate Scenarios'}
@@ -640,7 +721,7 @@ export const ThesisScreen: React.FC = () => {
                 <button
                   onClick={handleGenerateExpertSynthesis}
                   disabled={generatingExpert}
-                  className="px-3 py-1.5 text-xs font-medium text-text-primary bg-accent/90 hover:bg-accent
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-accent/90 hover:bg-accent
                     disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                 >
                   {generatingExpert ? 'Running…' : synthesis ? 'Re-run Synthesis' : 'Run Expert Synthesis'}
@@ -667,16 +748,19 @@ export const ThesisScreen: React.FC = () => {
         <Section title="Signal Evidence">
           {/* Reassessment banner */}
           {reassessmentCheck?.shouldTrigger && (
-            <div className="flex items-center justify-between bg-orange-950/30 border border-orange-800/40
-              rounded-lg px-3 py-2 mb-2">
+            <div className="flex items-center justify-between rounded-lg px-3 py-2 mb-2" style={{
+              background: 'rgba(122,74,16,0.10)',
+              border: '1px solid rgba(122,74,16,0.30)',
+            }}>
               <div>
                 <p className="text-[11px] text-warning font-medium">Reassessment Due</p>
                 <p className="text-[10px] text-text-muted">{reassessmentCheck.reason}</p>
               </div>
               <button
                 onClick={() => setShowReassessment(true)}
-                className="px-3 py-1 text-[11px] text-warning border border-orange-800 rounded-lg
-                  hover:bg-orange-950/40 transition-colors flex-shrink-0"
+                className="px-3 py-1 text-[11px] text-warning rounded-lg
+                  hover:bg-warning/10 transition-colors flex-shrink-0"
+                style={{ border: '1px solid rgba(122,74,16,0.40)' }}
               >
                 Run Reassessment
               </button>
@@ -718,7 +802,7 @@ export const ThesisScreen: React.FC = () => {
               </span>
               <button
                 onClick={() => setShowSignalForm(true)}
-                className="px-3 py-1.5 text-xs font-medium text-text-primary bg-accent/90 hover:bg-accent
+                className="px-3 py-1.5 text-xs font-medium text-white bg-accent/90 hover:bg-accent
                   rounded-lg transition-colors"
               >
                 + Add Signal
@@ -731,8 +815,8 @@ export const ThesisScreen: React.FC = () => {
         <div className="flex items-center gap-3 justify-between pt-1">
           <button
             onClick={() => setShowKill(true)}
-            className="px-4 py-2 text-xs font-medium text-danger/80 border border-red-900/50
-              hover:border-red-700 hover:text-danger hover:bg-red-950/20 rounded-xl transition-colors"
+            className="px-4 py-2 text-xs font-medium text-danger/80 border border-danger/30
+              hover:border-danger/60 hover:text-danger hover:bg-danger/5 rounded-xl transition-colors"
           >
             Kill Thesis
           </button>

@@ -1,6 +1,7 @@
 import { v4 as uuid } from 'uuid'
 import { callInvestmentAPI, SYSTEM_IDENTITY } from './anthropic'
 import { Thesis, ThesisType, LifecycleStage, MispricedVariable, VariantPerceptionStrength, Trigger } from '../types'
+import type { ThesisRecommendation } from '../types/paperTrack'
 
 export interface CanvasSection {
   id: string
@@ -37,6 +38,7 @@ type ThesisCore = {
   disconfirmers: string[]
   beneficiaries: string[]
   losers: string[]
+  recommendations: ThesisRecommendation[]
   triggers: Trigger[]
 }
 
@@ -115,6 +117,15 @@ Return ONLY valid JSON — no preamble, no explanation, no markdown. CRITICAL: U
   "disconfirmers": ["disconfirmer 1 (max 20 words)", "disconfirmer 2", "disconfirmer 3", "disconfirmer 4"],
   "beneficiaries": ["company or sector (max 20 words)", "beneficiary 2", "beneficiary 3", "beneficiary 4"],
   "losers": ["loser 1 (max 20 words)", "loser 2", "loser 3", "loser 4"],
+  "recommendations": [
+    {
+      "ticker": "TICKER",
+      "companyName": "Full Company Name",
+      "direction": "Long | Short",
+      "description": "one sentence why (max 20 words)",
+      "convictionRank": 1
+    }
+  ],
   "triggers": [
     {
       "type": "Valuation | FundamentalEvidence | CatalystEvent | MarketStructure | Management | PolicyRegulatory | IndustryStructure",
@@ -126,7 +137,7 @@ Return ONLY valid JSON — no preamble, no explanation, no markdown. CRITICAL: U
   ]
 }
 
-CONCISENESS RULES: keyAssumptions max 4 items. disconfirmers max 4 items. beneficiaries max 4 items. losers max 4 items. triggers max 3 items. Each array item max 20 words. statement, whyNow, transmissionPath, consensusView, variantView each max 60 words.`
+CONCISENESS RULES: keyAssumptions max 4 items. disconfirmers max 4 items. beneficiaries max 4 items. losers max 4 items. recommendations max 6 items (mix longs from beneficiaries and shorts from losers, ranked by conviction). triggers max 3 items. Each array item max 20 words. statement, whyNow, transmissionPath, consensusView, variantView each max 60 words. For recommendations, use real US ticker symbols where possible; if no public ticker exists, note the closest proxy.`
 
   const core = await callInvestmentAPI<ThesisCore>(NORMALIZE_SYSTEM, prompt, true, 4000)
 

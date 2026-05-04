@@ -71,6 +71,13 @@ export interface MemoProgress {
   total: number
 }
 
+export interface UnderwritingMemoResult {
+  memo: UnderwritingMemo
+  researchView: ResearchView
+  scenarios: Scenario[]
+  synthesis: ExpertSynthesisResult
+}
+
 export const generateUnderwritingMemo = async (
   thesis: Thesis,
   regime: MacroRegime,
@@ -81,7 +88,7 @@ export const generateUnderwritingMemo = async (
     existingScenarios?: Scenario[]
     onProgress?: (p: MemoProgress) => void
   } = {},
-): Promise<UnderwritingMemo> => {
+): Promise<UnderwritingMemoResult> => {
   const notify = (step: string, done: number, total: number) =>
     opts.onProgress?.({ step, done, total })
 
@@ -245,9 +252,14 @@ Return JSON: { "content": "recommended action with rationale (1-2 sentences)", "
   ]
 
   return {
-    thesisId: thesis.id,
-    sections: thesisSections,
-    status: 'complete',
-    generatedAt: new Date(),
+    memo: {
+      thesisId: thesis.id,
+      sections: thesisSections,
+      status: 'complete',
+      generatedAt: new Date(),
+    },
+    researchView,
+    scenarios,
+    synthesis,
   }
 }

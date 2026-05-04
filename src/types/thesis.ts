@@ -107,6 +107,7 @@ export interface Thesis {
   disconfirmers: string[]
   beneficiaries: string[]
   losers: string[]
+  recommendations?: import('./paperTrack').ThesisRecommendation[]
 
   triggers: Trigger[]
 

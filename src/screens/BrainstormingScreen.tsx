@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { generateCanvas, normalizeCanvasToThesis, ThesisCanvas } from '../api/brainstorming'
 import { useThesisStore } from '../store'
@@ -9,18 +9,41 @@ import { THESIS_TYPE_LABELS } from '../constants'
 
 type Phase = 'idle' | 'generating' | 'canvas' | 'normalizing' | 'done' | 'error'
 
-const QUALITY_STYLES = {
-  Strong:   'text-success bg-green-950 border-green-800',
-  Moderate: 'text-warning bg-orange-950 border-orange-800',
-  Weak:     'text-danger bg-red-950 border-red-900',
+const QUALITY_STYLES: Record<string, React.CSSProperties> = {
+  Strong:   { color: '#2E6E4A', background: 'rgba(46,110,74,0.10)', border: '1px solid rgba(46,110,74,0.30)' },
+  Moderate: { color: '#7A4A10', background: 'rgba(122,74,16,0.10)', border: '1px solid rgba(122,74,16,0.30)' },
+  Weak:     { color: '#A83030', background: 'rgba(168,48,48,0.10)', border: '1px solid rgba(168,48,48,0.30)' },
 }
 
-const SPARK_EXAMPLES = [
+const SPARK_POOL = [
   'Reshoring of semiconductor manufacturing to the US',
   'AI energy demand creating a power infrastructure supercycle',
   'The Japanese yield curve control regime is breaking down',
   'Consumer private label acceleration is permanently re-rating branded CPG',
+  'European defense spending ramp is a decade-long capital cycle',
+  'GLP-1 drugs are structurally impacting food, retail, and healthcare',
+  'US commercial real estate refinancing wall creates distressed opportunity',
+  'Onshoring of critical minerals supply chain benefits domestic miners',
+  'China stimulus is underpriced by Western investors',
+  'Private credit is crowding out banks in middle-market lending',
+  'Nuclear energy renaissance driven by AI data center power demand',
+  'Aging demographics in Japan create structural insurance tailwinds',
+  'Dollar weakening cycle benefits emerging market debt',
+  'Retail media networks are structurally taking share from traditional ad budgets',
+  'Copper scarcity thesis as electrification accelerates',
+  'Water infrastructure spend is a multi-decade underinvestment opportunity',
+  'Nearshoring to Mexico benefits industrial REITs and logistics',
+  'LNG export capacity creates a new US energy export regime',
+  'Small modular reactors reach commercialization inflection',
+  'De-dollarization creates demand for gold as reserve asset',
 ]
+
+function pickFour(pool: string[], exclude: string[]): string[] {
+  const available = pool.filter(s => !exclude.includes(s))
+  const source = available.length >= 4 ? available : pool
+  const shuffled = [...source].sort(() => Math.random() - 0.5)
+  return shuffled.slice(0, 4)
+}
 
 export const BrainstormingScreen: React.FC = () => {
   const navigate = useNavigate()
@@ -32,6 +55,11 @@ export const BrainstormingScreen: React.FC = () => {
   const [canvas, setCanvas] = useState<ThesisCanvas | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [expandAll, setExpandAll] = useState(false)
+  const [visibleSparks, setVisibleSparks] = useState(() => SPARK_POOL.slice(0, 4))
+
+  const refreshSparks = useCallback(() => {
+    setVisibleSparks(prev => pickFour(SPARK_POOL, prev))
+  }, [])
 
   const handleGenerate = async () => {
     if (!spark.trim()) return
@@ -78,7 +106,7 @@ export const BrainstormingScreen: React.FC = () => {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-xl font-bold text-text-primary">Brainstorming</h1>
-        <p className="text-xs text-text-muted mt-1">Spark → Canvas → Thesis</p>
+        <p className="text-xs text-text-muted mt-1 italic">Spark → Canvas → Thesis</p>
       </div>
 
       {/* Spark Input */}
@@ -96,23 +124,45 @@ export const BrainstormingScreen: React.FC = () => {
           disabled={phase === 'generating' || phase === 'normalizing'}
           placeholder="Type a theme, question, company, or market dislocation…"
           rows={3}
-          className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-sm text-text-primary
-            placeholder:text-text-muted focus:outline-none focus:border-accent/40 resize-none
+          className="w-full text-sm text-text-primary
+            placeholder:text-text-muted focus:outline-none resize-none
             transition-colors disabled:opacity-50 leading-relaxed"
+          style={{
+            background: 'rgba(248,244,238,0.85)',
+            border: '1px solid #D8D0C4',
+            borderRadius: 10,
+            padding: '12px 16px',
+          }}
+          onFocus={e => (e.currentTarget.style.borderColor = 'rgba(154,122,80,0.5)')}
+          onBlur={e => (e.currentTarget.style.borderColor = '#D8D0C4')}
         />
 
         {phase === 'idle' && !spark && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {SPARK_EXAMPLES.map((ex) => (
-              <button
-                key={ex}
-                onClick={() => { setSpark(ex); textareaRef.current?.focus() }}
-                className="text-[11px] text-text-muted hover:text-text-secondary border border-border
-                  hover:border-[#3a3a3a] rounded-lg px-2.5 py-1 transition-colors"
-              >
-                {ex}
-              </button>
-            ))}
+          <div className="mt-2">
+            <div className="flex flex-wrap gap-2">
+              {visibleSparks.map((ex) => (
+                <button
+                  key={ex}
+                  onClick={() => { setSpark(ex); textareaRef.current?.focus() }}
+                  className="text-[11px] text-text-muted hover:text-text-secondary border border-border
+                    hover:border-accent/40 rounded-lg px-2.5 py-1 transition-colors"
+                >
+                  {ex}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={refreshSparks}
+              className="mt-2 flex items-center gap-1 text-[11px] text-text-muted
+                hover:text-accent transition-colors"
+            >
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}
+                style={{ width: 11, height: 11 }}>
+                <path d="M13.5 8A5.5 5.5 0 1 1 8 2.5c1.8 0 3.4.87 4.4 2.2"/>
+                <path d="M13.5 2.5v2.5H11"/>
+              </svg>
+              New ideas
+            </button>
           </div>
         )}
 
@@ -123,7 +173,7 @@ export const BrainstormingScreen: React.FC = () => {
               <button
                 onClick={handleReset}
                 className="px-3 py-1.5 text-xs text-text-secondary hover:text-text-primary
-                  border border-border hover:border-[#3a3a3a] rounded-lg transition-colors"
+                  border border-border hover:border-accent/40 rounded-lg transition-colors"
               >
                 Reset
               </button>
@@ -144,9 +194,12 @@ export const BrainstormingScreen: React.FC = () => {
 
       {/* Error */}
       {error && (
-        <div className="mb-6 px-4 py-3 bg-red-950 border border-red-800 rounded-xl">
+        <div className="mb-6 px-4 py-3 rounded-xl" style={{
+          background: 'rgba(168,48,48,0.08)',
+          border: '1px solid rgba(168,48,48,0.25)',
+        }}>
           <p className="text-xs font-semibold text-danger mb-1">Error</p>
-          <p className="text-xs text-red-300 font-mono break-all">{error}</p>
+          <p className="text-xs text-danger/70 font-mono break-all">{error}</p>
         </div>
       )}
 
@@ -156,8 +209,12 @@ export const BrainstormingScreen: React.FC = () => {
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="h-10 bg-surface border border-border rounded-xl animate-pulse"
-              style={{ opacity: 1 - i * 0.12 }}
+              className="h-10 rounded-xl animate-pulse"
+              style={{
+                background: 'rgba(216,208,196,0.5)',
+                border: '1px solid rgba(216,208,196,0.7)',
+                opacity: 1 - i * 0.12,
+              }}
             />
           ))}
           <p className="text-xs text-text-muted text-center pt-2">
@@ -170,7 +227,7 @@ export const BrainstormingScreen: React.FC = () => {
       {canvas && (phase === 'canvas' || phase === 'normalizing') && (
         <div className="space-y-4">
           {/* Canvas header */}
-          <div className="flex items-start justify-between gap-4 pb-4 border-b border-border">
+          <div className="flex items-start justify-between gap-4 pb-4" style={{ borderBottom: '1px solid #D8D0C4' }}>
             <div>
               <h2 className="text-base font-bold text-text-primary">{canvas.bestThesisName}</h2>
               <div className="flex items-center gap-2 mt-2">
@@ -181,8 +238,8 @@ export const BrainstormingScreen: React.FC = () => {
                 <Badge label={canvas.recommendedStage} variant="muted" />
                 <Badge label={`${canvas.timeHorizonMonths}mo`} variant="muted" />
                 <span
-                  className={`text-[10px] font-semibold px-2 py-0.5 rounded border
-                    ${QUALITY_STYLES[canvas.qualityAssessment]}`}
+                  className="text-[10px] font-semibold px-2 py-0.5 rounded"
+                  style={QUALITY_STYLES[canvas.qualityAssessment]}
                 >
                   {canvas.qualityAssessment}
                 </span>
@@ -196,7 +253,7 @@ export const BrainstormingScreen: React.FC = () => {
             <button
               onClick={() => setExpandAll((v) => !v)}
               className="flex-shrink-0 text-[11px] text-text-muted hover:text-text-secondary
-                border border-border hover:border-[#3a3a3a] rounded-lg px-2.5 py-1.5 transition-colors"
+                border border-border hover:border-accent/40 rounded-lg px-2.5 py-1.5 transition-colors"
             >
               {expandAll ? 'Collapse all' : 'Expand all'}
             </button>
@@ -214,7 +271,7 @@ export const BrainstormingScreen: React.FC = () => {
           </div>
 
           {/* Advance to Thesis */}
-          <div className="pt-4 border-t border-border">
+          <div className="pt-4" style={{ borderTop: '1px solid #D8D0C4' }}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold text-text-primary">Advance to Thesis</p>
@@ -225,9 +282,9 @@ export const BrainstormingScreen: React.FC = () => {
               <button
                 onClick={handleAdvanceToThesis}
                 disabled={phase === 'normalizing'}
-                className="flex items-center gap-2 px-5 py-2.5 bg-accent hover:bg-accent/90
-                  text-white text-sm font-semibold rounded-xl transition-colors
-                  disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-accent/20"
+                className="flex items-center gap-2 px-5 py-2.5 text-white text-sm font-semibold rounded-xl transition-colors
+                  disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: '#9A7A50', boxShadow: '0 4px 12px rgba(154,122,80,0.25)' }}
               >
                 {phase === 'normalizing' && <LoadingSpinner size="sm" />}
                 {phase === 'normalizing' ? 'Building thesis…' : 'Advance to Thesis →'}

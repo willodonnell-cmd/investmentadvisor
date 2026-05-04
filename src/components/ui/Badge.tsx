@@ -1,23 +1,24 @@
 import React from 'react'
 import { LifecycleStage, VerdictType } from '../../types'
 
-const STAGE_STYLES: Record<LifecycleStage, string> = {
-  Signal: 'bg-[#2a2a2a] text-text-secondary border border-border',
-  Hypothesis: 'bg-blue-950 text-blue-300 border border-blue-800',
-  PressureTest: 'bg-yellow-950 text-yellow-300 border border-yellow-800',
-  Actionable: 'bg-orange-950 text-warning border border-orange-800',
-  Watch: 'bg-teal-950 text-teal-300 border border-teal-800',
-  Live: 'bg-green-950 text-success border border-green-800',
-  PlayedOut: 'bg-[#1a1a1a] text-text-muted border border-border',
-  Broken: 'bg-red-950 text-danger border border-red-900',
-  Archived: 'bg-[#1a1a1a] text-text-muted border border-border',
+// Warm, print-quality stage styles
+const STAGE_STYLES: Record<LifecycleStage, { bg: string; color: string; border: string }> = {
+  Signal:       { bg: '#EEE9E2', color: '#4A4440', border: '#C8C0B4' },
+  Hypothesis:   { bg: '#EDE6F4', color: '#582880', border: '#C4A8DC' },
+  PressureTest: { bg: '#E8EDF6', color: '#2A4A80', border: '#A0B4D8' },
+  Actionable:   { bg: '#F5EBD8', color: '#7A4A10', border: '#C8A06A' },
+  Watch:        { bg: '#E6F2F0', color: '#1A6060', border: '#7ABAB4' },
+  Live:         { bg: '#EBF4EE', color: '#2E6E4A', border: '#A8CCBA' },
+  PlayedOut:    { bg: '#EEE9E2', color: '#A8A098', border: '#C8C0B4' },
+  Broken:       { bg: '#F4E8E8', color: '#A83030', border: '#D4A0A0' },
+  Archived:     { bg: '#EEE9E2', color: '#A8A098', border: '#C8C0B4' },
 }
 
-const VERDICT_STYLES: Record<VerdictType, string> = {
-  Endorse: 'bg-green-950 text-success border border-green-800',
-  Challenge: 'bg-yellow-950 text-yellow-300 border border-yellow-800',
-  Reject: 'bg-red-950 text-danger border border-red-900',
-  Reframe: 'bg-purple-950 text-purple-300 border border-purple-800',
+const VERDICT_STYLES: Record<VerdictType, { bg: string; color: string; border: string }> = {
+  Endorse:   { bg: '#EBF4EE', color: '#2E6E4A', border: '#A8CCBA' },
+  Challenge: { bg: '#F5EBD8', color: '#7A4A10', border: '#C8A06A' },
+  Reject:    { bg: '#F4E8E8', color: '#A83030', border: '#D4A0A0' },
+  Reframe:   { bg: '#EDE6F4', color: '#582880', border: '#C4A8DC' },
 }
 
 interface LifecycleBadgeProps {
@@ -26,9 +27,25 @@ interface LifecycleBadgeProps {
 }
 
 export const LifecycleBadge: React.FC<LifecycleBadgeProps> = ({ stage, size = 'md' }) => {
-  const sizeClass = size === 'sm' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'
+  const s = STAGE_STYLES[stage]
+  const px = size === 'sm' ? '6px' : '8px'
+  const py = size === 'sm' ? '1px' : '2px'
+  const fontSize = size === 'sm' ? 9 : 9.5
+
   return (
-    <span className={`inline-flex items-center rounded font-medium ${sizeClass} ${STAGE_STYLES[stage]}`}>
+    <span style={{
+      display: 'inline-flex', alignItems: 'center',
+      padding: `${py} ${px}`,
+      borderRadius: 4,
+      fontSize,
+      fontWeight: 700,
+      letterSpacing: '0.06em',
+      textTransform: 'uppercase',
+      background: s.bg,
+      color: s.color,
+      border: `1px solid ${s.border}`,
+      whiteSpace: 'nowrap',
+    }}>
       {stage}
     </span>
   )
@@ -40,9 +57,25 @@ interface VerdictBadgeProps {
 }
 
 export const VerdictBadge: React.FC<VerdictBadgeProps> = ({ verdict, size = 'md' }) => {
-  const sizeClass = size === 'sm' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'
+  const s = VERDICT_STYLES[verdict]
+  const px = size === 'sm' ? '6px' : '8px'
+  const py = size === 'sm' ? '1px' : '2px'
+  const fontSize = size === 'sm' ? 9 : 9.5
+
   return (
-    <span className={`inline-flex items-center rounded font-medium ${sizeClass} ${VERDICT_STYLES[verdict]}`}>
+    <span style={{
+      display: 'inline-flex', alignItems: 'center',
+      padding: `${py} ${px}`,
+      borderRadius: 4,
+      fontSize,
+      fontWeight: 700,
+      letterSpacing: '0.06em',
+      textTransform: 'uppercase',
+      background: s.bg,
+      color: s.color,
+      border: `1px solid ${s.border}`,
+      whiteSpace: 'nowrap',
+    }}>
       {verdict}
     </span>
   )
@@ -55,14 +88,30 @@ interface GenericBadgeProps {
 }
 
 export const Badge: React.FC<GenericBadgeProps> = ({ label, variant = 'default', size = 'md' }) => {
-  const variantClass = {
-    default: 'bg-[#2a2a2a] text-text-secondary border border-border',
-    accent: 'bg-accent/10 text-accent border border-accent/30',
-    muted: 'bg-[#1a1a1a] text-text-muted border border-border',
+  const styles = {
+    default: { bg: '#EEE9E2', color: '#56504A', border: '#D8D0C4' },
+    accent:  { bg: 'rgba(154,122,80,0.10)', color: '#7A5A38', border: 'rgba(154,122,80,0.25)' },
+    muted:   { bg: '#F0EAE0', color: '#A8A098', border: '#D8D0C4' },
   }[variant]
-  const sizeClass = size === 'sm' ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'
+
+  const px = size === 'sm' ? '6px' : '8px'
+  const py = size === 'sm' ? '1px' : '2px'
+  const fontSize = size === 'sm' ? 9 : 9.5
+
   return (
-    <span className={`inline-flex items-center rounded font-medium ${sizeClass} ${variantClass}`}>
+    <span style={{
+      display: 'inline-flex', alignItems: 'center',
+      padding: `${py} ${px}`,
+      borderRadius: 4,
+      fontSize,
+      fontWeight: 700,
+      letterSpacing: '0.06em',
+      textTransform: 'uppercase',
+      background: styles.bg,
+      color: styles.color,
+      border: `1px solid ${styles.border}`,
+      whiteSpace: 'nowrap',
+    }}>
       {label}
     </span>
   )

@@ -87,6 +87,8 @@ export const UnderwritingMemoScreen: React.FC = () => {
     [scenariosRecord, id]
   )
 
+  const upsertMany = useScenarioStore((s) => s.upsertMany)
+
   const setMemo = useSynthesisStore((s) => s.setMemo)
   const setResearchView = useSynthesisStore((s) => s.setResearchView)
   const setSynthesis = useSynthesisStore((s) => s.setSynthesis)
@@ -117,14 +119,17 @@ export const UnderwritingMemoScreen: React.FC = () => {
     setProgress({ step: 'Starting…', done: 0, total: 6 })
 
     try {
-      const result = await generateUnderwritingMemo(thesis, regime, thesis.lens, {
-        existingResearchView,
-        existingSynthesis,
-        existingScenarios: scenarios.length > 0 ? scenarios : undefined,
-        onProgress: (p) => setProgress(p),
-      })
-      setMemo(thesis.id, result)
-      // Persist any generated research view or synthesis from the memo run
+      const { memo: generated, researchView: rv, scenarios: sc, synthesis: syn } =
+        await generateUnderwritingMemo(thesis, regime, thesis.lens, {
+          existingResearchView,
+          existingSynthesis,
+          existingScenarios: scenarios.length > 0 ? scenarios : undefined,
+          onProgress: (p) => setProgress(p),
+        })
+      setMemo(thesis.id, generated)
+      setResearchView(thesis.id, rv)
+      setSynthesis(thesis.id, syn)
+      upsertMany(sc)
     } catch (e: any) {
       setError(e.message ?? 'Generation failed')
     } finally {

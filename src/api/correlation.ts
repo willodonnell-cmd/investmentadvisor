@@ -334,3 +334,36 @@ export function computeCorrelation(input: CorrelationInput): CorrelationResult {
 
   return { macroDriverExposures, factorProfile, correlatedPairs, triggerDependencies }
 }
+
+// ─── Per-thesis Prologis overlap ──────────────────────────────────────────
+
+export type PrologisOverlapLabel = 'High' | 'Medium' | 'Low' | 'Hedge'
+
+export function computePrologisOverlap(thesis: Thesis): {
+  score: number
+  label: PrologisOverlapLabel
+} {
+  const spec = THESIS_DRIVERS[thesis.type]
+  const thesisDrivers: MacroDriver[] = spec
+    ? spec.secondary ? [...spec.primary, spec.secondary] : [...spec.primary]
+    : []
+  const prologisDrivers: MacroDriver[] = [
+    ...PROLOGIS_DRIVERS.primary,
+    PROLOGIS_DRIVERS.secondary!,
+  ]
+
+  const macroScore = macroDriverSimilarity(thesisDrivers, prologisDrivers)
+  const factorScore = factorSimilarity(
+    THESIS_FACTORS[thesis.type] ?? {},
+    PROLOGIS_FACTORS,
+  )
+
+  const composite = macroScore * 0.5 + factorScore * 0.5
+  const label: PrologisOverlapLabel =
+    composite >= 0.50 ? 'High'
+    : composite >= 0.30 ? 'Medium'
+    : composite >= 0.10 ? 'Low'
+    : 'Hedge'
+
+  return { score: composite, label }
+}
