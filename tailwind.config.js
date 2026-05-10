@@ -4,65 +4,63 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans:  ['Inter', 'system-ui', 'sans-serif'],
-        serif: ['DM Serif Display', 'Georgia', 'serif'],
-        mono:  ['JetBrains Mono', 'Fira Code', 'monospace'],
+        sans: ['Geist', 'DM Sans', 'Helvetica Neue', 'sans-serif'],
+        mono: ['GeistMono', 'Fira Code', 'monospace'],
+      },
+      fontSize: {
+        'xs':   ['11px', { letterSpacing: '0.06em' }],
+        'sm':   ['13px', { lineHeight: '1.55' }],
+        'base': ['15px', { lineHeight: '1.55' }],
+        'lg':   ['18px', { lineHeight: '1.35' }],
+        'xl':   ['24px', { lineHeight: '1.15' }],
+        '2xl':  ['32px', { lineHeight: '1.15' }],
+        '3xl':  ['42px', { lineHeight: '1.15' }],
       },
       colors: {
-        // ── Canvas ─────────────────────────────────────
-        accent:       '#9A7A50',   // warm bronze — active states, brand
-        background:   '#EDE8DE',   // page canvas warm linen
-        surface:      '#FDFCF9',   // card surface — near white for contrast
-        'surface-2':  '#F8F4EF',   // secondary elevated panel
-        'surface-3':  '#F3EFE8',   // third tier
-        border:       '#D8D0C4',   // separator
+        // ── Page & surface ───────────────────────────────────
+        bg:              '#ede9e0',
+        surface:         '#f5f2eb',
+        'surface-2':     '#e8e4d8',
 
-        // ── Text — strong contrast on light surfaces ───
-        'text-primary':   '#18140E', // near black, warm
-        'text-secondary': '#3C3428', // clear dark brown
-        'text-muted':     '#706050', // readable mid-brown
-        'text-ghost':     '#A89878', // light labels only
+        // ── Text ─────────────────────────────────────────────
+        'text-primary':   '#1a1a1f',
+        'text-secondary': '#6b6860',
+        'text-muted':     '#a8a5a0',
 
-        // ── Stage colors ────────────────────────────────
-        'stage-live':   '#1E7042',
-        'stage-act':    '#8A4A08',
-        'stage-press':  '#2A4A90',
-        'stage-hyp':    '#5A2890',
-        'stage-watch':  '#1A6868',
-        'stage-sig':    '#504840',
+        // ── Borders ──────────────────────────────────────────
+        border:          'rgba(0,0,0,0.08)',
+        'border-strong': 'rgba(0,0,0,0.15)',
 
-        // Stage badge backgrounds
-        'live-bg':    '#E8F4EC',
-        'act-bg':     '#F5EBD8',
-        'press-bg':   '#E6EDF8',
-        'hyp-bg':     '#EDE6F6',
-        'watch-bg':   '#E4F0F0',
-        'sig-bg':     '#EEEAE4',
+        // ── Sidebar ──────────────────────────────────────────
+        sidebar:         '#1a1a1f',
 
-        // ── Semantic ────────────────────────────────────
-        success: '#1E7042',
-        warning: '#8A4A08',
-        danger:  '#A02828',
+        // ── Functional / stage ───────────────────────────────
+        live:            '#2d6a4f',
+        'live-bg':       '#e8f5ef',
+        actionable:      '#92400e',
+        'actionable-bg': '#fef3c7',
+        watch:           '#1e4d6b',
+        'watch-bg':      '#e0f0f8',
+        hypothesis:      '#4a1d6b',
+        'hypothesis-bg': '#f3e8ff',
+        pressure:        '#1e3a5f',
+        'pressure-bg':   '#e0eaf8',
+        signal:          '#4b5563',
+        'signal-bg':     '#f3f4f6',
+        danger:          '#b91c1c',
+        'danger-bg':     '#fef2f2',
 
-        // ── Macro regime ────────────────────────────────
-        'macro-green':  '#1E7042',
-        'macro-amber':  '#8A4A08',
-        'macro-red':    '#A02828',
-        'macro-neutral':'#A89878',
+        // ── Accent (identity mark only) ───────────────────────
+        accent: '#c4892a',
       },
-      borderColor: {
-        DEFAULT: '#D8D0C4',
+      borderRadius: {
+        card:   '12px',
+        btn:    '8px',
+        pill:   '4px',
       },
-      backgroundColor: {
-        DEFAULT: '#EDE8DE',
-      },
-      boxShadow: {
-        'card':       '0 1px 3px rgba(20,12,4,0.06), 0 4px 12px rgba(20,12,4,0.08), 0 0 0 1px rgba(20,12,4,0.05)',
-        'card-hover': '0 4px 16px rgba(20,12,4,0.12), 0 12px 32px rgba(20,12,4,0.10), 0 0 0 1px rgba(20,12,4,0.07)',
-        'shell':      '0 8px 40px rgba(20,12,4,0.18)',
-        'sidebar':    '4px 0 32px rgba(0,0,0,0.30)',
-        'modal':      '0 0 0 1px rgba(20,12,4,0.12), 0 8px 40px rgba(20,12,4,0.24)',
-        'nav-hover':  '0 2px 8px rgba(20,12,4,0.12)',
+      transitionDuration: {
+        fast: '120ms',
+        base: '200ms',
       },
     },
   },

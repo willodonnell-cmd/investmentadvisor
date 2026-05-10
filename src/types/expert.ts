@@ -1,12 +1,12 @@
 import type { MispricedVariable } from './thesis'
 
 export type ExpertVoiceId =
-  | 'Buffett' | 'Munger' | 'Fisher' | 'Smith'
-  | 'Soros' | 'Druckenmiller' | 'Marks'
-  | 'Burry' | 'Klarman' | 'Greenblatt'
-  | 'Miller' | 'Wood' | 'Ackman'
-  | 'Zell' | 'Chancellor'
-  | 'Asness' | 'Kahneman' | 'Damodaran'
+  | 'Buffett' | 'Munger' | 'Lynch'
+  | 'Soros' | 'Druckenmiller' | 'Simons'
+  | 'Klarman' | 'Marks' | 'Dalio'
+  | 'Tepper' | 'Robertson' | 'TudorJones'
+  | 'Icahn' | 'Zell' | 'Templeton'
+  | 'Schloss' | 'Greenblatt' | 'Ackman'
 
 export type VerdictType = 'Endorse' | 'Challenge' | 'Reject' | 'Reframe'
 

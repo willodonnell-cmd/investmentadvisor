@@ -5,6 +5,7 @@ import { useThesisStore } from '../store'
 import { CanvasSectionCard } from '../components/ui/CanvasSectionCard'
 import { LoadingSpinner } from '../components/shared/LoadingSpinner'
 import { Badge } from '../components/ui/Badge'
+import { BrainstormChat } from '../components/ui/BrainstormChat'
 import { THESIS_TYPE_LABELS } from '../constants'
 
 type Phase = 'idle' | 'generating' | 'canvas' | 'normalizing' | 'done' | 'error'
@@ -38,28 +39,37 @@ const SPARK_POOL = [
   'De-dollarization creates demand for gold as reserve asset',
 ]
 
-function pickFour(pool: string[], exclude: string[]): string[] {
-  const available = pool.filter(s => !exclude.includes(s))
-  const source = available.length >= 4 ? available : pool
-  const shuffled = [...source].sort(() => Math.random() - 0.5)
+function sparksOverlapThesis(spark: string, thesisNames: string[]): boolean {
+  const significant = (s: string) => s.toLowerCase().split(/\W+/).filter(w => w.length > 4)
+  const sparkWords = new Set(significant(spark))
+  return thesisNames.some(name => significant(name).some(w => sparkWords.has(w)))
+}
+
+function pickFour(pool: string[], exclude: string[], thesisNames: string[] = []): string[] {
+  const available = pool.filter(s => !exclude.includes(s) && !sparksOverlapThesis(s, thesisNames))
+  const source = available.length >= 4 ? available : pool.filter(s => !exclude.includes(s))
+  const shuffled = [...(source.length >= 4 ? source : pool)].sort(() => Math.random() - 0.5)
   return shuffled.slice(0, 4)
 }
 
 export const BrainstormingScreen: React.FC = () => {
   const navigate = useNavigate()
-  const { addThesis } = useThesisStore()
+  const { addThesis, theses } = useThesisStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const existingThesisNames = Object.values(theses).map(t => t.name)
 
   const [spark, setSpark] = useState('')
   const [phase, setPhase] = useState<Phase>('idle')
   const [canvas, setCanvas] = useState<ThesisCanvas | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [expandAll, setExpandAll] = useState(false)
-  const [visibleSparks, setVisibleSparks] = useState(() => SPARK_POOL.slice(0, 4))
+  const [visibleSparks, setVisibleSparks] = useState(() => pickFour(SPARK_POOL, [], existingThesisNames))
+  const [chatOpen, setChatOpen] = useState(false)
 
   const refreshSparks = useCallback(() => {
-    setVisibleSparks(prev => pickFour(SPARK_POOL, prev))
-  }, [])
+    setVisibleSparks(prev => pickFour(SPARK_POOL, prev, existingThesisNames))
+  }, [existingThesisNames])
 
   const handleGenerate = async () => {
     if (!spark.trim()) return
@@ -69,7 +79,7 @@ export const BrainstormingScreen: React.FC = () => {
     setExpandAll(false)
 
     try {
-      const result = await generateCanvas(spark.trim())
+      const result = await generateCanvas(spark.trim(), existingThesisNames)
       setCanvas(result)
       setPhase('canvas')
     } catch (err) {
@@ -104,9 +114,31 @@ export const BrainstormingScreen: React.FC = () => {
   return (
     <div className="min-h-full p-5 max-w-[800px]">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-text-primary">Brainstorming</h1>
-        <p className="text-xs text-text-muted mt-1 italic">Spark → Canvas → Thesis</p>
+      <div className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-text-primary">Brainstorming</h1>
+          <p className="text-xs text-text-muted mt-1 italic">Spark → Canvas → Thesis</p>
+        </div>
+        <button
+          onClick={() => setChatOpen(v => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg
+            border transition-colors"
+          style={{
+            color: chatOpen ? '#FDFCF9' : '#9A7A50',
+            borderColor: chatOpen ? 'transparent' : 'rgba(154,122,80,0.35)',
+            background: chatOpen
+              ? 'linear-gradient(135deg, #C8A060, #9A7A50)'
+              : 'rgba(154,122,80,0.06)',
+          }}
+        >
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5}
+            style={{ width: 11, height: 11 }}>
+            <path d="M14 9.5a5 5 0 01-5 5H4l-2 1.5V9.5a5 5 0 015-5h2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M14 2.5a3 3 0 00-3-3" strokeLinecap="round"/>
+            <circle cx="13" cy="3" r="2.5" fill="currentColor" stroke="none" opacity="0.5"/>
+          </svg>
+          {chatOpen ? 'Close chat' : 'Brainstorm with Claude'}
+        </button>
       </div>
 
       {/* Spark Input */}
@@ -293,6 +325,12 @@ export const BrainstormingScreen: React.FC = () => {
           </div>
         </div>
       )}
+      <BrainstormChat
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        currentSpark={spark}
+        existingThesisNames={existingThesisNames}
+      />
     </div>
   )
 }

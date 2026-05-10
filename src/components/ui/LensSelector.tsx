@@ -12,16 +12,12 @@ export const LensSelector: React.FC = () => {
   const { lens, setLens } = usePortfolioStore()
 
   return (
-    <div className="flex items-center gap-0.5 bg-surface rounded-md p-0.5 border border-border">
+    <div className="tab-group">
       {LENS_OPTIONS.map((option) => (
         <button
           key={option.value}
           onClick={() => setLens(option.value)}
-          className={`px-3 py-1.5 rounded text-xs font-medium transition-all duration-150 ${
-            lens === option.value
-              ? 'bg-surface-2 text-text-primary shadow-sm'
-              : 'text-text-secondary hover:text-text-primary'
-          }`}
+          className={`tab${lens === option.value ? ' active' : ''}`}
         >
           {option.label}
         </button>

@@ -50,8 +50,12 @@ const NORMALIZE_SYSTEM = `${SYSTEM_IDENTITY}
 
 Your current role: Convert a Thesis Discovery Canvas into a clean, structured Thesis object. Extract and normalize all fields precisely. Return ONLY valid JSON — no preamble, no explanation, no markdown code blocks.`
 
-export const generateCanvas = async (spark: string): Promise<ThesisCanvas> => {
-  const prompt = `Generate a 13-section Thesis Discovery Canvas for the following spark:
+export const generateCanvas = async (spark: string, existingThesisNames: string[] = []): Promise<ThesisCanvas> => {
+  const avoidBlock = existingThesisNames.length > 0
+    ? `\n\nEXISTING THESES — do not duplicate, re-use, or closely overlap with any of these:\n${existingThesisNames.map(n => `- ${n}`).join('\n')}\n`
+    : ''
+
+  const prompt = `Generate a 13-section Thesis Discovery Canvas for the following spark:${avoidBlock}
 
 SPARK: ${spark}
 
@@ -123,7 +127,8 @@ Return ONLY valid JSON — no preamble, no explanation, no markdown. CRITICAL: U
       "companyName": "Full Company Name",
       "direction": "Long | Short",
       "description": "one sentence why (max 20 words)",
-      "convictionRank": 1
+      "convictionRank": 1,
+      "usListed": true
     }
   ],
   "triggers": [
@@ -137,7 +142,14 @@ Return ONLY valid JSON — no preamble, no explanation, no markdown. CRITICAL: U
   ]
 }
 
-CONCISENESS RULES: keyAssumptions max 4 items. disconfirmers max 4 items. beneficiaries max 4 items. losers max 4 items. recommendations max 6 items (mix longs from beneficiaries and shorts from losers, ranked by conviction). triggers max 3 items. Each array item max 20 words. statement, whyNow, transmissionPath, consensusView, variantView each max 60 words. For recommendations, use real US ticker symbols where possible; if no public ticker exists, note the closest proxy.`
+CONCISENESS RULES: keyAssumptions max 4 items. disconfirmers max 4 items. beneficiaries max 4 items. losers max 4 items. recommendations max 6 items (mix longs from beneficiaries and shorts from losers, ranked by conviction). triggers max 3 items. Each array item max 20 words. statement, whyNow, transmissionPath, consensusView, variantView each max 60 words.
+
+TICKER RULES — CRITICAL: Never use dot-suffix foreign exchange codes (no .DE, .CO, .L, .HK, .PA, .AS, etc.). Use tickers accessible to a US investor in this priority order:
+1. NYSE/NASDAQ listed (e.g. BABA, HSBC, NVO) — set usListed: true
+2. US-listed ADR (e.g. DSDVY for DSV, HLAGF for Hapag-Lloyd) — set usListed: false
+3. OTC Pink Sheet (4-5 letter ticker, no dot) — set usListed: false
+4. US ETF proxy if no individual ticker accessible (e.g. IYT for US trucking, KRBN for carbon) — set usListed: true
+Never output a ticker that contains a period/dot. Every ticker must be tradeable from a US brokerage account.`
 
   const core = await callInvestmentAPI<ThesisCore>(NORMALIZE_SYSTEM, prompt, true, 4000)
 

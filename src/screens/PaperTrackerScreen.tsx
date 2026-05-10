@@ -109,7 +109,10 @@ function PositionRow({
         }}>
           {position.direction === 'Long' ? 'L' : 'S'}
         </span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: '#18140E', letterSpacing: '0.02em' }}>
+        <span
+          title={position.ticker.includes('.') ? 'International ticker — priced via Alpha Vantage' : undefined}
+          style={{ fontSize: 12, fontWeight: 700, color: '#18140E', letterSpacing: '0.02em' }}
+        >
           {position.ticker}
           {position.isUserOverride && (
             <span style={{ fontSize: 9, color: '#A89878', marginLeft: 3 }}>✎</span>
@@ -164,10 +167,12 @@ function PositionRow({
 // ─── Track Card ───────────────────────────────────────────────────────────────
 
 function TrackCard({ track }: { track: PaperTrack }) {
-  const { computeReturn, overrideTicker, refreshTrack } = usePaperTrackStore()
+  const { computeReturn, overrideTicker, refreshTrack, loadHistory } = usePaperTrackStore()
   const [window, setWindow] = useState<SimWindow>('created')
   const [overriding, setOverriding] = useState<PaperPosition | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [historyProgress, setHistoryProgress] = useState(0)
 
   const longs = track.positions.filter((p) => p.direction === 'Long')
   const shorts = track.positions.filter((p) => p.direction === 'Short')
@@ -196,6 +201,31 @@ function TrackCard({ track }: { track: PaperTrack }) {
     await refreshTrack(track.thesisId)
     setRefreshing(false)
   }
+
+  const handleLoadHistory = async () => {
+    setLoadingHistory(true)
+    setHistoryProgress(0)
+    const total = track.positions.length
+    // Tick progress every 13s per ticker (matches AV rate-limit sleep in store)
+    const interval = setInterval(() => {
+      setHistoryProgress((p) => Math.min(p + 1, total))
+    }, 13000)
+    try {
+      await loadHistory(track.thesisId)
+    } finally {
+      clearInterval(interval)
+      setHistoryProgress(total)
+      setLoadingHistory(false)
+    }
+  }
+
+  const staleDate = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10)
+  const missingHistory = track.positions.some(
+    (p) => !p.fetchError && (
+      p.closes.length === 0 ||
+      p.closes[p.closes.length - 1].date < staleDate
+    )
+  )
 
   const isPostMortem = track.status === 'PostMortem'
 
@@ -242,6 +272,7 @@ function TrackCard({ track }: { track: PaperTrack }) {
             </div>
             <p style={{ fontSize: 10, color: '#A89878' }}>
               Entered Watch {new Date(track.watchedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              {' · '}{Math.floor((Date.now() - new Date(track.watchedAt).getTime()) / 86_400_000)}d
               {isPostMortem && track.postMortemReason && ` · ${track.postMortemReason}`}
             </p>
           </div>
@@ -289,12 +320,29 @@ function TrackCard({ track }: { track: PaperTrack }) {
         </div>
 
         {/* No history warning */}
-        {track.positions.length > 0 && track.positions.every((p) => p.closes.length === 0 && !p.fetchError) && (
+        {missingHistory && (
           <div style={{
             padding: '8px 16px', fontSize: 11, color: '#7A4A10',
             background: 'rgba(122,74,16,0.06)', borderBottom: '1px solid rgba(122,74,16,0.12)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
           }}>
-            Historical candle data unavailable — simulation windows showing "—". Current prices are live. Refresh to retry.
+            <span>
+              {loadingHistory
+                ? `Loading ticker ${historyProgress + 1} of ${track.positions.length}… (~13s each)`
+                : 'Price history not loaded — 30d / 60d / 6m / 1y windows need this.'}
+            </span>
+            <button
+              onClick={handleLoadHistory}
+              disabled={loadingHistory}
+              style={{
+                padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(122,74,16,0.35)',
+                background: 'rgba(122,74,16,0.10)', color: '#7A4A10',
+                fontSize: 11, fontWeight: 600, cursor: loadingHistory ? 'default' : 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              {loadingHistory ? 'Loading…' : 'Load History'}
+            </button>
           </div>
         )}
 
@@ -383,15 +431,22 @@ export const PaperTrackerScreen: React.FC = () => {
     (t) => t.stage === 'Watch' || t.stage === 'Live' || t.stage === 'Broken' || t.stage === 'PlayedOut',
   )
 
-  // Auto-create tracks for Watch theses that don't have one yet
+  const { refreshTrack } = usePaperTrackStore()
+
+  // Auto-create tracks for Watch/Live theses that don't have one yet,
+  // and refresh current prices for existing tracks on mount
   useEffect(() => {
-    const watchOnly = Object.values(thesesRecord).filter((t) => t.stage === 'Watch')
-    watchOnly.forEach((t) => {
+    const tracked = Object.values(thesesRecord).filter(
+      (t) => t.stage === 'Watch' || t.stage === 'Live',
+    )
+    tracked.forEach((t) => {
       if (!tracks[t.id] && t.recommendations?.length) {
         createTrack(t)
+      } else if (tracks[t.id]) {
+        refreshTrack(t.id)
       }
     })
-  }, [thesesRecord])
+  }, [])
 
   const activeTracks = watchTheses
     .map((t) => tracks[t.id])
@@ -406,10 +461,10 @@ export const PaperTrackerScreen: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 style={{ fontFamily: 'DM Serif Display, serif', fontSize: 22, color: '#18140E', letterSpacing: '-0.015em' }}>
-            Paper Tracker
+            Performance Tracker
           </h1>
           <p style={{ fontSize: 12, color: '#706050', marginTop: 2 }}>
-            Simulated performance for Watch theses · prices via Finnhub
+            Simulated performance for Watch theses · US prices via Finnhub, international via Alpha Vantage
           </p>
         </div>
         <div style={{ fontSize: 11, color: '#A89878' }}>

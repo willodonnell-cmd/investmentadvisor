@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560">
+  <defs>
+    <!-- Sidebar: solid dark for left 2/3, then fades right -->
+    <linearGradient id="sidebarGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#1a1a1f"/>
+      <stop offset="50%"  stop-color="#1a1a1f"/>
+      <stop offset="66%"  stop-color="#222228"/>
+      <stop offset="100%" stop-color="#606068"/>
+    </linearGradient>
+    <!-- Content: subtle continuation of fade into parchment -->
+    <linearGradient id="contentGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"  stop-color="#b8b4ad"/>
+      <stop offset="9%"  stop-color="#ede9e0"/>
+      <stop offset="100%" stop-color="#ede9e0"/>
+    </linearGradient>
+    <!-- Card surface -->
+  </defs>
+
+  <!-- Content area background -->
+  <rect x="210" y="0" width="690" height="560" fill="url(#contentGrad)"/>
+
+  <!-- Sidebar -->
+  <rect x="0" y="0" width="210" height="560" fill="url(#sidebarGrad)"/>
+
+  <!-- Sidebar: identity header -->
+  <rect x="16" y="10" width="36" height="36" rx="8"
+        fill="url(#markGrad)"/>
+  <defs>
+    <radialGradient id="markGrad" cx="40%" cy="40%" r="60%">
+      <stop offset="0%"   stop-color="#d4a843"/>
+      <stop offset="45%"  stop-color="#c4892a"/>
+      <stop offset="100%" stop-color="#a86e1a"/>
+    </radialGradient>
+  </defs>
+  <text x="60" y="33" font-family="Geist, DM Sans, sans-serif" font-size="11"
+        font-weight="600" fill="#e8e6e0" letter-spacing="2">DOSSIER</text>
+
+  <!-- Active indicator bar -->
+  <rect x="0" y="80" width="3" height="24" rx="1.5" fill="#ffffff"/>
+
+  <!-- Nav items -->
+  <text x="28" y="97"  font-family="Geist, DM Sans, sans-serif" font-size="14" font-weight="500" fill="#ffffff">Desk</text>
+  <text x="28" y="134" font-family="Geist, DM Sans, sans-serif" font-size="14" font-weight="500" fill="rgba(232,230,224,0.45)">Brainstorm</text>
+  <text x="28" y="171" font-family="Geist, DM Sans, sans-serif" font-size="14" font-weight="500" fill="rgba(232,230,224,0.45)">Theses</text>
+
+  <!-- Section label -->
+  <text x="16" y="215" font-family="Geist, DM Sans, sans-serif" font-size="10"
+        font-weight="600" fill="#6b6860" letter-spacing="1.5">ANALYSIS</text>
+  <text x="28" y="247" font-family="Geist, DM Sans, sans-serif" font-size="14" font-weight="500" fill="rgba(232,230,224,0.45)">Compare</text>
+  <text x="28" y="284" font-family="Geist, DM Sans, sans-serif" font-size="14" font-weight="500" fill="rgba(232,230,224,0.45)">Decisions</text>
+  <text x="28" y="321" font-family="Geist, DM Sans, sans-serif" font-size="14" font-weight="500" fill="rgba(232,230,224,0.45)">Portfolio</text>
+
+  <!-- Topbar border -->
+  <line x1="210" y1="56" x2="900" y2="56" stroke="rgba(0,0,0,0.15)" stroke-width="1"/>
+
+  <!-- Tab switcher -->
+  <rect x="250" y="16" width="240" height="32" rx="8" fill="#f5f2eb" stroke="rgba(0,0,0,0.15)" stroke-width="1"/>
+  <rect x="253" y="19" width="72" height="26" rx="6" fill="#e8e4d8"/>
+  <text x="267" y="36" font-family="Geist, DM Sans, sans-serif" font-size="12" font-weight="600" fill="#1a1a1f">Standalone</text>
+  <text x="336" y="36" font-family="Geist, DM Sans, sans-serif" font-size="12" font-weight="500" fill="#6b6860">Prologis-Aware</text>
+  <text x="453" y="36" font-family="Geist, DM Sans, sans-serif" font-size="12" font-weight="500" fill="#6b6860">vs Prologis</text>
+
+  <!-- Content: section label -->
+  <text x="258" y="90" font-family="Geist, DM Sans, sans-serif" font-size="10"
+        font-weight="600" fill="#a8a5a0" letter-spacing="1.5">ACTIVE THESES</text>
+
+  <!-- Placeholder cards -->
+  <rect x="258" y="104" width="610" height="80" rx="12" fill="#f5f2eb" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+
+  <!-- Evidence dashboard -->
+  <text x="258" y="208" font-family="Geist, DM Sans, sans-serif" font-size="10"
+        font-weight="600" fill="#a8a5a0" letter-spacing="1.5">EVIDENCE DASHBOARD</text>
+  <rect x="258" y="220" width="610" height="120" rx="12" fill="#f5f2eb" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+  <!-- Table rows -->
+  <line x1="258" y1="254" x2="868" y2="254" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+  <text x="274" y="244" font-family="Geist, DM Sans, sans-serif" font-size="10" font-weight="600" fill="#a8a5a0" letter-spacing="1">THESIS</text>
+  <text x="274" y="272" font-family="Geist, DM Sans, sans-serif" font-size="12" fill="#1a1a1f">Grid Iron Supercycle</text>
+  <text x="274" y="308" font-family="Geist, DM Sans, sans-serif" font-size="12" fill="#1a1a1f">YCC Collapse Repatriation Wave</text>
+
+  <!-- Pipeline -->
+  <text x="258" y="368" font-family="Geist, DM Sans, sans-serif" font-size="10"
+        font-weight="600" fill="#a8a5a0" letter-spacing="1.5">THESIS PIPELINE</text>
+  <!-- Pipeline cards -->
+  <rect x="258" y="380" width="88" height="110" rx="10" fill="#f5f2eb" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+  <rect x="258" y="380" width="88" height="4"  rx="2" fill="#4b5563"/>
+  <rect x="356" y="380" width="88" height="110" rx="10" fill="#f5f2eb" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+  <rect x="356" y="380" width="88" height="4"  rx="2" fill="#4a1d6b"/>
+  <rect x="454" y="380" width="88" height="110" rx="10" fill="#f5f2eb" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+  <rect x="454" y="380" width="88" height="4"  rx="2" fill="#1e3a5f"/>
+  <rect x="552" y="380" width="88" height="110" rx="10" fill="#f5f2eb" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+  <rect x="552" y="380" width="88" height="4"  rx="2" fill="#92400e"/>
+  <rect x="650" y="380" width="88" height="110" rx="10" fill="#f5f2eb" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+  <rect x="650" y="380" width="88" height="4"  rx="2" fill="#1e4d6b"/>
+  <rect x="748" y="380" width="88" height="110" rx="10" fill="#f5f2eb" stroke="rgba(0,0,0,0.08)" stroke-width="1"/>
+  <rect x="748" y="380" width="88" height="4"  rx="2" fill="#2d6a4f"/>
+
+  <!-- Annotation: arrow showing fade zone -->
+  <line x1="140" y1="530" x2="260" y2="530" stroke="#c4892a" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <text x="100" y="548" font-family="Geist, DM Sans, sans-serif" font-size="10" fill="#c4892a">← fade zone →</text>
+  <line x1="140" y1="520" x2="140" y2="540" stroke="#c4892a" stroke-width="1.5"/>
+  <line x1="260" y1="520" x2="260" y2="540" stroke="#c4892a" stroke-width="1.5"/>
+</svg>

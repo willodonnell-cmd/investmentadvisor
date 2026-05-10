@@ -1,10 +1,9 @@
-export type SimWindow = '30d' | '60d' | '6m' | '1y' | 'created'
+export type SimWindow = '30d' | '60d' | '6m' | 'created'
 
 export const SIM_WINDOW_LABELS: Record<SimWindow, string> = {
   '30d':    '30 Days',
   '60d':    '60 Days',
   '6m':     '6 Months',
-  '1y':     '1 Year',
   'created': 'Since Created',
 }
 
@@ -12,7 +11,6 @@ export const SIM_WINDOW_DAYS: Partial<Record<SimWindow, number>> = {
   '30d': 30,
   '60d': 60,
   '6m':  180,
-  '1y':  365,
 }
 
 export interface PriceClose {
@@ -31,7 +29,7 @@ export interface PaperPosition {
   entryDate: string        // YYYY-MM-DD
   currentPrice: number
   lastUpdated: string      // ISO string
-  closes: PriceClose[]     // up to 1yr of daily closes for window simulation
+  closes: PriceClose[]     // up to 6 months of daily closes for window simulation
   isUserOverride: boolean
   fetchError: boolean
 }

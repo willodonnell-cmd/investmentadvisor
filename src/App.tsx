@@ -24,7 +24,7 @@ const App: React.FC = () => (
         <Route path="/decision" element={<ErrorBoundary label="Decision"><DecisionScreen /></ErrorBoundary>} />
         <Route path="/decision/:id" element={<ErrorBoundary label="Decision"><DecisionScreen /></ErrorBoundary>} />
         <Route path="/portfolio" element={<ErrorBoundary label="Portfolio"><PortfolioScreen /></ErrorBoundary>} />
-        <Route path="/paper" element={<ErrorBoundary label="Paper Tracker"><PaperTrackerScreen /></ErrorBoundary>} />
+        <Route path="/paper" element={<ErrorBoundary label="Performance Tracker"><PaperTrackerScreen /></ErrorBoundary>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

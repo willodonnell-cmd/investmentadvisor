@@ -13,24 +13,24 @@ type ClusterName =
   | 'ContrarianAndForensic' | 'GrowthAndDisruption' | 'RealAssetsAndCycles'
   | 'ValuationBridge'
 
-const SKEPTIC_CLUSTER: ExpertVoiceId[] = ['Munger', 'Kahneman', 'Asness']
+const SKEPTIC_CLUSTER: ExpertVoiceId[] = ['Munger', 'Marks', 'Icahn']
 
 // Per thesis type: [primary1, primary2, secondary]
 const DEFAULT_SELECTION: Record<ThesisType, [ExpertVoiceId, ExpertVoiceId, ExpertVoiceId]> = {
-  LongDurationCompounder:           ['Buffett',      'Smith',        'Munger'],
+  LongDurationCompounder:           ['Buffett',      'Lynch',        'Munger'],
   MacroRegimeShift:                 ['Soros',        'Druckenmiller','Marks'],
-  DeepContrarianMispricing:         ['Burry',        'Klarman',      'Munger'],
+  DeepContrarianMispricing:         ['Schloss',      'Klarman',      'Munger'],
   SpecialSituationsCatalyst:        ['Klarman',      'Greenblatt',   'Ackman'],
   CapitalAllocationQuality:         ['Buffett',      'Ackman',       'Munger'],
-  MarketStructureReflexivity:       ['Soros',        'Marks',        'Asness'],
-  TechnologyDisruption:             ['Wood',         'Miller',       'Kahneman'],
+  MarketStructureReflexivity:       ['Soros',        'Marks',        'Simons'],
+  TechnologyDisruption:             ['Simons',       'Lynch',        'Munger'],
   RegulatoryPolicy:                 ['Soros',        'Druckenmiller','Klarman'],
-  IndustryStructureConsumerBehavior:['Buffett',      'Fisher',       'Munger'],
-  CapitalCycle:                     ['Zell',         'Chancellor',   'Druckenmiller'],
-  OperationalTurnaround:            ['Burry',        'Greenblatt',   'Buffett'],
-  RealEstatePhysicalAssets:         ['Zell',         'Chancellor',   'Marks'],
+  IndustryStructureConsumerBehavior:['Buffett',      'Lynch',        'Munger'],
+  CapitalCycle:                     ['Zell',         'Templeton',    'Druckenmiller'],
+  OperationalTurnaround:            ['Tepper',       'Greenblatt',   'Buffett'],
+  RealEstatePhysicalAssets:         ['Zell',         'Templeton',    'Marks'],
   Geopolitical:                     ['Soros',        'Druckenmiller','Zell'],
-  ShortHedgeThesis:                 ['Burry',        'Klarman',      'Munger'],
+  ShortHedgeThesis:                 ['TudorJones',   'Klarman',      'Munger'],
   HouseholdAllocationDecision:      ['Buffett',      'Klarman',      'Zell'],
 }
 
@@ -60,7 +60,7 @@ export const selectPanel = (thesis: Thesis, lens: ThesisLens): PanelSelection =>
   // ── Rule G: Portfolio Hedge Panel Override ─────────────────────────────
   if (thesis.type === 'ShortHedgeThesis' && thesis.quadrant === 'TacticalPosition') {
     voiceSet.clear()
-    ;(['Klarman', 'Marks', 'Asness', 'Kahneman'] as ExpertVoiceId[]).forEach(v => voiceSet.add(v))
+    ;(['Klarman', 'Marks', 'Simons', 'Munger'] as ExpertVoiceId[]).forEach(v => voiceSet.add(v))
     rules.push('Rule G: Portfolio Hedge Panel Override — fixed panel applied')
     return { voices: [...voiceSet], rules }
   }
@@ -75,9 +75,9 @@ export const selectPanel = (thesis: Thesis, lens: ThesisLens): PanelSelection =>
   // ── Rule B: Mandatory Valuation Bridge ────────────────────────────────
   const needsValuation = STAGES_NEEDING_VALUATION.includes(thesis.stage)
   const isHedge = thesis.type === 'ShortHedgeThesis'
-  if (needsValuation && !isHedge && !voiceSet.has('Damodaran')) {
-    voiceSet.add('Damodaran')
-    rules.push('Rule B: Valuation Bridge — added Damodaran (stage ≥ PressureTest)')
+  if (needsValuation && !isHedge && !voiceSet.has('Greenblatt')) {
+    voiceSet.add('Greenblatt')
+    rules.push('Rule B: Valuation Bridge — added Greenblatt (stage ≥ PressureTest)')
   }
 
   // ── Rule C: Prologis Lens Trigger ─────────────────────────────────────
@@ -99,7 +99,11 @@ export const selectPanel = (thesis: Thesis, lens: ThesisLens): PanelSelection =>
 
   // ── Rule E: Short/Hedge Mandatory ────────────────────────────────────
   if (thesis.type === 'ShortHedgeThesis') {
-    const hasShortVoice = voiceSet.has('Greenblatt') || voiceSet.has('Klarman')
+    const hasShortVoice =
+      voiceSet.has('Greenblatt') ||
+      voiceSet.has('Klarman') ||
+      voiceSet.has('TudorJones') ||
+      voiceSet.has('Robertson')
     if (!hasShortVoice) {
       voiceSet.add('Klarman')
       rules.push('Rule E: Short/Hedge Mandatory — added Klarman')
@@ -107,12 +111,9 @@ export const selectPanel = (thesis: Thesis, lens: ThesisLens): PanelSelection =>
   }
 
   // ── Rule F: Real Asset Accounting ─────────────────────────────────────
-  if (
-    thesis.type === 'RealEstatePhysicalAssets' &&
-    !voiceSet.has('Burry')
-  ) {
-    voiceSet.add('Burry')
-    rules.push('Rule F: Real Asset Accounting — added Burry (accounting nuance in physical assets)')
+  if (thesis.type === 'RealEstatePhysicalAssets' && !voiceSet.has('Schloss')) {
+    voiceSet.add('Schloss')
+    rules.push('Rule F: Real Asset Accounting — added Schloss (asset-heavy balance sheet lens)')
   }
 
   // ── Step 5: Coverage Disclosure ───────────────────────────────────────

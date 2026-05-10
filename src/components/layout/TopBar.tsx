@@ -12,21 +12,14 @@ const REGIME_DOTS = [
   { key: 'policy'       as const, label: 'Policy'   },
 ]
 
-const REGIME_COLORS: Record<string, string> = {
-  Low: 'green', Normal: 'neutral', High: 'red',
-  Rising: 'amber', Falling: 'green',
-  Expansion: 'green', LateCycle: 'amber', Contraction: 'red', Recovery: 'amber',
-  Abundant: 'green', Tight: 'red',
-  RiskOn: 'green', Neutral: 'neutral', RiskOff: 'red', Bifurcated: 'amber',
-  Strong: 'red', Weak: 'green', Strengthening: 'amber', Weakening: 'amber',
-  Permissive: 'green', Restrictive: 'red', Activist: 'amber',
-}
-
-const PILL_STYLES: Record<string, { bg: string; color: string; dot: string }> = {
-  green:   { bg: 'rgba(30,112,66,0.10)',  color: '#1E7042', dot: '#1E7042' },
-  amber:   { bg: 'rgba(138,74,8,0.10)',   color: '#8A4A08', dot: '#8A4A08' },
-  red:     { bg: 'rgba(160,40,40,0.10)',  color: '#A02828', dot: '#A02828' },
-  neutral: { bg: 'transparent',           color: '#A89878', dot: '#A89878' },
+const REGIME_DOT_COLORS: Record<string, string> = {
+  Low: '#2d6a4f', Normal: '#a8a5a0', High: '#b91c1c',
+  Rising: '#92400e', Falling: '#2d6a4f',
+  Expansion: '#2d6a4f', LateCycle: '#92400e', Contraction: '#b91c1c', Recovery: '#92400e',
+  Abundant: '#2d6a4f', Tight: '#b91c1c',
+  RiskOn: '#2d6a4f', Neutral: '#a8a5a0', RiskOff: '#b91c1c', Bifurcated: '#92400e',
+  Strong: '#2d6a4f', Weak: '#b91c1c', Strengthening: '#92400e', Weakening: '#92400e',
+  Permissive: '#2d6a4f', Restrictive: '#1e3a5f', Activist: '#92400e',
 }
 
 const REGIME_LABELS: Record<string, string> = {
@@ -46,55 +39,45 @@ export const TopBar: React.FC = () => {
 
   return (
     <>
-      <header
-        style={{
-          height: 52,
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '0 24px',
-          background: 'rgba(253,252,249,0.94)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          boxShadow: '0 1px 0 rgba(20,12,4,0.08), 0 2px 12px rgba(20,12,4,0.05)',
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
+      <header style={{
+        height: 56,
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 40px',
+        background: 'transparent',
+        borderBottom: '1px solid rgba(0,0,0,0.15)',
+        position: 'relative',
+        zIndex: 1,
+      }}>
         <LensSelector />
 
         <button
           onClick={() => setMacroOpen(true)}
           style={{
-            display: 'flex', alignItems: 'center', gap: 10,
+            display: 'flex', alignItems: 'center', gap: 12,
             background: 'none', border: 'none', cursor: 'pointer', padding: 0,
           }}
           title="Edit macro regime"
         >
           <span style={{
-            fontSize: 9, fontWeight: 700, letterSpacing: '0.18em',
-            textTransform: 'uppercase', color: '#A89878',
+            fontSize: 11, fontWeight: 600, letterSpacing: '0.07em',
+            textTransform: 'uppercase', color: '#a8a5a0',
           }}>
             Macro Regime
           </span>
 
-          <div className="macro-panel">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {REGIME_DOTS.map(({ key, label }) => {
               const value = regime[key] as string
-              const colorKey = REGIME_COLORS[value] ?? 'neutral'
-              const style = PILL_STYLES[colorKey]
+              const dotColor = REGIME_DOT_COLORS[value] ?? '#a8a5a0'
               const displayLabel = REGIME_LABELS[value] ?? value
 
               return (
-                <div
-                  key={key}
-                  className="mpill"
-                  style={{ background: style.bg, color: style.color }}
-                  title={`${label}: ${value}`}
-                >
-                  <div className="mpill-dot" style={{ background: style.dot }} />
-                  {displayLabel}
+                <div key={key} className="regime-tag" title={`${label}: ${value}`}>
+                  <div className="regime-dot" style={{ background: dotColor }} />
+                  <span style={{ color: dotColor }}>{displayLabel}</span>
                 </div>
               )
             })}
