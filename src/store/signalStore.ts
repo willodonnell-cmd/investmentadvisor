@@ -2,11 +2,12 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { Signal, SignalComposite } from '../types'
 import { createStorage } from '../storage/persistence'
+import { triggerConvictionComparison } from '../api/convictionComparison'
+import { useThesisStore } from './thesisStore'
 
 interface SignalStore {
   signals: Record<string, Signal>
   composites: Record<string, SignalComposite>
-
   addSignal: (signal: Signal) => void
   updateSignal: (id: string, updates: Partial<Signal>) => void
   removeSignal: (id: string) => void
@@ -21,8 +22,16 @@ export const useSignalStore = create<SignalStore>()(
       signals: {},
       composites: {},
 
-      addSignal: (signal) =>
-        set((state) => ({ signals: { ...state.signals, [signal.id]: signal } })),
+      addSignal: (signal) => {
+        set((state) => ({ signals: { ...state.signals, [signal.id]: signal } }))
+        // Trigger conviction comparison if signal is linked to an active thesis
+        const thesis = useThesisStore.getState().theses[signal.linkedThesisId]
+        if (thesis) {
+          triggerConvictionComparison(signal, thesis).catch(() => {
+            // Fail silently — signal is already stored, comparison is best-effort
+          })
+        }
+      },
 
       updateSignal: (id, updates) =>
         set((state) => {

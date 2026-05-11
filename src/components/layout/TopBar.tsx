@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { LensSelector } from '../ui/LensSelector'
 import { MacroRegimeModal } from '../ui/MacroRegimeModal'
-import { useMacroStore } from '../../store'
+import { ConvictionReviewModal } from '../ui/ConvictionReviewModal'
+import { useMacroStore, useConvictionStore } from '../../store'
 
 const REGIME_DOTS = [
   { key: 'realRates'    as const, label: 'Rates'    },
@@ -35,7 +36,9 @@ const REGIME_LABELS: Record<string, string> = {
 
 export const TopBar: React.FC = () => {
   const { regime } = useMacroStore()
+  const pendingDraftCount = useConvictionStore((s) => s.getPendingDraftCount())
   const [macroOpen, setMacroOpen] = useState(false)
+  const [convictionOpen, setConvictionOpen] = useState(false)
 
   return (
     <>
@@ -53,39 +56,70 @@ export const TopBar: React.FC = () => {
       }}>
         <LensSelector />
 
-        <button
-          onClick={() => setMacroOpen(true)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-          }}
-          title="Edit macro regime"
-        >
-          <span style={{
-            fontSize: 11, fontWeight: 600, letterSpacing: '0.07em',
-            textTransform: 'uppercase', color: '#a8a5a0',
-          }}>
-            Macro Regime
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {REGIME_DOTS.map(({ key, label }) => {
-              const value = regime[key] as string
-              const dotColor = REGIME_DOT_COLORS[value] ?? '#a8a5a0'
-              const displayLabel = REGIME_LABELS[value] ?? value
+          {/* Conviction review button — only visible when drafts are pending */}
+          {pendingDraftCount > 0 && (
+            <button
+              onClick={() => setConvictionOpen(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7,
+                background: 'rgba(168,48,48,0.08)',
+                border: '1px solid rgba(168,48,48,0.25)',
+                borderRadius: 6, padding: '4px 10px',
+                cursor: 'pointer',
+              }}
+            >
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: '#A83030', flexShrink: 0,
+              }} />
+              <span style={{
+                fontSize: 11, fontWeight: 600,
+                color: '#A83030', letterSpacing: '0.03em',
+              }}>
+                {pendingDraftCount} conviction {pendingDraftCount === 1 ? 'draft' : 'drafts'} pending
+              </span>
+            </button>
+          )}
 
-              return (
-                <div key={key} className="regime-tag" title={`${label}: ${value}`}>
-                  <div className="regime-dot" style={{ background: dotColor }} />
-                  <span style={{ color: dotColor }}>{displayLabel}</span>
-                </div>
-              )
-            })}
-          </div>
-        </button>
+          {/* Macro regime button */}
+          <button
+            onClick={() => setMacroOpen(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            }}
+            title="Edit macro regime"
+          >
+            <span style={{
+              fontSize: 11, fontWeight: 600, letterSpacing: '0.07em',
+              textTransform: 'uppercase', color: '#a8a5a0',
+            }}>
+              Macro Regime
+            </span>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {REGIME_DOTS.map(({ key, label }) => {
+                const value = regime[key] as string
+                const dotColor = REGIME_DOT_COLORS[value] ?? '#a8a5a0'
+                const displayLabel = REGIME_LABELS[value] ?? value
+
+                return (
+                  <div key={key} className="regime-tag" title={`${label}: ${value}`}>
+                    <div className="regime-dot" style={{ background: dotColor }} />
+                    <span style={{ color: dotColor }}>{displayLabel}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </button>
+
+        </div>
       </header>
 
       {macroOpen && <MacroRegimeModal onClose={() => setMacroOpen(false)} />}
+      {convictionOpen && <ConvictionReviewModal onClose={() => setConvictionOpen(false)} />}
     </>
   )
 }
