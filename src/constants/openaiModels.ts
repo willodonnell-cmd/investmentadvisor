@@ -21,7 +21,9 @@ export function openAIModelUsesReasoningParams(model: string): boolean {
 export const OPENAI_MODEL_OPTIONS: { value: string; label: string }[] = [
   { value: 'gpt-5.5', label: 'GPT-5.5 — frontier (default)' },
   { value: 'gpt-5.5-2026-04-23', label: 'GPT-5.5 snapshot (2026-04-23)' },
-  { value: 'gpt-5.4', label: 'GPT-5.4 — lower cost' },
+  { value: 'gpt-5.4', label: 'GPT-5.4' },
+  { value: 'gpt-5.4-mini', label: 'GPT-5.4 mini' },
+  { value: 'gpt-5.4-nano', label: 'GPT-5.4 nano' },
   { value: 'gpt-4o', label: 'GPT-4o — legacy' },
   { value: 'gpt-4o-mini', label: 'GPT-4o mini — faster, cheaper' },
   { value: 'gpt-4.1', label: 'GPT-4.1' },
@@ -29,3 +31,9 @@ export const OPENAI_MODEL_OPTIONS: { value: string; label: string }[] = [
   { value: 'gpt-4.1-nano', label: 'GPT-4.1 nano — fastest/cheapest' },
   { value: 'gpt-4-turbo', label: 'GPT-4 Turbo (legacy)' },
 ]
+
+const PRESET_MODEL_IDS = new Set(OPENAI_MODEL_OPTIONS.map((o) => o.value))
+
+export function isPresetOpenAIModel(model: string): boolean {
+  return PRESET_MODEL_IDS.has(model.trim())
+}

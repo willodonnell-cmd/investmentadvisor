@@ -1,13 +1,15 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useOpenAIModelStore } from '../../store/openaiModelStore'
 import {
   OPENAI_MODEL_OPTIONS,
   REASONING_EFFORT_OPTIONS,
+  isPresetOpenAIModel,
   openAIModelUsesReasoningParams,
   type ReasoningEffortLevel,
 } from '../../constants/openaiModels'
 
-/** Controls sit on the dark sidebar — match shell tokens, not parchment inputs. */
+const CUSTOM_SENTINEL = '__custom__'
+
 const fieldStyle: React.CSSProperties = {
   fontSize: 12,
   fontWeight: 500,
@@ -38,6 +40,21 @@ export const OpenAIModelSelect: React.FC = () => {
   const setReasoningEffort = useOpenAIModelStore((s) => s.setReasoningEffort)
   const showReasoning = openAIModelUsesReasoningParams(model)
 
+  const preset = isPresetOpenAIModel(model)
+  const [customMode, setCustomMode] = useState(!preset)
+  const [customDraft, setCustomDraft] = useState(model)
+
+  useEffect(() => {
+    if (!preset) {
+      setCustomMode(true)
+      setCustomDraft(model)
+    }
+  }, [model, preset])
+
+  useEffect(() => {
+    if (preset && !customMode) setCustomDraft(model)
+  }, [model, preset, customMode])
+
   return (
     <div
       style={{
@@ -52,22 +69,45 @@ export const OpenAIModelSelect: React.FC = () => {
         style={{ display: 'flex', flexDirection: 'column', gap: 5 }}
       >
         <span style={labelStyle}>Model</span>
-        <input
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          list="openai-model-options"
-          spellCheck={false}
-          autoCapitalize="none"
-          autoCorrect="off"
-          style={fieldStyle}
-        />
-        <datalist id="openai-model-options">
+        <select
+          value={customMode ? CUSTOM_SENTINEL : model}
+          onChange={(e) => {
+            const v = e.target.value
+            if (v === CUSTOM_SENTINEL) {
+              setCustomMode(true)
+              setCustomDraft('')
+              return
+            }
+            setCustomMode(false)
+            setModel(v)
+          }}
+          style={{ ...fieldStyle, cursor: 'pointer', colorScheme: 'dark' }}
+        >
           {OPENAI_MODEL_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
           ))}
-        </datalist>
+          <option value={CUSTOM_SENTINEL}>Custom model ID…</option>
+        </select>
+
+        {customMode && (
+          <input
+            value={customDraft}
+            onChange={(e) => setCustomDraft(e.target.value)}
+            onBlur={() => {
+              const t = customDraft.trim()
+              if (!t) return
+              setModel(t)
+              if (isPresetOpenAIModel(t)) setCustomMode(false)
+            }}
+            placeholder="Type any Chat Completions model id"
+            spellCheck={false}
+            autoCapitalize="none"
+            autoCorrect="off"
+            style={{ ...fieldStyle, marginTop: 2 }}
+          />
+        )}
       </label>
 
       {showReasoning && (
