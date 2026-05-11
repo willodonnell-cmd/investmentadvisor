@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 
-import { getResolvedOpenAIModel } from '../../api/openai'
+import { applyOpenAIChatCompletionDynamicFields, getResolvedOpenAIModel } from '../../api/openai'
 
 const API_URL = 'https://api.openai.com/v1/chat/completions'
 
@@ -39,17 +39,18 @@ async function sendMessage(
   apiKey: string,
 ): Promise<string> {
   const model = getResolvedOpenAIModel()
+  const body: Record<string, unknown> = {
+    model,
+    messages: [{ role: 'system' as const, content: systemPrompt }, ...messages],
+  }
+  applyOpenAIChatCompletionDynamicFields(body, model, 600)
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model,
-      max_tokens: 600,
-      messages: [{ role: 'system' as const, content: systemPrompt }, ...messages],
-    }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))

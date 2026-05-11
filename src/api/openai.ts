@@ -1,5 +1,10 @@
 import { useOpenAIModelStore } from '../store/openaiModelStore'
-import { DEFAULT_OPENAI_MODEL } from '../constants/openaiModels'
+import {
+  DEFAULT_OPENAI_MODEL,
+  DEFAULT_REASONING_EFFORT,
+  openAIModelUsesReasoningParams,
+  type ReasoningEffortLevel,
+} from '../constants/openaiModels'
 
 const API_URL = 'https://api.openai.com/v1/chat/completions'
 
@@ -15,6 +20,29 @@ export const getResolvedOpenAIModel = (): string => {
   if (fromStore) return fromStore
   const fromEnv = (import.meta.env.VITE_OPENAI_MODEL as string | undefined)?.trim()
   return fromEnv || DEFAULT_OPENAI_MODEL
+}
+
+/** Persisted reasoning effort for GPT-5.x / o-series Chat Completions (`reasoning_effort`). */
+export const getResolvedReasoningEffort = (): ReasoningEffortLevel => {
+  const fromStore = useOpenAIModelStore.getState().reasoningEffort
+  if (fromStore === 'low' || fromStore === 'medium' || fromStore === 'high') return fromStore
+  const fromEnv = (import.meta.env.VITE_OPENAI_REASONING_EFFORT as string | undefined)?.trim().toLowerCase()
+  if (fromEnv === 'low' || fromEnv === 'medium' || fromEnv === 'high') return fromEnv
+  return DEFAULT_REASONING_EFFORT
+}
+
+/** Mutates `body` with token limit + optional `reasoning_effort` for the resolved model. */
+export function applyOpenAIChatCompletionDynamicFields(
+  body: Record<string, unknown>,
+  model: string,
+  maxTokens: number,
+): void {
+  if (openAIModelUsesReasoningParams(model)) {
+    body.max_completion_tokens = maxTokens
+    body.reasoning_effort = getResolvedReasoningEffort()
+  } else {
+    body.max_tokens = maxTokens
+  }
 }
 
 export const SYSTEM_IDENTITY = `You are a thesis-first investment research analyst embedded in a professional investment system.
@@ -34,14 +62,15 @@ export const callInvestmentAPI = async <T = string>(
   structuredOutput = false,
   maxTokens = 4000,
 ): Promise<T> => {
+  const model = getResolvedOpenAIModel()
   const body: Record<string, unknown> = {
-    model: getResolvedOpenAIModel(),
+    model,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userContent },
     ],
-    max_tokens: maxTokens,
   }
+  applyOpenAIChatCompletionDynamicFields(body, model, maxTokens)
   if (structuredOutput) {
     body.response_format = { type: 'json_object' }
   }
