@@ -176,7 +176,7 @@ interface PortfolioMacroSignature {
 
 ## API Architecture
 
-Every AI-powered feature calls the Anthropic API using the standard pattern below. The system prompt is constructed from three layers every time:
+Every AI-powered feature calls the OpenAI API (via `src/api/openai.ts`) using the standard pattern below. The system prompt is constructed from three layers every time:
 
 1. **System identity layer**: the thesis-first principles and the specific module's job (100-200 tokens, hardcoded per module)
 2. **Context layer**: the current thesis object, portfolio state, and macro regime (variable, injected from Zustand store)
@@ -189,22 +189,27 @@ const callInvestmentAPI = async (
   userContent: string,
   structuredOutput?: boolean
 ) => {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${process.env.VITE_OPENAI_API_KEY}`,
+    },
     body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
+      model: "gpt-4o",
       max_tokens: 1000,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userContent }]
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userContent }
+      ],
+      ...(structuredOutput ? { response_format: { type: "json_object" } } : {})
     })
   })
   const data = await response.json()
   if (structuredOutput) {
-    const text = data.content.map((b: any) => b.text || "").join("")
-    return JSON.parse(text.replace(/```json|```/g, "").trim())
+    return JSON.parse(data.choices?.[0]?.message?.content ?? "{}")
   }
-  return data.content.map((b: any) => b.text || "").join("")
+  return data.choices?.[0]?.message?.content ?? ""
 }
 ```
 
@@ -213,6 +218,70 @@ const callInvestmentAPI = async (
 **Context management rule**: Never pass the full thesis history to every call. Pass only the fields the specific module needs. The full thesis object lives in Zustand. Extract and inject only relevant slices.
 
 ---
+
+## Dossier — Design System (current)
+
+Typography
+- Primary font: Geist (variable, loaded locally from `public/fonts/Geist-Variable.woff2`)
+- Mono font: GeistMono (variable, loaded locally from `public/fonts/GeistMono-Variable.woff2`)
+- Fallbacks: DM Sans, Helvetica Neue, sans-serif
+- No Google Fonts
+
+Color tokens
+- bg: `#ede9e0` (parchment)
+- surface: `#f5f2eb`
+- surface-2: `#e8e4d8`
+- text-primary: `#1a1a1f`
+- text-secondary: `#6b6860`
+- text-muted: `#a8a5a0`
+- border: `rgba(0,0,0,0.08)`
+- border-strong: `rgba(0,0,0,0.15)`
+
+Stage colors (pills + accent bars)
+- Live: `#2d6a4f`
+- Actionable: `#92400e`
+- Pressure Test: `#1e3a5f`
+- Hypothesis: `#4a1d6b`
+- Watch: `#1e4d6b`
+
+Layout
+- Sidebar: fixed 210px width, never collapses, background `#1a1a1f`
+- Sidebar shadow: `4px 0 24px rgba(0,0,0,0.28), 1px 0 0 rgba(0,0,0,0.12)`
+- TopBar: 56px height, transparent background, bottom border `1px solid rgba(0,0,0,0.15)`
+- App background: flat `#ede9e0` (no gradients)
+
+Sidebar identity mark
+- 36×36 square, radius 8, amber radial gradient:
+  `radial-gradient(circle at 40% 40%, #d4a843 0%, #c4892a 45%, #a86e1a 100%)`
+
+Nav items
+- Height: 36px, padding: `0 16px`
+- Inactive: `rgba(232,230,224,0.55)`
+- Active: `#ffffff` with a 3px white left bar (top 6, bottom 6)
+- Hover: `rgba(255,255,255,0.05)` background
+
+Cards
+- Background: `#f5f2eb`, border `1px solid rgba(0,0,0,0.08)`, radius 12
+- No box shadows on cards (border-only)
+- Secondary cards: `#e8e4d8`, radius 10
+
+CSS class conventions
+- Custom token classes are defined explicitly in `src/index.css` under `@layer components`:
+  `.text-text-primary`, `.text-text-secondary`, `.text-text-muted`,
+  `.bg-surface`, `.bg-surface-2`,
+  `.border-border`, `.border-border-strong`,
+  `.card`, `.card-secondary`, `.dossier-card`,
+  `.nav-item`, `.nav-section`,
+  `.tab-group`, `.tab`, `.tab.active`,
+  `.pill-*`, `.btn-*`, `.skeleton`, `.bar-*`
+
+---
+
+## Performance Tracker — History & Limits (current)
+
+- Max window is **6 months**: `SimWindow = '30d' | '60d' | '6m' | 'created'` in `src/types/paperTrack.ts`
+- Alpha Vantage historical fetch uses **daily** with `outputsize=full`, then filters to the last **180 days** (`src/api/finnhub.ts`)
+- Weekly call is intentionally **not used** (single AV request per ticker for candles)
 
 ## Build Sequence
 
