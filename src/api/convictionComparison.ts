@@ -3,6 +3,7 @@ import type { Thesis } from '../types/thesis'
 import type { ConvictionComparisonResult, ConvictionDraft } from '../types/conviction'
 import { useConvictionStore } from '../store/convictionStore'
 import { computeSignalWeight } from './signals'
+import { callInvestmentAPI } from './openai'
 
 // Minimum source quality score to trigger a conviction comparison.
 // Signals below this threshold are logged but do not generate a draft.
@@ -67,7 +68,7 @@ function extractOriginalAssumption(thesis: Thesis, variable: string): string {
 }
 
 /**
- * Calls the Anthropic API to compare a new signal against the thesis's
+ * Calls the OpenAI API to compare a new signal against the thesis's
  * original primary variable assumptions.
  * Returns a structured ConvictionComparisonResult.
  */
@@ -126,23 +127,13 @@ Respond with this exact JSON structure:
   "recommendedAction": "<LogOnly | LogAndFlag | LogAndInitiateKillReview>"
 }`
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userContent }],
-    }),
-  })
-
-  const data = await response.json()
-  const text = data.content.map((b: { type: string; text?: string }) => b.text ?? '').join('')
-  const clean = text.replace(/```json|```/g, '').trim()
-
   try {
-    return JSON.parse(clean) as ConvictionComparisonResult
+    return await callInvestmentAPI<ConvictionComparisonResult>(
+      systemPrompt,
+      userContent,
+      true,
+      1000,
+    )
   } catch {
     // Fallback if parsing fails — return a neutral draft so nothing is lost
     return {

@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid'
-import { callInvestmentAPI, SYSTEM_IDENTITY } from './anthropic'
+import { callInvestmentAPI, SYSTEM_IDENTITY } from './openai'
 import { Thesis, ThesisType, LifecycleStage, MispricedVariable, VariantPerceptionStrength, Trigger } from '../types'
 import type { ThesisRecommendation } from '../types/paperTrack'
 

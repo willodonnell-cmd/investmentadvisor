@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
 
-const API_URL = 'https://api.anthropic.com/v1/messages'
-const MODEL = 'claude-sonnet-4-6'
+import { getResolvedOpenAIModel } from '../../api/openai'
+
+const API_URL = 'https://api.openai.com/v1/chat/completions'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -36,27 +37,27 @@ async function sendMessage(
   systemPrompt: string,
   apiKey: string,
 ): Promise<string> {
+  const model = getResolvedOpenAIModel()
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: MODEL,
+      model,
       max_tokens: 600,
-      system: systemPrompt,
-      messages,
+      messages: [{ role: 'system' as const, content: systemPrompt }, ...messages],
     }),
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(`API ${res.status}: ${JSON.stringify(err)}`)
   }
-  const data = await res.json()
-  return data.content.map((b: { type: string; text?: string }) => b.text ?? '').join('')
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string | null } }>
+  }
+  return data.choices?.[0]?.message?.content ?? ''
 }
 
 export const BrainstormChat: React.FC<Props> = ({ open, onClose, currentSpark, existingThesisNames }) => {
@@ -90,9 +91,9 @@ export const BrainstormChat: React.FC<Props> = ({ open, onClose, currentSpark, e
     const text = input.trim()
     if (!text || loading) return
 
-    const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
     if (!apiKey) {
-      setError('VITE_ANTHROPIC_API_KEY not set')
+      setError('VITE_OPENAI_API_KEY not set')
       return
     }
 

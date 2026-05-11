@@ -1,6 +1,6 @@
 import type { Thesis, KillRecord, KillClassificationResult, KillType, KillTriggerPathway, LearningSignal } from '../types'
 import type { Signal, SignalComposite } from '../types'
-import { SYSTEM_IDENTITY, callInvestmentAPI } from './anthropic'
+import { SYSTEM_IDENTITY, callInvestmentAPI } from './openai'
 
 const KILL_TYPE_LABELS: Record<KillType, string> = {
   1: 'Core Assumption Broken',

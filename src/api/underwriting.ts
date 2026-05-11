@@ -1,4 +1,4 @@
-import { callInvestmentAPI, SYSTEM_IDENTITY } from './anthropic'
+import { callInvestmentAPI, SYSTEM_IDENTITY } from './openai'
 import { generateScenarios } from './scenarios'
 import { generateExpertSynthesis } from './expertSynthesis'
 import { computeRegimeCompatibility, COMPATIBILITY_LABELS } from './macroRegime'

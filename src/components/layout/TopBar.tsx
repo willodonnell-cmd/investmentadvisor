@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { LensSelector } from '../ui/LensSelector'
+import { OpenAIModelSelect } from '../ui/OpenAIModelSelect'
 import { MacroRegimeModal } from '../ui/MacroRegimeModal'
 import { ConvictionReviewModal } from '../ui/ConvictionReviewModal'
 import { useMacroStore, useConvictionStore } from '../../store'
@@ -54,7 +55,10 @@ export const TopBar: React.FC = () => {
         position: 'relative',
         zIndex: 1,
       }}>
-        <LensSelector />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <LensSelector />
+          <OpenAIModelSelect />
+        </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
 

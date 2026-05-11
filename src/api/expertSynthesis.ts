@@ -1,4 +1,4 @@
-import { callInvestmentAPI, SYSTEM_IDENTITY } from './anthropic'
+import { callInvestmentAPI, SYSTEM_IDENTITY } from './openai'
 import { EXPERT_BENCH } from '../constants/expertBench'
 import {
   Thesis, ThesisType, ThesisLens, LifecycleStage,

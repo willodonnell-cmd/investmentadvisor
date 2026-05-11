@@ -1,10 +1,20 @@
-const API_URL = 'https://api.anthropic.com/v1/messages'
-const MODEL = 'claude-sonnet-4-6'
+import { useOpenAIModelStore } from '../store/openaiModelStore'
+import { DEFAULT_OPENAI_MODEL } from '../constants/openaiModels'
+
+const API_URL = 'https://api.openai.com/v1/chat/completions'
 
 const getKey = (): string => {
-  const key = import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined
-  if (!key) throw new Error('VITE_ANTHROPIC_API_KEY is not set. Add it to .env')
+  const key = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
+  if (!key) throw new Error('VITE_OPENAI_API_KEY is not set. Add it to .env')
   return key
+}
+
+/** Model from the desk selector (persisted); falls back if unset. */
+export const getResolvedOpenAIModel = (): string => {
+  const fromStore = useOpenAIModelStore.getState().model?.trim()
+  if (fromStore) return fromStore
+  const fromEnv = (import.meta.env.VITE_OPENAI_MODEL as string | undefined)?.trim()
+  return fromEnv || DEFAULT_OPENAI_MODEL
 }
 
 export const SYSTEM_IDENTITY = `You are a thesis-first investment research analyst embedded in a professional investment system.
@@ -24,20 +34,25 @@ export const callInvestmentAPI = async <T = string>(
   structuredOutput = false,
   maxTokens = 4000,
 ): Promise<T> => {
+  const body: Record<string, unknown> = {
+    model: getResolvedOpenAIModel(),
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userContent },
+    ],
+    max_tokens: maxTokens,
+  }
+  if (structuredOutput) {
+    body.response_format = { type: 'json_object' }
+  }
+
   const response = await fetch(API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': getKey(),
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
+      Authorization: `Bearer ${getKey()}`,
     },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userContent }],
-    }),
+    body: JSON.stringify(body),
   })
 
   if (!response.ok) {
@@ -45,10 +60,11 @@ export const callInvestmentAPI = async <T = string>(
     throw new Error(`API error ${response.status}: ${JSON.stringify(err)}`)
   }
 
-  const data = await response.json()
-  const text: string = data.content
-    .map((b: { type: string; text?: string }) => b.text ?? '')
-    .join('')
+  const data = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string | null } }>
+  }
+  const text = data.choices?.[0]?.message?.content ?? ''
+  if (!text) throw new Error('OpenAI returned empty content')
 
   if (structuredOutput) {
     try {
@@ -73,9 +89,10 @@ export const callInvestmentAPI = async <T = string>(
         .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
       const parsed = JSON.parse(sanitized)
       return parsed as T
-    } catch (e: any) {
-      console.error('PARSE FAILED at:', e.message)
-      throw new Error(`Structured output parse failed: ${e.message}. Raw: ${text.slice(0, 300)}`)
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e)
+      console.error('PARSE FAILED at:', message)
+      throw new Error(`Structured output parse failed: ${message}. Raw: ${text.slice(0, 300)}`)
     }
   }
 

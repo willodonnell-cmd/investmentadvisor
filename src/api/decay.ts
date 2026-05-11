@@ -1,7 +1,7 @@
 import type { Thesis, DecayClock } from '../types'
 import type { Signal, SignalComposite } from '../types'
 import type { ReassessmentMemo } from '../types'
-import { SYSTEM_IDENTITY, callInvestmentAPI } from './anthropic'
+import { SYSTEM_IDENTITY, callInvestmentAPI } from './openai'
 
 export function computeDecayClock(
   thesis: Thesis,

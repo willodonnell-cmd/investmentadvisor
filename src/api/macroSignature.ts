@@ -1,6 +1,6 @@
 import type { Thesis, PortfolioMacroSignature, StressTestResult, ThesisLens } from '../types'
 import type { Scenario, Position } from '../types'
-import { SYSTEM_IDENTITY, callInvestmentAPI } from './anthropic'
+import { SYSTEM_IDENTITY, callInvestmentAPI } from './openai'
 import { computeCorrelation } from './correlation'
 
 // ─── Stress test sensitivity per thesis type ─────────────────────────────

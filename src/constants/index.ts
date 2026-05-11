@@ -1,3 +1,4 @@
+export * from './openaiModels'
 export * from './taxonomy'
 export * from './expertBench'
 export * from './macroDrivers'
