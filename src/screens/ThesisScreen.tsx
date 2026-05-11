@@ -14,6 +14,7 @@ import { SignalEntryForm } from '../components/ui/SignalEntryForm'
 import { SignalCompositeCard } from '../components/ui/SignalCompositeCard'
 import { ReassessmentModal } from '../components/ui/ReassessmentModal'
 import { KillModal } from '../components/ui/KillModal'
+import { ConvictionLedger } from '../components/ui/ConvictionLedger'
 import { THESIS_TYPE_LABELS, MISPRICED_VARIABLE_LABELS } from '../constants'
 import { formatDate, formatHorizon, formatRelativeTime } from '../utils/formatting'
 import { LifecycleStage, Thesis, Signal, KillRecord, ThesisLens } from '../types'
@@ -810,6 +811,12 @@ export const ThesisScreen: React.FC = () => {
             </div>
           )}
         </Section>
+
+        {/* ── Conviction Ledger ── */}
+        <Section title="Conviction Ledger">
+          <ConvictionLedger thesisId={thesis.id} />
+        </Section>
+
 
         {/* ── Decision + Kill bar ── */}
         <div className="flex items-center gap-3 justify-between pt-1">
