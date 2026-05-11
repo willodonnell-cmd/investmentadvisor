@@ -153,7 +153,7 @@ export const BrainstormChat: React.FC<Props> = ({ open, onClose, currentSpark, e
             </svg>
           </div>
           <span style={{ fontSize: 12, fontWeight: 700, color: '#18140E', letterSpacing: '-0.01em' }}>
-            Brainstorm with Claude
+            Brainstorm with OpenAI
           </span>
         </div>
         <button

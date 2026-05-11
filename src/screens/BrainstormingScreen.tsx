@@ -137,7 +137,7 @@ export const BrainstormingScreen: React.FC = () => {
             <path d="M14 2.5a3 3 0 00-3-3" strokeLinecap="round"/>
             <circle cx="13" cy="3" r="2.5" fill="currentColor" stroke="none" opacity="0.5"/>
           </svg>
-          {chatOpen ? 'Close chat' : 'Brainstorm with Claude'}
+          {chatOpen ? 'Close chat' : 'Brainstorm with OpenAI'}
         </button>
       </div>
 

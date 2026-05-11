@@ -10,8 +10,9 @@ export const OpenAIModelSelect: React.FC = () => {
     <label
       style={{
         display: 'flex',
-        alignItems: 'center',
-        gap: 8,
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        gap: 6,
         fontSize: 11,
         fontWeight: 600,
         letterSpacing: '0.04em',
@@ -38,7 +39,8 @@ export const OpenAIModelSelect: React.FC = () => {
           border: '1px solid rgba(0,0,0,0.12)',
           background: 'rgba(255,255,255,0.85)',
           color: '#2a2824',
-          width: 190,
+          width: '100%',
+          boxSizing: 'border-box',
         }}
       />
       <datalist id="openai-model-options">

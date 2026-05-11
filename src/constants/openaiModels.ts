@@ -6,5 +6,6 @@ export const OPENAI_MODEL_OPTIONS: { value: string; label: string }[] = [
   { value: 'gpt-4o-mini', label: 'GPT-4o mini — faster, cheaper' },
   { value: 'gpt-4.1', label: 'GPT-4.1' },
   { value: 'gpt-4.1-mini', label: 'GPT-4.1 mini' },
-  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+  { value: 'gpt-4.1-nano', label: 'GPT-4.1 nano — fastest/cheapest' },
+  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo (legacy)' },
 ]
