@@ -231,3 +231,70 @@ const callInvestmentAPI = async (
 ## Design System
 
 Aesthetic: Raycast-inspired. Premium, calm, high-signal, non-overwhelming. Dark mode primary.
+
+```
+Font:        Manrope (all weights)
+Accent:      #ff6b6b (warm red)
+Background:  #0a0a0a (near black)
+Surface:     #141414 (card background)
+Surface-2:   #1a1a1a (elevated surface)
+Border:      #2a2a2a (subtle border)
+Text-primary: #f0f0f0
+Text-secondary: #888888
+Text-muted:  #555555
+Success:     #4ade80
+Warning:     #fb923c
+Danger:      #f87171
+```
+
+Glassmorphism for cards: `backdrop-filter: blur(12px)`, `background: rgba(20,20,20,0.8)`, `border: 1px solid rgba(255,255,255,0.06)`
+
+UI patterns:
+- Summary first, progressive disclosure always
+- Cards for judgment, tables for comparison, drawers for depth
+- Verdict labels (Endorse | Challenge | Reject | Reframe) as primary visual signal in Expert Synthesis View
+- Lifecycle stage as a colored badge on every Thesis Card
+- Trigger readiness as a labeled indicator (Not Ready | Building | Accelerating | Active | Diminishing)
+
+---
+
+## Spec References
+
+| Topic | File |
+|---|---|
+| Full original system spec | MASTER_SPEC.md (generate in Phase 2) |
+| Expert Synthesis View complete spec | EXPERT_SYNTHESIS_SPEC.md (generate before Phase 3) |
+| All 10 locked improvements | IMPROVEMENTS.md (generate before Phase 3) |
+| Eighteen-voice bench definitions | EXPERT_BENCH.md (generate before Phase 3) |
+| Mispriced variable taxonomy | in /src/types/thesis.ts |
+| Macro driver taxonomy | in /src/types/macro.ts |
+| Factor taxonomy | in /src/types/portfolio.ts |
+| Thesis Engine — all analytical mechanics (UI) | investment/playbooks/thesis-engine-spec.md |
+
+---
+
+## Prologis Rule
+
+The user has significant concentrated Prologis exposure. The system treats Prologis as:
+- A standing portfolio reality in all household allocation calculations
+- A concentration factor that feeds the Cross-Thesis Correlation module
+- A lens that modifies position sizing when the Prologis-Aware lens is active
+- Never a forced comparator on every thesis
+
+Default lens: Prologis-Aware. This means the Prologis macro driver profile (primary: real asset repricing, consumer health; secondary: US interest rates) is always included in portfolio-level calculations.
+
+---
+
+## Investment Zone UI Governance
+
+The analytical mechanics governing Dossier UI behavior are defined in `investment/playbooks/thesis-engine-spec.md`. This includes: the 18-voice Expert Bench (locked composition and activation logic), Signal Aggregation Engine (variable tagging, weighting model, composite scoring, convergence/divergence detection), Conviction Decay Mechanism (Decay Clock, Evidence Drift Monitor, Trigger Proximity Tracker, Forced Reassessment Protocol), AI-triggered conviction comparison workflow, Kill Protocol (four pathways, five kill types, kill memo, learning extraction), and Full Underwriting Memo (15 sections).
+
+**Separation of concerns**: This file (CLAUDE.md) governs vault behavior — what gets written, where, and in what format. `thesis-engine-spec.md` governs UI product behavior — how Dossier presents, computes, and surfaces analytical outputs. When they conflict, CLAUDE.md is authoritative on vault matters; thesis-engine-spec.md is authoritative on UI matters.
+
+**Human approval rule**: No conviction ledger entry, kill memo, or thesis stage transition is written to the vault without explicit user confirmation. The agent drafts; Will confirms.
+
+---
+
+## What Good Output Looks Like
+
+Every AI-generated output must be: thesis-linked, concise first (deeper on demand), explicit about uncertainty, explicit about what is mispriced, explicit about what would change the recommendation. Favor sharp judgment over decorative complexity. Kill vague enthusiasm immediately.
