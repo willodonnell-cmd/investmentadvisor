@@ -1,5 +1,6 @@
 import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
+import { OpenAIModelSelect } from '../ui/OpenAIModelSelect'
 
 interface NavItem {
   label: string
@@ -145,6 +146,9 @@ export const Sidebar: React.FC = () => {
         padding: '16px 16px 24px',
         borderTop: '1px solid rgba(255,255,255,0.07)',
       }}>
+        <div style={{ paddingBottom: 12 }}>
+          <OpenAIModelSelect />
+        </div>
         <div className="nav-section" style={{ padding: '0 0 10px' }}>Stage</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           {STAGE_LEGEND.map(s => (

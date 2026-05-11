@@ -5,7 +5,6 @@ import { OPENAI_MODEL_OPTIONS } from '../../constants/openaiModels'
 export const OpenAIModelSelect: React.FC = () => {
   const model = useOpenAIModelStore((s) => s.model)
   const setModel = useOpenAIModelStore((s) => s.setModel)
-  const known = OPENAI_MODEL_OPTIONS.some((o) => o.value === model)
 
   return (
     <label
@@ -22,9 +21,13 @@ export const OpenAIModelSelect: React.FC = () => {
       title="OpenAI model used for research, memos, scenarios, and expert synthesis"
     >
       <span>OpenAI</span>
-      <select
+      <input
         value={model}
         onChange={(e) => setModel(e.target.value)}
+        list="openai-model-options"
+        spellCheck={false}
+        autoCapitalize="none"
+        autoCorrect="off"
         style={{
           fontSize: 11,
           fontWeight: 500,
@@ -35,19 +38,16 @@ export const OpenAIModelSelect: React.FC = () => {
           border: '1px solid rgba(0,0,0,0.12)',
           background: 'rgba(255,255,255,0.85)',
           color: '#2a2824',
-          maxWidth: 220,
-          cursor: 'pointer',
+          width: 190,
         }}
-      >
-        {!known && (
-          <option value={model}>{model} (current)</option>
-        )}
+      />
+      <datalist id="openai-model-options">
         {OPENAI_MODEL_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>
         ))}
-      </select>
+      </datalist>
     </label>
   )
 }
