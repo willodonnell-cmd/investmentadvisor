@@ -7,18 +7,28 @@ import {
   type ReasoningEffortLevel,
 } from '../../constants/openaiModels'
 
-const inputStyle: React.CSSProperties = {
-  fontSize: 11,
+/** Controls sit on the dark sidebar — match shell tokens, not parchment inputs. */
+const fieldStyle: React.CSSProperties = {
+  fontSize: 12,
   fontWeight: 500,
-  letterSpacing: '0.02em',
+  letterSpacing: '0.01em',
   textTransform: 'none',
-  padding: '4px 8px',
-  borderRadius: 6,
-  border: '1px solid rgba(0,0,0,0.12)',
-  background: 'rgba(255,255,255,0.85)',
-  color: '#2a2824',
+  padding: '6px 8px',
+  borderRadius: 8,
+  border: '1px solid rgba(255,255,255,0.12)',
+  background: 'rgba(255,255,255,0.06)',
+  color: '#e8e6e0',
   width: '100%',
   boxSizing: 'border-box',
+  outline: 'none',
+}
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 10,
+  fontWeight: 600,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  color: '#6b6860',
 }
 
 export const OpenAIModelSelect: React.FC = () => {
@@ -34,19 +44,14 @@ export const OpenAIModelSelect: React.FC = () => {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'stretch',
-        gap: 8,
-        fontSize: 11,
-        fontWeight: 600,
-        letterSpacing: '0.04em',
-        textTransform: 'uppercase',
-        color: '#a8a5a0',
+        gap: 10,
       }}
     >
       <label
-        title="OpenAI model used for research, memos, scenarios, and expert synthesis"
-        style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+        title="OpenAI Chat Completions model for canvas, memos, and expert synthesis"
+        style={{ display: 'flex', flexDirection: 'column', gap: 5 }}
       >
-        <span>OpenAI</span>
+        <span style={labelStyle}>Model</span>
         <input
           value={model}
           onChange={(e) => setModel(e.target.value)}
@@ -54,7 +59,7 @@ export const OpenAIModelSelect: React.FC = () => {
           spellCheck={false}
           autoCapitalize="none"
           autoCorrect="off"
-          style={inputStyle}
+          style={fieldStyle}
         />
         <datalist id="openai-model-options">
           {OPENAI_MODEL_OPTIONS.map((o) => (
@@ -67,14 +72,14 @@ export const OpenAIModelSelect: React.FC = () => {
 
       {showReasoning && (
         <label
-          title="Reasoning depth for GPT-5.x / o-series (Chat Completions reasoning_effort)"
-          style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+          title="reasoning_effort on Chat Completions (GPT-5.x / o-series)"
+          style={{ display: 'flex', flexDirection: 'column', gap: 5 }}
         >
-          <span>Reasoning</span>
+          <span style={labelStyle}>Reasoning</span>
           <select
             value={reasoningEffort}
             onChange={(e) => setReasoningEffort(e.target.value as ReasoningEffortLevel)}
-            style={{ ...inputStyle, cursor: 'pointer' }}
+            style={{ ...fieldStyle, cursor: 'pointer', colorScheme: 'dark' }}
           >
             {REASONING_EFFORT_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>

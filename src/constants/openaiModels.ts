@@ -7,9 +7,9 @@ export type ReasoningEffortLevel = 'low' | 'medium' | 'high'
 export const DEFAULT_REASONING_EFFORT: ReasoningEffortLevel = 'medium'
 
 export const REASONING_EFFORT_OPTIONS: { value: ReasoningEffortLevel; label: string }[] = [
-  { value: 'low', label: 'Low — faster, lighter reasoning' },
-  { value: 'medium', label: 'Medium — balanced (default)' },
-  { value: 'high', label: 'High — deeper reasoning' },
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium (default)' },
+  { value: 'high', label: 'High' },
 ]
 
 /** GPT-5.x and o-series: use `max_completion_tokens` + optional `reasoning_effort` per OpenAI Chat Completions. */

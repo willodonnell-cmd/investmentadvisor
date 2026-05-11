@@ -143,14 +143,15 @@ export const Sidebar: React.FC = () => {
       {/* Stage legend */}
       <div style={{
         marginTop: 'auto',
-        padding: '16px 16px 24px',
+        padding: '0 0 20px',
         borderTop: '1px solid rgba(255,255,255,0.07)',
       }}>
-        <div style={{ paddingBottom: 12 }}>
+        <div className="nav-section" style={{ padding: '16px 16px 8px' }}>AI</div>
+        <div style={{ padding: '0 16px 14px' }}>
           <OpenAIModelSelect />
         </div>
-        <div className="nav-section" style={{ padding: '0 0 10px' }}>Stage</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <div className="nav-section" style={{ padding: '8px 16px 10px' }}>Stage</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7, padding: '0 16px 24px' }}>
           {STAGE_LEGEND.map(s => (
             <div key={s.label} style={{
               display: 'flex', alignItems: 'center', gap: 8,
