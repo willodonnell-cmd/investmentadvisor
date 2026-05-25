@@ -175,7 +175,7 @@ ${context.killRecordSummaries.slice(0, 5).join('\n')}
 Macro regime: ${context.macroRegime}
 ${context.focusAreas ? `User focus: ${context.focusAreas}` : ''}
 
-Return ONLY JSON: { "candidates": [{ "ticker": "...", "companyName": "...", "thesisType": "...", "mispricedVariable": "...", "rationale": "...", "vaultEvidence": ["..."] }] }`, 2000)
+Return ONLY JSON: { "candidates": [{ "ticker": "...", "companyName": "...", "thesisType": "...", "mispricedVariable": "...", "rationale": "...", "vaultEvidence": ["..."] }] }`, 4000)
     return JSON.parse(text)?.candidates ?? extractJSON(text)?.candidates ?? []
   } catch { return [] }
 }

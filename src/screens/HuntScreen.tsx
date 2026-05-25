@@ -60,7 +60,7 @@ const ActionBadge: React.FC<{ action: 'advance_to_dossier' | 'watch' | 'pass' }>
     advance_to_dossier: { label: 'Advance to Dossier', color: tk.green, bg: tk.greenLight },
     watch: { label: 'Watch', color: tk.amber, bg: tk.amberLight },
     pass: { label: 'Pass', color: tk.textMuted, bg: 'rgba(216,208,196,0.4)' },
-  }[action]
+  }[action] ?? { label: "Watch", color: tk.amber, bg: tk.amberLight }
   return <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', padding: '4px 11px', borderRadius: 5, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}40` }}>{cfg.label}</span>
 }
 
