@@ -1,14 +1,12 @@
 import React, { useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { generateCanvas, normalizeCanvasToThesis, ThesisCanvas } from '../api/brainstorming'
 import { useThesisStore } from '../store'
+import { useBrainstormStore } from '../store/brainstormStore'
 import { CanvasSectionCard } from '../components/ui/CanvasSectionCard'
 import { LoadingSpinner } from '../components/shared/LoadingSpinner'
 import { Badge } from '../components/ui/Badge'
 import { BrainstormChat } from '../components/ui/BrainstormChat'
 import { THESIS_TYPE_LABELS } from '../constants'
-
-type Phase = 'idle' | 'generating' | 'canvas' | 'normalizing' | 'done' | 'error'
 
 const QUALITY_STYLES: Record<string, React.CSSProperties> = {
   Strong:   { color: '#2E6E4A', background: 'rgba(46,110,74,0.10)', border: '1px solid rgba(46,110,74,0.30)' },
@@ -54,15 +52,20 @@ function pickFour(pool: string[], exclude: string[], thesisNames: string[] = [])
 
 export const BrainstormingScreen: React.FC = () => {
   const navigate = useNavigate()
-  const { addThesis, theses } = useThesisStore()
+  const { theses } = useThesisStore()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const spark = useBrainstormStore((s) => s.spark)
+  const setSpark = useBrainstormStore((s) => s.setSpark)
+  const phase = useBrainstormStore((s) => s.phase)
+  const canvas = useBrainstormStore((s) => s.canvas)
+  const canvasError = useBrainstormStore((s) => s.canvasError)
+  const generateCanvas = useBrainstormStore((s) => s.generateCanvas)
+  const advanceToThesis = useBrainstormStore((s) => s.advanceToThesis)
+  const resetCanvas = useBrainstormStore((s) => s.resetCanvas)
 
   const existingThesisNames = Object.values(theses).map(t => t.name)
 
-  const [spark, setSpark] = useState('')
-  const [phase, setPhase] = useState<Phase>('idle')
-  const [canvas, setCanvas] = useState<ThesisCanvas | null>(null)
-  const [error, setError] = useState<string | null>(null)
   const [expandAll, setExpandAll] = useState(false)
   const [visibleSparks, setVisibleSparks] = useState(() => pickFour(SPARK_POOL, [], existingThesisNames))
   const [chatOpen, setChatOpen] = useState(false)
@@ -71,43 +74,20 @@ export const BrainstormingScreen: React.FC = () => {
     setVisibleSparks(prev => pickFour(SPARK_POOL, prev, existingThesisNames))
   }, [existingThesisNames])
 
-  const handleGenerate = async () => {
+  const handleGenerate = () => {
     if (!spark.trim()) return
-    setPhase('generating')
-    setCanvas(null)
-    setError(null)
     setExpandAll(false)
-
-    try {
-      const result = await generateCanvas(spark.trim(), existingThesisNames)
-      setCanvas(result)
-      setPhase('canvas')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-      setPhase('error')
-    }
+    void generateCanvas()
   }
 
   const handleAdvanceToThesis = async () => {
     if (!canvas) return
-    setPhase('normalizing')
-    setError(null)
-
-    try {
-      const thesis = await normalizeCanvasToThesis(canvas, spark.trim())
-      addThesis(thesis)
-      navigate(`/thesis/${thesis.id}`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-      setPhase('canvas')
-    }
+    const thesisId = await advanceToThesis()
+    if (thesisId) navigate(`/thesis/${thesisId}`)
   }
 
   const handleReset = () => {
-    setPhase('idle')
-    setCanvas(null)
-    setError(null)
-    setSpark('')
+    resetCanvas()
     setTimeout(() => textareaRef.current?.focus(), 50)
   }
 
@@ -225,13 +205,13 @@ export const BrainstormingScreen: React.FC = () => {
       </div>
 
       {/* Error */}
-      {error && (
+      {canvasError && (
         <div className="mb-6 px-4 py-3 rounded-xl" style={{
           background: 'rgba(168,48,48,0.08)',
           border: '1px solid rgba(168,48,48,0.25)',
         }}>
           <p className="text-xs font-semibold text-danger mb-1">Error</p>
-          <p className="text-xs text-danger/70 font-mono break-all">{error}</p>
+          <p className="text-xs text-danger/70 font-mono break-all">{canvasError}</p>
         </div>
       )}
 

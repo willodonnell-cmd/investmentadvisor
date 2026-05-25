@@ -2,7 +2,7 @@ import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { OpenAIModelSelect } from '../ui/OpenAIModelSelect'
 import { getEnvLabel } from '../../lib/envLabel'
-import { useBrainstormStore } from '../../store/brainstormStore'
+import { useBrainstormStore, isBrainstormCanvasRunning, brainstormPhaseLabel } from '../../store/brainstormStore'
 import { useHuntStore } from '../../store/huntStore'
 
 interface NavItem {
@@ -83,20 +83,21 @@ const HuntStatusDot: React.FC<{ running: boolean; completed: boolean; phase: str
   )
 }
 
-const BrainstormStatusDot: React.FC<{ streaming: boolean }> = ({ streaming }) => {
-  if (!streaming) return null
+const BrainstormStatusDot: React.FC<{ running: boolean; completed: boolean; phase: string }> = ({ running, completed, phase }) => {
+  if (!running && !completed) return null
+  const color = running ? '#ff6b6b' : '#2e6e4a'
   return (
     <span
-      title="Brainstorm response in progress"
+      title={running ? phase : 'Brainstorm complete'}
       style={{
         width: 7,
         height: 7,
         borderRadius: '50%',
-        background: '#ff6b6b',
+        background: color,
         flexShrink: 0,
         marginLeft: 'auto',
-        animation: 'huntPulse 1.4s ease-in-out infinite',
-        boxShadow: '0 0 0 0 rgba(255,107,107,0.5)',
+        animation: running ? 'huntPulse 1.4s ease-in-out infinite' : undefined,
+        boxShadow: running ? '0 0 0 0 rgba(255,107,107,0.5)' : undefined,
       }}
     />
   )
@@ -109,6 +110,11 @@ export const Sidebar: React.FC = () => {
   const phase = useHuntStore((s) => s.phase)
   const justCompleted = useHuntStore((s) => s.justCompleted)
   const isStreaming = useBrainstormStore((s) => s.isStreaming)
+  const canvasPhase = useBrainstormStore((s) => s.phase)
+  const brainstormJustCompleted = useBrainstormStore((s) => s.justCompleted)
+  const canvasRunning = isBrainstormCanvasRunning(canvasPhase)
+  const brainstormRunning = isStreaming || canvasRunning
+  const brainstormPhase = brainstormPhaseLabel(canvasPhase, isStreaming)
 
   const renderNavItem = (item: NavItem) => {
     const isActive = item.path === '/'
@@ -129,7 +135,11 @@ export const Sidebar: React.FC = () => {
           <span style={{ opacity: isActive ? 1 : 0.55 }}>{item.icon}</span>
           {item.label}
           {isBrainstorm && (
-            <BrainstormStatusDot streaming={isStreaming} />
+            <BrainstormStatusDot
+              running={brainstormRunning}
+              completed={brainstormJustCompleted && !brainstormRunning}
+              phase={brainstormPhase}
+            />
           )}
           {isHunt && (
             <HuntStatusDot running={isRunning} completed={justCompleted} phase={phase} />

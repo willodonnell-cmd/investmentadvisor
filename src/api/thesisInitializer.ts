@@ -165,7 +165,7 @@ export async function initializeThesis(thesis: Thesis): Promise<void> {
     for (const proposed of assessment.proposedSignals) {
       addSignal(createProposedSignalObject(thesis.id, proposed))
     }
-  } catch {
-    // Fail silently — thesis is already stored
+  } catch (err) {
+    console.error("[thesisInitializer] failed:", err)
   }
 }

@@ -71,7 +71,7 @@ export const callInvestmentAPI = async <T = string>(
     ],
   }
   applyOpenAIChatCompletionDynamicFields(body, model, maxTokens)
-  if (structuredOutput) {
+  if (structuredOutput && !model.startsWith('gpt-5')) {
     body.response_format = { type: 'json_object' }
   }
 
