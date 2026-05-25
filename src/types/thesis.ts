@@ -83,6 +83,8 @@ export interface ChangeEntry {
   reason: string
 }
 
+export type ConvictionInitStatus = 'pending' | 'complete' | 'failed'
+
 export interface Thesis {
   id: string
   name: string
@@ -128,6 +130,8 @@ export interface Thesis {
 
   thesisQualityScore?: number
   convictionReasoning?: string
+  convictionDrivers?: import('./conviction').ConvictionDriver[]
+  convictionInitStatus?: ConvictionInitStatus
   triggerReadinessScore?: number
 
   lens: ThesisLens

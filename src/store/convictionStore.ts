@@ -32,7 +32,9 @@ interface ConvictionStore {
   getRecentLedgerEntries: (limit?: number) => ConvictionLedgerEntry[]
 
   // Conviction score management
-  getConvictionScore: (thesisId: string) => number
+  getConvictionScore: (thesisId: string) => number | undefined
+  getConvictionScoreOrDefault: (thesisId: string, defaultScore?: number) => number
+  hasConvictionScore: (thesisId: string) => boolean
   setInitialConvictionScore: (thesisId: string, score: number) => void
 }
 
@@ -71,7 +73,7 @@ export const useConvictionStore = create<ConvictionStore>()(
 
         const finalScoreChange = editedFields.proposedScoreChange ?? draft.proposedScoreChange
         const scoreBefore = draft.currentConvictionScore
-        const scoreAfter = Math.max(10, Math.min(100, scoreBefore + finalScoreChange))
+        const scoreAfter = Math.max(0, Math.min(100, scoreBefore + finalScoreChange))
 
         const entry: ConvictionLedgerEntry = {
           id: `ledger-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -128,7 +130,12 @@ export const useConvictionStore = create<ConvictionStore>()(
 
       // --- Conviction scores ---
 
-      getConvictionScore: (thesisId) => get().convictionScores[thesisId] ?? 70,
+      getConvictionScore: (thesisId) => get().convictionScores[thesisId],
+
+      getConvictionScoreOrDefault: (thesisId, defaultScore = 70) =>
+        get().convictionScores[thesisId] ?? defaultScore,
+
+      hasConvictionScore: (thesisId) => thesisId in get().convictionScores,
 
       setInitialConvictionScore: (thesisId, score) =>
         set((s) => ({

@@ -165,7 +165,7 @@ export async function triggerConvictionComparison(
   if (!shouldTriggerConvictionComparison(signal, thesis)) return null
 
   const store = useConvictionStore.getState()
-  const currentScore = store.getConvictionScore(thesis.id)
+  const currentScore = store.getConvictionScoreOrDefault(thesis.id)
 
   // Run the AI comparison
   const result = await runConvictionComparison(signal, thesis, currentScore)
@@ -188,7 +188,7 @@ export async function triggerConvictionComparison(
     deltaCategory: result.deltaCategory,
     proposedScoreChange: result.proposedScoreChange,
     currentConvictionScore: currentScore,
-    proposedConvictionScore: Math.max(10, Math.min(100, currentScore + result.proposedScoreChange)),
+    proposedConvictionScore: Math.max(0, Math.min(100, currentScore + result.proposedScoreChange)),
 
     agentReasoning: result.agentReasoning,
     recommendedAction: result.recommendedAction,

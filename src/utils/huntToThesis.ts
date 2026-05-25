@@ -84,11 +84,12 @@ export function addHuntThesisToDossier(
   lens: ThesisLens,
 ): Thesis {
   const thesis = createThesisFromHuntBrief(brief, lens)
-  useThesisStore.getState().addThesis(thesis)
-  initializeThesis(thesis).catch(() => {
+  const thesisWithPending = { ...thesis, convictionInitStatus: 'pending' as const }
+  useThesisStore.getState().addThesis(thesisWithPending)
+  initializeThesis(thesisWithPending).catch(() => {
     // Fail silently — thesis is already stored
   })
-  return thesis
+  return thesisWithPending
 }
 
 export function isDuplicateInDossier(

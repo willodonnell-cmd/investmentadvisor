@@ -90,3 +90,11 @@ export interface ConvictionComparisonResult {
   agentReasoning: string
   recommendedAction: ConvictionRecommendedAction
 }
+
+/** Thesis-specific driver: what observable would move conviction and by how much. */
+export interface ConvictionDriver {
+  direction: 'Up' | 'Down'
+  trigger: string
+  magnitude: number
+  variable?: MispricedVariable
+}

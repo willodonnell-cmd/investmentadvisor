@@ -1,7 +1,16 @@
 import React, { useState } from 'react'
 import { useConvictionStore } from '../../store/convictionStore'
+import { initializeThesis } from '../../api/thesisInitializer'
+import { useThesisStore } from '../../store/thesisStore'
 import { ConvictionReviewModal } from './ConvictionReviewModal'
-import type { ConvictionLedgerEntry, ConvictionDeltaCategory } from '../../types/conviction'
+import type { ConvictionDriver, ConvictionLedgerEntry, ConvictionDeltaCategory } from '../../types/conviction'
+import type { ConvictionInitStatus } from '../../types/thesis'
+import {
+  CONVICTION_DELTA_MAGNITUDES,
+  CONVICTION_SCORE_CALIBRATION,
+  formatMagnitude,
+} from '../../constants/convictionScoring'
+import { resolveConvictionDisplay } from '../../hooks/useThesisBackgroundJobs'
 
 // ─── Display config ───────────────────────────────────────────────────────────
 
@@ -223,21 +232,177 @@ function LedgerEntryRow({
   )
 }
 
+// ─── Conviction drivers + reference ──────────────────────────────────────────
+
+function DriverRow({ driver }: { driver: ConvictionDriver }) {
+  const isUp = driver.direction === 'Up'
+  const color = isUp ? '#1E6640' : '#A83030'
+  const bg = isUp ? 'rgba(30,102,64,0.08)' : 'rgba(168,48,48,0.08)'
+  const border = isUp ? 'rgba(30,102,64,0.20)' : 'rgba(168,48,48,0.22)'
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'flex-start', gap: 10,
+      padding: '8px 10px',
+      borderRadius: 8,
+      background: bg,
+      border: `1px solid ${border}`,
+    }}>
+      <span style={{
+        fontSize: 11, fontWeight: 700, fontFamily: 'monospace',
+        color, flexShrink: 0, minWidth: 36, textAlign: 'right',
+      }}>
+        {formatMagnitude(driver.magnitude)}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: 11, color: '#18140E', margin: 0, lineHeight: 1.45 }}>
+          {driver.trigger}
+        </p>
+        {driver.variable && (
+          <p style={{ fontSize: 10, color: '#A89878', margin: '3px 0 0' }}>
+            {driver.variable.replace(/([A-Z])/g, ' $1').trim()}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ConvictionReferencePanel({
+  drivers,
+}: {
+  drivers?: ConvictionDriver[]
+}) {
+  const [showReference, setShowReference] = useState(false)
+  const upDrivers = (drivers ?? []).filter((d) => d.direction === 'Up')
+  const downDrivers = (drivers ?? []).filter((d) => d.direction === 'Down')
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {drivers && drivers.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <p style={{
+            fontSize: 9, fontWeight: 600, color: '#A89878',
+            textTransform: 'uppercase', letterSpacing: '0.07em', margin: 0,
+          }}>
+            What moves conviction on this thesis
+          </p>
+          {upDrivers.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 10, fontWeight: 600, color: '#1E6640' }}>↑ Up</span>
+              {upDrivers.map((d, i) => <DriverRow key={`up-${i}`} driver={d} />)}
+            </div>
+          )}
+          {downDrivers.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 10, fontWeight: 600, color: '#A83030' }}>↓ Down</span>
+              {downDrivers.map((d, i) => <DriverRow key={`down-${i}`} driver={d} />)}
+            </div>
+          )}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setShowReference((v) => !v)}
+        style={{
+          alignSelf: 'flex-start',
+          background: 'none',
+          border: 'none',
+          padding: 0,
+          fontSize: 10,
+          fontWeight: 600,
+          color: '#9A7A50',
+          cursor: 'pointer',
+          textDecoration: 'underline',
+        }}
+      >
+        {showReference ? 'Hide' : 'Show'} score scale & signal magnitudes
+      </button>
+
+      {showReference && (
+        <div style={{
+          borderRadius: 10,
+          overflow: 'hidden',
+          background: '#FDFCF9',
+          boxShadow: '0 0 0 1px rgba(20,12,4,0.07)',
+        }}>
+          <div style={{ padding: '10px 12px', background: '#F5F2EC', borderBottom: '1px solid rgba(20,12,4,0.07)' }}>
+            <p style={{ fontSize: 9, fontWeight: 600, color: '#A89878', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 8px' }}>
+              Initial score calibration (0–100)
+            </p>
+            {CONVICTION_SCORE_CALIBRATION.map((band) => (
+              <div key={band.label} style={{ display: 'flex', gap: 8, marginBottom: 4, fontSize: 10, lineHeight: 1.4 }}>
+                <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#706050', minWidth: 52, flexShrink: 0 }}>
+                  {band.range[0]}–{band.range[1]}
+                </span>
+                <span style={{ fontWeight: 600, color: '#18140E', minWidth: 88, flexShrink: 0 }}>{band.label}</span>
+                <span style={{ color: '#A89878' }}>{band.description}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ padding: '10px 12px' }}>
+            <p style={{ fontSize: 9, fontWeight: 600, color: '#A89878', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 8px' }}>
+              Signal-triggered changes (when confirmed)
+            </p>
+            {(Object.entries(CONVICTION_DELTA_MAGNITUDES) as [ConvictionDeltaCategory, typeof CONVICTION_DELTA_MAGNITUDES[ConvictionDeltaCategory]][]).map(([key, cfg]) => (
+              <div key={key} style={{ display: 'flex', gap: 8, marginBottom: 4, fontSize: 10, lineHeight: 1.4 }}>
+                <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#706050', minWidth: 52, flexShrink: 0 }}>
+                  {cfg.range[0] === cfg.range[1]
+                    ? '0'
+                    : cfg.range[0] < 0
+                      ? `${cfg.range[0]} to ${cfg.range[1]}`
+                      : `+${cfg.range[0]} to +${cfg.range[1]}`}
+                </span>
+                <span style={{ fontWeight: 600, color: '#18140E', minWidth: 140, flexShrink: 0 }}>{cfg.label}</span>
+                <span style={{ color: '#A89878' }}>{cfg.description}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface ConvictionLedgerProps {
   thesisId: string
   convictionReasoning?: string
+  thesisQualityScore?: number
+  convictionDrivers?: ConvictionDriver[]
+  convictionInitStatus?: ConvictionInitStatus
+  convictionRunning?: boolean
 }
 
-export const ConvictionLedger: React.FC<ConvictionLedgerProps> = ({ thesisId, convictionReasoning }) => {
-  const getLedgerForThesis = useConvictionStore((s) => s.getLedgerForThesis)
-  const getConvictionScore = useConvictionStore((s) => s.getConvictionScore)
-  const getDraftsForThesis = useConvictionStore((s) => s.getDraftsForThesis)
+export const ConvictionLedger: React.FC<ConvictionLedgerProps> = ({
+  thesisId,
+  convictionReasoning,
+  thesisQualityScore,
+  convictionDrivers,
+  convictionInitStatus,
+  convictionRunning = false,
+}) => {
+  const storedScore = useConvictionStore((s) => s.convictionScores[thesisId])
+  const drafts = useConvictionStore((s) =>
+    Object.values(s.drafts).filter((d) => d.thesisId === thesisId)
+  )
+  const entries = useConvictionStore((s) =>
+    Object.values(s.ledger)
+      .filter((e) => e.thesisId === thesisId)
+      .sort((a, b) => new Date(b.confirmedAt).getTime() - new Date(a.confirmedAt).getTime())
+  )
+  const thesis = useThesisStore((s) => s.theses[thesisId])
 
-  const entries = getLedgerForThesis(thesisId)
-  const currentScore = getConvictionScore(thesisId)
-  const pendingDrafts = getDraftsForThesis(thesisId)
+  const thesisMeta = thesis ?? {
+    convictionInitStatus,
+    thesisQualityScore,
+    convictionReasoning,
+  }
+  const { displayScore, isAssessing, isFailed } = resolveConvictionDisplay(thesisMeta, storedScore)
+  const showAssessing = isAssessing || convictionRunning
+  const pendingDrafts = drafts
 
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [reviewOpen, setReviewOpen] = useState(false)
@@ -261,13 +426,28 @@ export const ConvictionLedger: React.FC<ConvictionLedgerProps> = ({ thesisId, co
             <div style={{
               display: 'flex', alignItems: 'baseline', gap: 4,
             }}>
-              <span style={{
-                fontSize: 26, fontWeight: 800, fontFamily: 'monospace',
-                color: currentScore >= 70 ? '#1E6640' : currentScore >= 50 ? '#7A4A10' : '#A83030',
-              }}>
-                {currentScore}
-              </span>
-              <span style={{ fontSize: 12, color: '#A89878' }}>/100</span>
+              {showAssessing ? (
+                <>
+                  <span style={{
+                    fontSize: 18, fontWeight: 600, fontStyle: 'italic',
+                    color: '#A89878',
+                  }}>
+                    Assessing…
+                  </span>
+                </>
+              ) : displayScore !== undefined ? (
+                <>
+                  <span style={{
+                    fontSize: 26, fontWeight: 800, fontFamily: 'monospace',
+                    color: displayScore >= 70 ? '#1E6640' : displayScore >= 50 ? '#7A4A10' : '#A83030',
+                  }}>
+                    {displayScore}
+                  </span>
+                  <span style={{ fontSize: 12, color: '#A89878' }}>/100</span>
+                </>
+              ) : (
+                <span style={{ fontSize: 18, fontWeight: 600, color: '#A89878' }}>—</span>
+              )}
             </div>
 
             {/* Trend */}
@@ -284,6 +464,36 @@ export const ConvictionLedger: React.FC<ConvictionLedgerProps> = ({ thesisId, co
               {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
             </span>
           </div>
+
+          {isFailed && (
+            <p style={{ fontSize: 11, color: '#A83030', lineHeight: 1.5, margin: 0, maxWidth: 560 }}>
+              Initial assessment failed.
+              {thesis && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      useThesisStore.getState().updateThesis(thesisId, { convictionInitStatus: 'pending' })
+                      void initializeThesis(thesis).catch(() => {})
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: '#7A4A10',
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                    }}
+                  >
+                    Retry
+                  </button>
+                </>
+              )}
+            </p>
+          )}
 
           {convictionReasoning && (
             <p style={{ fontSize: 11, color: '#A89878', lineHeight: 1.5, margin: 0, maxWidth: 560 }}>
@@ -316,6 +526,8 @@ export const ConvictionLedger: React.FC<ConvictionLedgerProps> = ({ thesisId, co
           )}
         </div>
       </div>
+
+      <ConvictionReferencePanel drivers={convictionDrivers} />
 
       {/* Ledger table */}
       {entries.length === 0 ? (

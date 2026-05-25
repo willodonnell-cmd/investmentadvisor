@@ -1,11 +1,13 @@
 import type { Thesis, MispricedVariable } from '../types/thesis'
 import type { Signal, SignalDirection, SignalSpecificity } from '../types/signal'
+import type { ConvictionDriver } from '../types/conviction'
 import { callInvestmentAPI } from './openai'
 import { useThesisStore } from '../store/thesisStore'
 import { useSignalStore } from '../store/signalStore'
 import { useConvictionStore } from '../store/convictionStore'
 import { computeSignalWeight } from './signals'
 import { mapMispricedVariable } from '../utils/huntToThesis'
+import { clampConvictionScore, clampDriverMagnitude } from '../constants/convictionScoring'
 
 export interface ProposedSignal {
   title: string
@@ -20,6 +22,7 @@ export interface InitialAssessment {
   convictionScore: number
   convictionReasoning: string
   proposedSignals: ProposedSignal[]
+  convictionDrivers: ConvictionDriver[]
 }
 
 const VALID_MISPRICED = new Set<string>([
@@ -30,15 +33,29 @@ const VALID_MISPRICED = new Set<string>([
   'TerminalValueDuration', 'ManagementExecution',
 ])
 
-const SYSTEM_PROMPT = `You are the Dossier conviction engine. Your job is to assess a newly created investment thesis and:
-1. Assign an honest initial conviction score (30-75). Never above 75 — conviction above 75 must be earned through evidence. Score based on: thesis specificity and falsifiability, variant perception clarity, macro regime fit, transmission path plausibility, and quality of the mispriced variable identification. Be harsh — a vague thesis gets 35, a sharp well-articulated thesis gets 65-70.
-2. Propose 2-4 specific trackable signals. Each signal must be: tied to a specific data source or event, concrete enough that you would know when you've observed it, and directly relevant to confirming or disconfirming the primary mispriced variable. No generic signals like "watch earnings" — name the specific company, metric, or event.
+const SYSTEM_PROMPT = `You are the Dossier conviction engine. Assess a newly created investment thesis on a 0–100 scale.
+
+SCORE CALIBRATION (use the full range; be harsh):
+- 0–25: Weak — vague, unfalsifiable, or structurally broken
+- 26–45: Speculative — direction plausible but thin variant or weak transmission
+- 46–60: Moderate — coherent but unproven; typical developing thesis
+- 61–75: Strong — sharp variant, clear mispriced variable, plausible causal path
+- 76–85: Exceptional at creation — rare; requires unusual specificity and falsifiability
+- 86–92: Near-ceiling — almost never assign at initial assessment
+- 93–100: Maximum — virtually impossible at creation; reserved for sustained confirming evidence over time. Do NOT assign 93+ unless the thesis is extraordinary in every dimension.
+
+Your tasks:
+1. Assign an honest initial conviction score (0–100) using the calibration above.
+2. Propose 2–4 specific trackable signals (concrete data sources/events, not generic "watch earnings").
+3. Propose 4–8 conviction drivers: specific observable triggers that would move conviction up or down, each with a signed magnitude in points.
+
+Driver magnitude rules (single trigger):
+- Minor confirming/contradicting: ±2 to ±7
+- Material confirming/contradicting: ±8 to ±15
+- Thesis-altering (usually Down): −20 to −35
+- Include at least 2 Up drivers and 2 Down drivers tied to this thesis's assumptions and disconfirmers.
 
 Return ONLY valid JSON matching the schema provided.`
-
-function clampConvictionScore(score: number): number {
-  return Math.max(30, Math.min(75, Math.round(score)))
-}
 
 function mapProposedDirection(direction: string): SignalDirection {
   return direction === 'Disconfirming' ? 'Weakening' : 'Strengthening'
@@ -65,6 +82,22 @@ function normalizeProposedSignal(raw: Record<string, unknown>): ProposedSignal |
   return { title, variable, direction, sourceType, whatToWatch, significance }
 }
 
+function normalizeConvictionDriver(raw: Record<string, unknown>): ConvictionDriver | null {
+  const trigger = typeof raw.trigger === 'string' ? raw.trigger.trim() : ''
+  if (!trigger) return null
+
+  const direction = raw.direction === 'Down' ? 'Down' : 'Up'
+  const magnitudeRaw = typeof raw.magnitude === 'number' ? raw.magnitude : 5
+  const magnitude = clampDriverMagnitude(magnitudeRaw, direction)
+
+  const variableRaw = typeof raw.variable === 'string' ? raw.variable : undefined
+  const variable = variableRaw && VALID_MISPRICED.has(variableRaw)
+    ? (variableRaw as MispricedVariable)
+    : undefined
+
+  return { direction, trigger, magnitude, ...(variable ? { variable } : {}) }
+}
+
 function buildThesisContext(thesis: Thesis): string {
   return `Assess this newly created investment thesis and return JSON.
 
@@ -84,16 +117,24 @@ ${thesis.ticker ? `Ticker: ${thesis.ticker}` : ''}
 
 Return this exact JSON structure:
 {
-  "convictionScore": <integer 30-75>,
-  "convictionReasoning": "<2-3 sentences explaining the score>",
+  "convictionScore": <integer 0-100>,
+  "convictionReasoning": "<2-3 sentences explaining the score using the calibration bands>",
   "proposedSignals": [
     {
       "title": "<one sentence, specific and concrete>",
-      "variable": "<one of the MispricedVariable enum values, e.g. GrowthDurability>",
+      "variable": "<MispricedVariable enum value>",
       "direction": "<Confirming or Disconfirming>",
-      "sourceType": "<e.g. Earnings call, Fed minutes, Industry data release>",
+      "sourceType": "<e.g. Earnings call, Fed minutes>",
       "whatToWatch": "<exactly what to look for>",
       "significance": "<High or Medium>"
+    }
+  ],
+  "convictionDrivers": [
+    {
+      "direction": "<Up or Down>",
+      "trigger": "<specific observable event or data point>",
+      "magnitude": <integer points, positive number; sign implied by direction>,
+      "variable": "<optional MispricedVariable enum value>"
     }
   ]
 }`
@@ -131,7 +172,7 @@ export async function runThesisInitialization(thesis: Thesis): Promise<InitialAs
     SYSTEM_PROMPT,
     buildThesisContext(thesis),
     true,
-    2000,
+    6000,
   )
 
   const convictionScore = clampConvictionScore(
@@ -148,8 +189,14 @@ export async function runThesisInitialization(thesis: Thesis): Promise<InitialAs
     .filter((s): s is ProposedSignal => s !== null)
     .slice(0, 4)
 
-  console.log("[thesisInitializer] raw result:", JSON.stringify({ convictionScore, convictionReasoning, proposedSignals }))
-  return { convictionScore, convictionReasoning, proposedSignals }
+  const driversRaw = Array.isArray(raw.convictionDrivers) ? raw.convictionDrivers : []
+  const convictionDrivers = driversRaw
+    .map((item) => (item && typeof item === 'object' ? normalizeConvictionDriver(item as Record<string, unknown>) : null))
+    .filter((d): d is ConvictionDriver => d !== null)
+    .slice(0, 8)
+
+  console.log("[thesisInitializer] raw result:", JSON.stringify({ convictionScore, convictionReasoning, proposedSignals, convictionDrivers }))
+  return { convictionScore, convictionReasoning, proposedSignals, convictionDrivers }
 }
 
 export async function initializeThesis(thesis: Thesis): Promise<void> {
@@ -157,11 +204,16 @@ export async function initializeThesis(thesis: Thesis): Promise<void> {
     console.log("[thesisInitializer] starting for", thesis.id)
     const assessment = await runThesisInitialization(thesis)
     console.log("[thesisInitializer] assessment:", JSON.stringify(assessment))
-    if (!assessment) return
+    if (!assessment) {
+      useThesisStore.getState().updateThesis(thesis.id, { convictionInitStatus: 'failed' })
+      return
+    }
 
     useThesisStore.getState().updateThesis(thesis.id, {
       thesisQualityScore: assessment.convictionScore,
       convictionReasoning: assessment.convictionReasoning,
+      convictionDrivers: assessment.convictionDrivers,
+      convictionInitStatus: 'complete',
     })
     useConvictionStore.getState().setInitialConvictionScore(thesis.id, assessment.convictionScore)
 
@@ -171,5 +223,6 @@ export async function initializeThesis(thesis: Thesis): Promise<void> {
     }
   } catch (err) {
     console.error("[thesisInitializer] failed:", err)
+    useThesisStore.getState().updateThesis(thesis.id, { convictionInitStatus: 'failed' })
   }
 }

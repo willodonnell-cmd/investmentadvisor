@@ -26,6 +26,7 @@ import { generateExpertSynthesis } from '../api/expertSynthesis'
 import { generateResearchView } from '../api/underwriting'
 import { computeComposite, computeSignalWeight, detectConvergence, detectDivergence } from '../api/signals'
 import { triggerConvictionComparison } from '../api/convictionComparison'
+import { useThesisBackgroundJobs } from '../hooks/useThesisBackgroundJobs'
 import { computeDecayClock, shouldTriggerReassessment, computeEvidenceDrift } from '../api/decay'
 
 const VARIANT_STRENGTH_LABELS: Record<string, string> = {
@@ -255,6 +256,7 @@ const DetailDrawer: React.FC<{ thesis: Thesis; open: boolean; onClose: () => voi
 
 const SCENARIO_ORDER = ['ThesisConfirmed', 'ContestedPath', 'ThesisBroken'] as const
 
+const ANALYSIS_STAGES: LifecycleStage[] = ['Developing', 'Actionable', 'Live']
 const ACTIONABLE_PLUS: LifecycleStage[] = ['Actionable', 'Live']
 
 const LENS_CYCLE: ThesisLens[] = ['Standalone', 'PrologisAware', 'CompareVsPrologis']
@@ -284,6 +286,7 @@ export const ThesisScreen: React.FC = () => {
   const [editDraft, setEditDraft] = useState('')
 
   const thesis = useThesisStore((s) => (id ? s.theses[id] : undefined))
+  const { convictionRunning, scenariosRunning, expertRunning, jobError } = useThesisBackgroundJobs(thesis)
   const removeThesis = useThesisStore((s) => s.removeThesis)
   const updateThesis = useThesisStore((s) => s.updateThesis)
   const advanceLifecycle = useThesisStore((s) => s.advanceLifecycle)
@@ -411,6 +414,7 @@ export const ThesisScreen: React.FC = () => {
   const primaryTrigger = thesis.triggers.find((t) => t.isPrimary)
   const compatibility = computeRegimeCompatibility(thesis.type, regime)
   const isActionablePlus = ACTIONABLE_PLUS.includes(thesis.stage)
+  const showAnalysisSections = ANALYSIS_STAGES.includes(thesis.stage)
   const showResearchTab = thesis.stage === 'Developing'
   const totalProbPct = Math.round(scenarios.reduce((s, sc) => s + sc.probability, 0) * 100)
 
@@ -757,8 +761,8 @@ export const ThesisScreen: React.FC = () => {
           </div>
         </Section>
 
-        {/* ── Scenarios (Actionable+) ── */}
-        {isActionablePlus && (
+        {/* ── Scenarios ── */}
+        {showAnalysisSections && (
           <Section title="Narrative Scenarios">
             {scenarios.length > 0 && (
               <>
@@ -793,19 +797,19 @@ export const ThesisScreen: React.FC = () => {
                 )}
                 <button
                   onClick={handleGenerateScenarios}
-                  disabled={generatingScenarios}
+                  disabled={generatingScenarios || scenariosRunning}
                   className="px-3 py-1.5 text-xs font-medium text-white bg-accent/90 hover:bg-accent
                     disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                 >
-                  {generatingScenarios ? 'Generating…' : scenarios.length > 0 ? 'Regenerate' : 'Generate Scenarios'}
+                  {(generatingScenarios || scenariosRunning) ? 'Generating…' : scenarios.length > 0 ? 'Regenerate' : 'Generate Scenarios'}
                 </button>
               </div>
             </div>
           </Section>
         )}
 
-        {/* ── Expert Synthesis (Actionable+) ── */}
-        {isActionablePlus && (
+        {/* ── Expert Synthesis ── */}
+        {showAnalysisSections && (
           <Section title="Expert Synthesis">
             {synthesis && <ExpertSynthesisView synthesis={synthesis} />}
             <div className="flex items-center justify-between pt-1">
@@ -818,11 +822,11 @@ export const ThesisScreen: React.FC = () => {
                 )}
                 <button
                   onClick={handleGenerateExpertSynthesis}
-                  disabled={generatingExpert}
+                  disabled={generatingExpert || expertRunning}
                   className="px-3 py-1.5 text-xs font-medium text-white bg-accent/90 hover:bg-accent
                     disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
                 >
-                  {generatingExpert ? 'Running…' : synthesis ? 'Re-run Synthesis' : 'Run Expert Synthesis'}
+                  {(generatingExpert || expertRunning) ? 'Running…' : synthesis ? 'Re-run Synthesis' : 'Run Expert Synthesis'}
                 </button>
               </div>
             </div>
@@ -975,9 +979,23 @@ export const ThesisScreen: React.FC = () => {
           )}
         </Section>
 
+        {genError && (
+          <p className="text-[10px] text-danger px-1">{genError}</p>
+        )}
+        {jobError && !genError && (
+          <p className="text-[10px] text-danger px-1">{jobError}</p>
+        )}
+
         {/* ── Conviction Ledger ── */}
         <Section title="Conviction Ledger">
-          <ConvictionLedger thesisId={thesis.id} convictionReasoning={thesis.convictionReasoning} />
+          <ConvictionLedger
+            thesisId={thesis.id}
+            convictionReasoning={thesis.convictionReasoning}
+            thesisQualityScore={thesis.thesisQualityScore}
+            convictionDrivers={thesis.convictionDrivers}
+            convictionInitStatus={thesis.convictionInitStatus}
+            convictionRunning={convictionRunning}
+          />
         </Section>
 
 

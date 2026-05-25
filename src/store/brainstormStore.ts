@@ -7,6 +7,7 @@ import {
   type ChatMessage,
   type ThesisCanvas,
 } from '../api/brainstorming'
+import { startThesisBackgroundJobs } from '../api/startThesisBackgroundJobs'
 import { useThesisStore } from './thesisStore'
 
 export type BrainstormPhase = 'idle' | 'generating' | 'canvas' | 'normalizing' | 'error'
@@ -112,7 +113,12 @@ export const useBrainstormStore = create<BrainstormStore>()((set, get) => ({
 
     try {
       const thesis = await normalizeCanvasToThesis(canvas, spark.trim())
-      useThesisStore.getState().addThesis(thesis)
+      const thesisWithPending = { ...thesis, convictionInitStatus: 'pending' as const }
+      useThesisStore.getState().addThesis(thesisWithPending)
+
+      // Fire and forget — staggered background jobs after thesis is created from canvas
+      startThesisBackgroundJobs(thesisWithPending)
+
       set({ phase: 'canvas', lastCreatedThesisId: thesis.id })
       markComplete(set)
       return thesis.id
