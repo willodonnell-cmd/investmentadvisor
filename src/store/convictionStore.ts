@@ -36,6 +36,7 @@ interface ConvictionStore {
   getConvictionScoreOrDefault: (thesisId: string, defaultScore?: number) => number
   hasConvictionScore: (thesisId: string) => boolean
   setInitialConvictionScore: (thesisId: string, score: number) => void
+  clearThesisData: (thesisId: string) => void
 }
 
 export const useConvictionStore = create<ConvictionStore>()(
@@ -141,6 +142,20 @@ export const useConvictionStore = create<ConvictionStore>()(
         set((s) => ({
           convictionScores: { ...s.convictionScores, [thesisId]: score },
         })),
+
+      clearThesisData: (thesisId) =>
+        set((s) => {
+          const { [thesisId]: _score, ...convictionScores } = s.convictionScores
+          return {
+            convictionScores,
+            drafts: Object.fromEntries(
+              Object.entries(s.drafts).filter(([, d]) => d.thesisId !== thesisId),
+            ),
+            ledger: Object.fromEntries(
+              Object.entries(s.ledger).filter(([, e]) => e.thesisId !== thesisId),
+            ),
+          }
+        }),
     }),
     {
       name: 'conviction-store',

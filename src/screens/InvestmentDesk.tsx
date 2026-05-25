@@ -8,7 +8,9 @@ import { LifecycleStage, ThesisLens } from '../types'
 import { detectConvergence, detectDivergence } from '../api/signals'
 import { computePrologisOverlap, PrologisOverlapLabel } from '../api/correlation'
 import { canAdvanceTo } from '../utils/thesisHelpers'
+import { deleteThesisFromSystem, deleteAllThesesFromSystem } from '../utils/deleteThesis'
 import { MISPRICED_VARIABLE_LABELS } from '../constants'
+import { DeleteThesisButton } from '../components/ui/DeleteThesisButton'
 
 const PIPELINE_STAGES: LifecycleStage[] = [
   'Developing', 'Actionable', 'Live',
@@ -92,7 +94,7 @@ function PrologisContextBanner({ lens }: { lens: Exclude<ThesisLens, 'Standalone
 
 type EvidenceSort = 'score' | 'direction' | 'convergence' | 'lastSignal'
 
-function EvidenceDashboard() {
+function EvidenceDashboard({ onDeleteThesis }: { onDeleteThesis: (id: string, name: string, e: React.MouseEvent) => void }) {
   const navigate = useNavigate()
   const thesesRecord = useThesisStore((s) => s.theses)
   const signalsRecord = useSignalStore((s) => s.signals)
@@ -257,10 +259,9 @@ function EvidenceDashboard() {
           const barPct = ((row.compositeScore + 10) / 20) * 100
 
           return (
-            <button
+            <div
               key={row.thesis.id}
-              onClick={() => navigate(`/thesis/${row.thesis.id}`)}
-              className={`w-full text-left grid ${gridCols} gap-2 px-4 py-2.5 transition-colors`}
+              className="flex items-stretch"
               style={{
                 background: '#FDFCF9',
                 borderBottom: idx < sorted.length - 1 ? '1px solid rgba(20,12,4,0.05)' : 'none',
@@ -268,6 +269,12 @@ function EvidenceDashboard() {
               onMouseEnter={e => (e.currentTarget.style.background = '#F8F4EF')}
               onMouseLeave={e => (e.currentTarget.style.background = '#FDFCF9')}
             >
+              <button
+                type="button"
+                onClick={() => navigate(`/thesis/${row.thesis.id}`)}
+                className={`flex-1 grid ${gridCols} gap-2 px-4 py-2.5 text-left`}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+              >
               {/* Name */}
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
@@ -357,7 +364,13 @@ function EvidenceDashboard() {
                   {row.daysSinceLast === null ? '—' : `${row.daysSinceLast}d ago`}
                 </p>
               </div>
-            </button>
+              </button>
+              <div className="flex items-center pr-3">
+                <DeleteThesisButton
+                  onDelete={(e) => onDeleteThesis(row.thesis.id, row.thesis.name, e)}
+                />
+              </div>
+            </div>
           )
         })}
       </div>
@@ -375,6 +388,20 @@ export const InvestmentDesk: React.FC = () => {
 
   const [dragging, setDragging] = useState<{ id: string; fromStage: LifecycleStage } | null>(null)
   const [dragOverStage, setDragOverStage] = useState<LifecycleStage | null>(null)
+  const [showManage, setShowManage] = useState(false)
+
+  const handleDeleteThesis = (id: string, name: string, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    e?.preventDefault()
+    deleteThesisFromSystem(id, name)
+  }
+
+  const allTheses = useMemo(
+    () => Object.values(thesesRecord).sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+    ),
+    [thesesRecord],
+  )
 
   const activeTheses = getActiveTheses()
   const liveAndActionable = activeTheses.filter(
@@ -417,7 +444,12 @@ export const InvestmentDesk: React.FC = () => {
             {liveAndActionable.map((thesis) => {
               const overlap = showPrologis ? computePrologisOverlap(thesis) : null
               return (
-                <div key={thesis.id} className="flex-shrink-0 w-[260px]">
+                <div key={thesis.id} className="flex-shrink-0 w-[260px] relative">
+                  <div className="absolute top-2 right-2 z-10">
+                    <DeleteThesisButton
+                      onDelete={(e) => handleDeleteThesis(thesis.id, thesis.name, e)}
+                    />
+                  </div>
                   <ThesisCard thesis={thesis} compact />
                   {overlap && (
                     <div style={{ marginTop: 4, paddingLeft: 2 }}>
@@ -446,7 +478,7 @@ export const InvestmentDesk: React.FC = () => {
       {/* Evidence Dashboard */}
       <section>
         <ErrorBoundary label="Evidence Dashboard">
-          <EvidenceDashboard />
+          <EvidenceDashboard onDeleteThesis={handleDeleteThesis} />
         </ErrorBoundary>
       </section>
 
@@ -507,10 +539,9 @@ export const InvestmentDesk: React.FC = () => {
                           draggable
                           onDragStart={() => setDragging({ id: thesis.id, fromStage: stage })}
                           onDragEnd={() => { setDragging(null); setDragOverStage(null) }}
-                          onClick={() => navigate(`/thesis/${thesis.id}`)}
-                          className="w-full text-left rounded-md transition-colors cursor-grab active:cursor-grabbing"
+                          className="flex items-center gap-1 rounded-md transition-colors cursor-grab active:cursor-grabbing"
                           style={{
-                            padding: '5px 8px',
+                            padding: '3px 4px 3px 8px',
                             background: 'rgba(20,12,4,0.04)',
                             opacity: isDragging ? 0.4 : 1,
                             userSelect: 'none',
@@ -518,17 +549,28 @@ export const InvestmentDesk: React.FC = () => {
                           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(20,12,4,0.08)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'rgba(20,12,4,0.04)')}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                            {dotColor && (
-                              <span style={{
-                                width: 5, height: 5, borderRadius: '50%',
-                                background: dotColor, flexShrink: 0,
-                              }} />
-                            )}
-                            <p style={{ fontSize: 11, color: '#18140E', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {thesis.name}
-                            </p>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/thesis/${thesis.id}`)}
+                            className="flex-1 min-w-0 text-left"
+                            style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                              {dotColor && (
+                                <span style={{
+                                  width: 5, height: 5, borderRadius: '50%',
+                                  background: dotColor, flexShrink: 0,
+                                }} />
+                              )}
+                              <p style={{ fontSize: 11, color: '#18140E', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {thesis.name}
+                              </p>
+                            </div>
+                          </button>
+                          <DeleteThesisButton
+                            size="sm"
+                            onDelete={(e) => handleDeleteThesis(thesis.id, thesis.name, e)}
+                          />
                         </div>
                       )
                     })}
@@ -539,6 +581,69 @@ export const InvestmentDesk: React.FC = () => {
           })}
         </div>
       </section>
+
+      {/* Manage all theses — includes terminal stages not shown in pipeline */}
+      {allTheses.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <button
+              type="button"
+              onClick={() => setShowManage((v) => !v)}
+              className="text-xs font-semibold text-text-secondary uppercase tracking-wider hover:text-text-primary transition-colors"
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+            >
+              Manage Theses ({allTheses.length}) {showManage ? '▾' : '▸'}
+            </button>
+            {showManage && allTheses.length > 1 && (
+              <button
+                type="button"
+                onClick={() => deleteAllThesesFromSystem(allTheses.map((t) => t.id))}
+                className="text-xs text-danger/80 hover:text-danger transition-colors"
+                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                Delete all
+              </button>
+            )}
+          </div>
+          {showManage && (
+            <div style={{
+              borderRadius: 10,
+              overflow: 'hidden',
+              background: '#FDFCF9',
+              boxShadow: '0 0 0 1px rgba(20,12,4,0.06), 0 1px 3px rgba(20,12,4,0.06)',
+            }}>
+              {allTheses.map((thesis, idx) => {
+                const tickers = thesis.recommendations?.map((r) => r.ticker).filter(Boolean) ?? []
+                return (
+                  <div
+                    key={thesis.id}
+                    className="flex items-center gap-3 px-4 py-2.5"
+                    style={{
+                      borderBottom: idx < allTheses.length - 1 ? '1px solid rgba(20,12,4,0.05)' : 'none',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/thesis/${thesis.id}`)}
+                      className="flex-1 min-w-0 text-left"
+                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                    >
+                      <p className="text-xs text-text-primary font-medium truncate">{thesis.name}</p>
+                      <p className="text-[10px] text-text-muted mt-0.5">
+                        {thesis.stage}
+                        {tickers.length > 0 ? ` · ${tickers.join(', ')}` : ''}
+                      </p>
+                    </button>
+                    <DeleteThesisButton
+                      onDelete={(e) => handleDeleteThesis(thesis.id, thesis.name, e)}
+                    />
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
     </div>
   )

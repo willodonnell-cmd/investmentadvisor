@@ -20,6 +20,7 @@ import { THESIS_TYPE_LABELS, MISPRICED_VARIABLE_LABELS } from '../constants'
 import { formatDate, formatHorizon, formatRelativeTime } from '../utils/formatting'
 import { LifecycleStage, Thesis, Signal, KillRecord, ThesisLens } from '../types'
 import { LIFECYCLE_ORDER, canAdvanceTo } from '../utils/thesisHelpers'
+import { deleteThesisFromSystem } from '../utils/deleteThesis'
 import { computeRegimeCompatibility, COMPATIBILITY_LABELS, COMPATIBILITY_COLORS } from '../api/macroRegime'
 import { generateScenarios } from '../api/scenarios'
 import { generateExpertSynthesis } from '../api/expertSynthesis'
@@ -287,7 +288,6 @@ export const ThesisScreen: React.FC = () => {
 
   const thesis = useThesisStore((s) => (id ? s.theses[id] : undefined))
   const { convictionRunning, scenariosRunning, expertRunning, jobError } = useThesisBackgroundJobs(thesis)
-  const removeThesis = useThesisStore((s) => s.removeThesis)
   const updateThesis = useThesisStore((s) => s.updateThesis)
   const advanceLifecycle = useThesisStore((s) => s.advanceLifecycle)
 
@@ -419,9 +419,9 @@ export const ThesisScreen: React.FC = () => {
   const totalProbPct = Math.round(scenarios.reduce((s, sc) => s + sc.probability, 0) * 100)
 
   const handleDelete = () => {
-    if (!confirm(`Delete "${thesis.name}"? This cannot be undone.`)) return
-    removeThesis(thesis.id)
-    navigate('/')
+    if (deleteThesisFromSystem(thesis.id, thesis.name)) {
+      navigate('/')
+    }
   }
 
   const openSignalForm = (

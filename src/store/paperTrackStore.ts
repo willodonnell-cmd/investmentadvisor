@@ -19,6 +19,7 @@ interface PaperTrackState {
   loadHistory: (thesisId: string) => Promise<void>
   overrideTicker: (thesisId: string, positionId: string, ticker: string) => Promise<void>
   setPostMortem: (thesisId: string, reason: string) => void
+  removeTrack: (thesisId: string) => void
   computeReturn: (position: PaperPosition, window: SimWindow, thesisCreatedAt: string) => number
 }
 
@@ -176,6 +177,13 @@ export const usePaperTrackStore = create<PaperTrackState>()(
           },
         }))
       },
+
+      removeTrack: (thesisId) =>
+        set((s) => {
+          const { [thesisId]: _, ...tracks } = s.tracks
+          const { [thesisId]: __, ...loading } = s.loading
+          return { tracks, loading }
+        }),
 
       // ── Return calculation ───────────────────────────────────────────────────
       computeReturn: (position, window, thesisCreatedAt) => {

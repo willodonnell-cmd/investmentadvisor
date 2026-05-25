@@ -11,6 +11,7 @@ interface SignalStore {
   addSignal: (signal: Signal) => void
   updateSignal: (id: string, updates: Partial<Signal>) => void
   removeSignal: (id: string) => void
+  removeByThesis: (thesisId: string) => void
   upsertComposite: (composite: SignalComposite) => void
   getSignalsByThesis: (thesisId: string) => Signal[]
   getCompositesByThesis: (thesisId: string) => SignalComposite[]
@@ -48,6 +49,16 @@ export const useSignalStore = create<SignalStore>()(
           const { [id]: _, ...rest } = state.signals
           return { signals: rest }
         }),
+
+      removeByThesis: (thesisId) =>
+        set((state) => ({
+          signals: Object.fromEntries(
+            Object.entries(state.signals).filter(([, s]) => s.linkedThesisId !== thesisId),
+          ),
+          composites: Object.fromEntries(
+            Object.entries(state.composites).filter(([, c]) => c.linkedThesisId !== thesisId),
+          ),
+        })),
 
       upsertComposite: (composite) =>
         set((state) => ({ composites: { ...state.composites, [composite.id]: composite } })),
