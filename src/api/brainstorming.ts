@@ -155,7 +155,7 @@ Return ONLY a JSON object with this exact structure. No preamble, no explanation
 
 Be specific. Be sharp. No vague statements. The transmission path must be a step-by-step causal chain. The variant view must state something the consensus is specifically wrong about.`
 
-  return callInvestmentAPI<ThesisCanvas>(BRAINSTORM_SYSTEM, prompt, true, 6000)
+  return callInvestmentAPI<ThesisCanvas>(BRAINSTORM_SYSTEM, prompt, true, 12000)
 }
 
 export const normalizeCanvasToThesis = async (
