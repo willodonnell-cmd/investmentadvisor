@@ -1,119 +1,51 @@
 import React, { useState, useRef, useEffect } from 'react'
 
-import { applyOpenAIChatCompletionDynamicFields, getResolvedOpenAIModel } from '../../api/openai'
-
-const API_URL = 'https://api.openai.com/v1/chat/completions'
-
-interface Message {
-  role: 'user' | 'assistant'
-  content: string
-}
+import { useBrainstormStore } from '../../store/brainstormStore'
 
 interface Props {
   open: boolean
   onClose: () => void
   currentSpark: string
-  existingThesisNames: string[]
 }
 
-function buildSystemPrompt(existingThesisNames: string[]): string {
-  const avoidLine = existingThesisNames.length > 0
-    ? `\n\nExisting theses already in the system (avoid duplicating these):\n${existingThesisNames.map(n => `- ${n}`).join('\n')}`
-    : ''
-  return `You are an investment brainstorming partner. Your ONLY job is to help the user generate strong "Spark" prompts they can paste into the Spark box to generate a canvas.
-
-Output rules (strict):
-- If the user's input is underspecified, ask up to 2 short clarifying questions (max 1 sentence each). Stop there and wait.
-- Once you have enough info, return ONLY a bullet list of 1-3 Spark prompts (3 max). No preamble. No headings. No questions.
-- Each Spark prompt must be ONE sentence, <= 120 characters.
-- Match this style: "X is driving Y in Z" / "A is creating B tailwinds" / "C is crowding out D in E".
-- Each Spark must encode an implied mispricing/dislocation (what the market is getting wrong) without using the word "mispriced".
-- Avoid tickers, company names, and specific security recommendations. Themes first.
-- Keep them specific (who/what/where) but not so narrow that only one company fits.
-${avoidLine}`
+function buildGreeting(currentSpark: string): string {
+  return currentSpark.trim()
+    ? `I see you're working on: "${currentSpark.trim()}". What aspect do you want to sharpen — the transmission path, the mispriced variable, or the variant view?`
+    : `What are you seeing in the market? Give me a raw observation and we'll build it into a thesis.`
 }
 
-async function sendMessage(
-  messages: Message[],
-  systemPrompt: string,
-  apiKey: string,
-): Promise<string> {
-  const model = getResolvedOpenAIModel()
-  const body: Record<string, unknown> = {
-    model,
-    messages: [{ role: 'system' as const, content: systemPrompt }, ...messages],
-  }
-  applyOpenAIChatCompletionDynamicFields(body, model, 600)
-  const res = await fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(`API ${res.status}: ${JSON.stringify(err)}`)
-  }
-  const data = (await res.json()) as {
-    choices?: Array<{ message?: { content?: string | null } }>
-  }
-  return data.choices?.[0]?.message?.content ?? ''
-}
+export const BrainstormChat: React.FC<Props> = ({ open, onClose, currentSpark }) => {
+  const messages = useBrainstormStore((s) => s.messages)
+  const isStreaming = useBrainstormStore((s) => s.isStreaming)
+  const error = useBrainstormStore((s) => s.error)
+  const sendMessage = useBrainstormStore((s) => s.sendMessage)
 
-export const BrainstormChat: React.FC<Props> = ({ open, onClose, currentSpark, existingThesisNames }) => {
-  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const prevOpenRef = useRef(false)
 
-  // Seed a welcome message when opened, incorporating current spark if present
   useEffect(() => {
-    if (open && !prevOpenRef.current) {
-      const greeting = currentSpark.trim()
-        ? `I see you're working on: "${currentSpark.trim()}". What aspect do you want to sharpen — the transmission path, the mispriced variable, or the variant view?`
-        : `What are you seeing in the market? Give me a raw observation and we'll build it into a thesis.`
-      setMessages([{ role: 'assistant', content: greeting }])
-      setInput('')
-      setError(null)
-      setTimeout(() => inputRef.current?.focus(), 50)
+    if (!open) return
+    const { messages: current } = useBrainstormStore.getState()
+    if (current.length === 0) {
+      useBrainstormStore.setState({
+        messages: [{ role: 'assistant', content: buildGreeting(currentSpark) }],
+      })
     }
-    prevOpenRef.current = open
+    setTimeout(() => inputRef.current?.focus(), 50)
   }, [open, currentSpark])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [messages, isStreaming])
 
   const handleSend = async () => {
     const text = input.trim()
-    if (!text || loading) return
+    if (!text || isStreaming) return
 
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
-    if (!apiKey) {
-      setError('VITE_OPENAI_API_KEY not set')
-      return
-    }
-
-    const next: Message[] = [...messages, { role: 'user', content: text }]
-    setMessages(next)
     setInput('')
-    setLoading(true)
-    setError(null)
-
-    try {
-      const reply = await sendMessage(next, buildSystemPrompt(existingThesisNames), apiKey)
-      setMessages([...next, { role: 'assistant', content: reply }])
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
-    } finally {
-      setLoading(false)
-      setTimeout(() => inputRef.current?.focus(), 50)
-    }
+    await sendMessage(text, currentSpark.trim() || undefined)
+    setTimeout(() => inputRef.current?.focus(), 50)
   }
 
   if (!open) return null
@@ -203,7 +135,7 @@ export const BrainstormChat: React.FC<Props> = ({ open, onClose, currentSpark, e
           </div>
         ))}
 
-        {loading && (
+        {isStreaming && (
           <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
             <div style={{
               padding: '8px 12px',
@@ -255,7 +187,7 @@ export const BrainstormChat: React.FC<Props> = ({ open, onClose, currentSpark, e
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
           }}
-          disabled={loading}
+          disabled={isStreaming}
           placeholder="Your thought…"
           rows={1}
           style={{
@@ -278,15 +210,15 @@ export const BrainstormChat: React.FC<Props> = ({ open, onClose, currentSpark, e
         />
         <button
           onClick={handleSend}
-          disabled={!input.trim() || loading}
+          disabled={!input.trim() || isStreaming}
           style={{
             width: 30, height: 30,
             borderRadius: 8,
             border: 'none',
-            background: input.trim() && !loading
+            background: input.trim() && !isStreaming
               ? 'linear-gradient(135deg, #C8A060, #9A7A50)'
               : '#E8E0D4',
-            cursor: input.trim() && !loading ? 'pointer' : 'default',
+            cursor: input.trim() && !isStreaming ? 'pointer' : 'default',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
             transition: 'background 0.15s',

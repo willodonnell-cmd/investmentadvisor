@@ -2,6 +2,7 @@ import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { OpenAIModelSelect } from '../ui/OpenAIModelSelect'
 import { getEnvLabel } from '../../lib/envLabel'
+import { useBrainstormStore } from '../../store/brainstormStore'
 import { useHuntStore } from '../../store/huntStore'
 
 interface NavItem {
@@ -82,18 +83,39 @@ const HuntStatusDot: React.FC<{ running: boolean; completed: boolean; phase: str
   )
 }
 
+const BrainstormStatusDot: React.FC<{ streaming: boolean }> = ({ streaming }) => {
+  if (!streaming) return null
+  return (
+    <span
+      title="Brainstorm response in progress"
+      style={{
+        width: 7,
+        height: 7,
+        borderRadius: '50%',
+        background: '#ff6b6b',
+        flexShrink: 0,
+        marginLeft: 'auto',
+        animation: 'huntPulse 1.4s ease-in-out infinite',
+        boxShadow: '0 0 0 0 rgba(255,107,107,0.5)',
+      }}
+    />
+  )
+}
+
 export const Sidebar: React.FC = () => {
   const location = useLocation()
   const env = getEnvLabel()
   const isRunning = useHuntStore((s) => s.isRunning)
   const phase = useHuntStore((s) => s.phase)
   const justCompleted = useHuntStore((s) => s.justCompleted)
+  const isStreaming = useBrainstormStore((s) => s.isStreaming)
 
   const renderNavItem = (item: NavItem) => {
     const isActive = item.path === '/'
       ? location.pathname === '/'
       : location.pathname.startsWith(item.path)
     const isHunt = item.path === '/hunt'
+    const isBrainstorm = item.path === '/brainstorm'
     return (
       <NavLink key={item.path} to={item.path} style={{ textDecoration: 'none' }}>
         <div className="nav-item" style={{ color: isActive ? '#ffffff' : undefined }}>
@@ -106,6 +128,9 @@ export const Sidebar: React.FC = () => {
           )}
           <span style={{ opacity: isActive ? 1 : 0.55 }}>{item.icon}</span>
           {item.label}
+          {isBrainstorm && (
+            <BrainstormStatusDot streaming={isStreaming} />
+          )}
           {isHunt && (
             <HuntStatusDot running={isRunning} completed={justCompleted} phase={phase} />
           )}

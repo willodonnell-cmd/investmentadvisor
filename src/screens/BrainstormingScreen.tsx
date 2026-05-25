@@ -329,7 +329,6 @@ export const BrainstormingScreen: React.FC = () => {
         open={chatOpen}
         onClose={() => setChatOpen(false)}
         currentSpark={spark}
-        existingThesisNames={existingThesisNames}
       />
     </div>
   )

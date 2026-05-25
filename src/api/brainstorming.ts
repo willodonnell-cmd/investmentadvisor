@@ -1,5 +1,58 @@
 import { v4 as uuid } from 'uuid'
-import { callInvestmentAPI, SYSTEM_IDENTITY } from './openai'
+import { applyOpenAIChatCompletionDynamicFields, callInvestmentAPI, getResolvedOpenAIModel, SYSTEM_IDENTITY } from './openai'
+
+const CHAT_API_URL = 'https://api.openai.com/v1/chat/completions'
+
+export interface ChatMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+export function buildBrainstormSystemPrompt(existingThesisNames: string[]): string {
+  const avoidLine = existingThesisNames.length > 0
+    ? `\n\nExisting theses already in the system (avoid duplicating these):\n${existingThesisNames.map(n => `- ${n}`).join('\n')}`
+    : ''
+  return `You are an investment brainstorming partner. Your ONLY job is to help the user generate strong "Spark" prompts they can paste into the Spark box to generate a canvas.
+
+Output rules (strict):
+- If the user's input is underspecified, ask up to 2 short clarifying questions (max 1 sentence each). Stop there and wait.
+- Once you have enough info, return ONLY a bullet list of 1-3 Spark prompts (3 max). No preamble. No headings. No questions.
+- Each Spark prompt must be ONE sentence, <= 120 characters.
+- Match this style: "X is driving Y in Z" / "A is creating B tailwinds" / "C is crowding out D in E".
+- Each Spark must encode an implied mispricing/dislocation (what the market is getting wrong) without using the word "mispriced".
+- Avoid tickers, company names, and specific security recommendations. Themes first.
+- Keep them specific (who/what/where) but not so narrow that only one company fits.
+${avoidLine}`
+}
+
+export async function sendBrainstormMessage(
+  messages: ChatMessage[],
+  systemPrompt: string,
+  apiKey: string,
+): Promise<string> {
+  const model = getResolvedOpenAIModel()
+  const body: Record<string, unknown> = {
+    model,
+    messages: [{ role: 'system' as const, content: systemPrompt }, ...messages],
+  }
+  applyOpenAIChatCompletionDynamicFields(body, model, 600)
+  const res = await fetch(CHAT_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(`API ${res.status}: ${JSON.stringify(err)}`)
+  }
+  const data = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string | null } }>
+  }
+  return data.choices?.[0]?.message?.content ?? ''
+}
 import { Thesis, ThesisType, LifecycleStage, MispricedVariable, VariantPerceptionStrength, Trigger } from '../types'
 import type { ThesisRecommendation } from '../types/paperTrack'
 
