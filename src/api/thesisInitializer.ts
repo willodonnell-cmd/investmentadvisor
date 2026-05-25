@@ -126,6 +126,7 @@ function createProposedSignalObject(thesisId: string, proposed: ProposedSignal):
 }
 
 export async function runThesisInitialization(thesis: Thesis): Promise<InitialAssessment | null> {
+  console.log("[thesisInitializer] runThesisInitialization called, thesis.id:", thesis.id)
   const raw = await callInvestmentAPI<Record<string, unknown>>(
     SYSTEM_PROMPT,
     buildThesisContext(thesis),
@@ -147,6 +148,7 @@ export async function runThesisInitialization(thesis: Thesis): Promise<InitialAs
     .filter((s): s is ProposedSignal => s !== null)
     .slice(0, 4)
 
+  console.log("[thesisInitializer] raw result:", JSON.stringify({ convictionScore, convictionReasoning, proposedSignals }))
   return { convictionScore, convictionReasoning, proposedSignals }
 }
 
