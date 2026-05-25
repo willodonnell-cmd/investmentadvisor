@@ -1,5 +1,7 @@
 import { Thesis, ThesisType, MispricedVariable, ThesisLens } from '../types'
 import { createPlaceholderThesis } from './thesisHelpers'
+import { useThesisStore } from '../store/thesisStore'
+import { initializeThesis } from '../api/thesisInitializer'
 
 const VALID_THESIS_TYPES = new Set<string>([
   'LongDurationCompounder', 'MacroRegimeShift', 'DeepContrarianMispricing',
@@ -75,6 +77,18 @@ export function createThesisFromHuntBrief(
     ticker: brief.ticker,
     lens,
   }
+}
+
+export function addHuntThesisToDossier(
+  brief: HuntBriefInput,
+  lens: ThesisLens,
+): Thesis {
+  const thesis = createThesisFromHuntBrief(brief, lens)
+  useThesisStore.getState().addThesis(thesis)
+  initializeThesis(thesis).catch(() => {
+    // Fail silently — thesis is already stored
+  })
+  return thesis
 }
 
 export function isDuplicateInDossier(

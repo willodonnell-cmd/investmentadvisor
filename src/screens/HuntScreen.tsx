@@ -12,7 +12,7 @@ import { usePortfolioStore } from '../store/portfolioStore'
 import { useMacroStore } from '../store/macroStore'
 import { useHuntStore } from '../store/huntStore'
 import { getResolvedOpenAIModel } from '../api/openai'
-import { createThesisFromHuntBrief, isDuplicateInDossier } from '../utils/huntToThesis'
+import { addHuntThesisToDossier, isDuplicateInDossier } from '../utils/huntToThesis'
 import { isActive } from '../utils/thesisHelpers'
 
 const tk = {
@@ -286,7 +286,6 @@ export const HuntScreen: React.FC = () => {
   const [toast, setToast] = useState<DossierToast | null>(null)
 
   const thesesMap = useThesisStore((s) => s.theses)
-  const addThesis = useThesisStore((s) => s.addThesis)
   const lens = usePortfolioStore((s) => s.lens)
   const macroRegimeObj = useMacroStore((s) => s.regime)
 
@@ -335,8 +334,7 @@ export const HuntScreen: React.FC = () => {
       showToast({ ticker: input.ticker, thesisId: '', kind: 'duplicate' })
       return
     }
-    const thesis = createThesisFromHuntBrief(input, lens)
-    addThesis(thesis)
+    const thesis = addHuntThesisToDossier(input, lens)
     showToast({ ticker: input.ticker, thesisId: thesis.id, kind: 'success' })
   }
 

@@ -1,6 +1,6 @@
 import type { MispricedVariable } from './thesis'
 
-export type SourceQualityTier = 'Tier1' | 'Tier2' | 'Tier3' | 'Tier4'
+export type SourceQualityTier = 'Tier1' | 'Tier2' | 'Tier3' | 'Tier4' | 'Proposed'
 
 export type SignalDirection = 'Strengthening' | 'Neutral' | 'Weakening'
 
@@ -23,6 +23,10 @@ export interface Signal {
   notes?: string
   observedAt: Date
   createdAt: Date
+  isProposed?: boolean
+  proposedDirection?: 'Confirming' | 'Disconfirming'
+  proposedSourceType?: string
+  proposedSignificance?: 'High' | 'Medium'
 }
 
 export interface SignalComposite {

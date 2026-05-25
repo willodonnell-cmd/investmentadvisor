@@ -24,6 +24,7 @@ export const useSignalStore = create<SignalStore>()(
 
       addSignal: (signal) => {
         set((state) => ({ signals: { ...state.signals, [signal.id]: signal } }))
+        if (signal.isProposed) return
         // Trigger conviction comparison if signal is linked to an active thesis
         const thesis = useThesisStore.getState().theses[signal.linkedThesisId]
         if (thesis) {

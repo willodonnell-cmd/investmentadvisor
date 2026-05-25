@@ -5,6 +5,7 @@ const QUALITY_BASE: Record<SourceQualityTier, number> = {
   Tier2: 0.8,
   Tier3: 0.6,
   Tier4: 0.4,
+  Proposed: 0,
 }
 
 const SPECIFICITY_MULT: Record<SignalSpecificity, number> = {
@@ -19,6 +20,7 @@ const HALF_LIFE_DAYS: Record<SourceQualityTier, number> = {
   Tier2: 60,
   Tier3: 30,
   Tier4: 14,
+  Proposed: 365,
 }
 
 const DIRECTION_SCORE: Record<SignalDirection, number> = {
@@ -44,7 +46,7 @@ export function computeSignalWeight(signal: Signal): number {
 export function computeComposite(signals: Signal[], thesisId: string): SignalComposite[] {
   const byVariable = new Map<string, Signal[]>()
   for (const s of signals) {
-    if (s.linkedThesisId !== thesisId) continue
+    if (s.linkedThesisId !== thesisId || s.isProposed) continue
     const arr = byVariable.get(s.variable) ?? []
     arr.push(s)
     byVariable.set(s.variable, arr)
@@ -105,6 +107,7 @@ export function detectConvergence(
   const recent = signals.filter(
     (s) =>
       s.linkedThesisId === thesisId &&
+      !s.isProposed &&
       new Date(s.observedAt).getTime() > thirtyDaysAgo,
   )
 
@@ -148,6 +151,7 @@ export function detectDivergence(
   const recent = signals.filter(
     (s) =>
       s.linkedThesisId === thesisId &&
+      !s.isProposed &&
       s.direction !== 'Neutral' &&
       new Date(s.observedAt).getTime() > sixtyDaysAgo,
   )

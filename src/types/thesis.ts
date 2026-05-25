@@ -127,6 +127,7 @@ export interface Thesis {
   scoreGap?: number
 
   thesisQualityScore?: number
+  convictionReasoning?: string
   triggerReadinessScore?: number
 
   lens: ThesisLens

@@ -7,8 +7,10 @@ interface Props {
   thesisId: string
   primaryVariable: MispricedVariable
   secondaryVariables: MispricedVariable[]
-  onSave: (signal: Omit<Signal, 'id' | 'createdAt'>) => void
+  onSave: (signal: Omit<Signal, 'id' | 'createdAt'>, convertingId?: string) => void
   onCancel: () => void
+  initialValues?: Partial<Omit<Signal, 'id' | 'createdAt'>>
+  convertingId?: string
 }
 
 const DIRECTION_OPTS: { value: SignalDirection; label: string; color: string }[] = [
@@ -71,20 +73,26 @@ export const SignalEntryForm: React.FC<Props> = ({
   secondaryVariables,
   onSave,
   onCancel,
+  initialValues,
+  convertingId,
 }) => {
   const variableOptions = [
     primaryVariable,
     ...secondaryVariables,
   ].map((v) => ({ value: v, label: MISPRICED_VARIABLE_LABELS[v] ?? v }))
 
-  const [variable, setVariable] = useState<MispricedVariable>(primaryVariable)
-  const [direction, setDirection] = useState<SignalDirection>('Strengthening')
-  const [quality, setQuality] = useState<SourceQualityTier>('Tier2')
-  const [specificity, setSpecificity] = useState<SignalSpecificity>('Direct-Qualitative')
-  const [scenarioTag, setScenarioTag] = useState<SignalScenarioTag>('Neutral')
-  const [independent, setIndependent] = useState(true)
-  const [title, setTitle] = useState('')
-  const [notes, setNotes] = useState('')
+  const [variable, setVariable] = useState<MispricedVariable>(initialValues?.variable ?? primaryVariable)
+  const [direction, setDirection] = useState<SignalDirection>(initialValues?.direction ?? 'Strengthening')
+  const [quality, setQuality] = useState<SourceQualityTier>(
+    initialValues?.sourceQuality && initialValues.sourceQuality !== 'Proposed'
+      ? initialValues.sourceQuality
+      : 'Tier2',
+  )
+  const [specificity, setSpecificity] = useState<SignalSpecificity>(initialValues?.specificity ?? 'Direct-Qualitative')
+  const [scenarioTag, setScenarioTag] = useState<SignalScenarioTag>(initialValues?.scenarioTag ?? 'Neutral')
+  const [independent, setIndependent] = useState(initialValues?.sourceIndependent ?? true)
+  const [title, setTitle] = useState(initialValues?.title ?? '')
+  const [notes, setNotes] = useState(initialValues?.notes ?? '')
 
   const previewSignal: Signal = {
     id: 'preview',
@@ -116,13 +124,16 @@ export const SignalEntryForm: React.FC<Props> = ({
       title: title.trim(),
       notes: notes.trim() || undefined,
       observedAt: new Date(),
-    })
+      isProposed: false,
+    }, convertingId)
   }
 
   return (
     <div className="space-y-4 p-4 bg-surface border border-border rounded-xl">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">New Signal</h3>
+        <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">
+          {convertingId ? 'Confirm Observed Signal' : 'New Signal'}
+        </h3>
         <span className="text-[10px] text-text-muted">
           Weight preview: <span className="text-text-secondary font-mono">{previewWeight.toFixed(3)}</span>
         </span>
@@ -238,7 +249,7 @@ export const SignalEntryForm: React.FC<Props> = ({
           className="px-4 py-1.5 text-xs font-medium text-text-primary bg-accent/90 hover:bg-accent
             disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
         >
-          Save Signal
+          {convertingId ? 'Confirm Signal' : 'Save Signal'}
         </button>
       </div>
     </div>

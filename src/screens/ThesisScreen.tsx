@@ -25,6 +25,7 @@ import { generateScenarios } from '../api/scenarios'
 import { generateExpertSynthesis } from '../api/expertSynthesis'
 import { generateResearchView } from '../api/underwriting'
 import { computeComposite, computeSignalWeight, detectConvergence, detectDivergence } from '../api/signals'
+import { triggerConvictionComparison } from '../api/convictionComparison'
 import { computeDecayClock, shouldTriggerReassessment, computeEvidenceDrift } from '../api/decay'
 
 const VARIANT_STRENGTH_LABELS: Record<string, string> = {
@@ -275,6 +276,8 @@ export const ThesisScreen: React.FC = () => {
   const [generatingExpert, setGeneratingExpert] = useState(false)
   const [genError, setGenError] = useState<string | null>(null)
   const [showSignalForm, setShowSignalForm] = useState(false)
+  const [signalFormPrefill, setSignalFormPrefill] = useState<Partial<Omit<Signal, 'id' | 'createdAt'>> | null>(null)
+  const [convertingSignalId, setConvertingSignalId] = useState<string | null>(null)
   const [showReassessment, setShowReassessment] = useState(false)
   const [showKill, setShowKill] = useState(false)
   const [editingField, setEditingField] = useState<string | null>(null)
@@ -308,6 +311,7 @@ export const ThesisScreen: React.FC = () => {
   const researchView = useSynthesisStore((s) => (id ? s.researchViews[id] : undefined))
 
   const addSignal = useSignalStore((s) => s.addSignal)
+  const updateSignal = useSignalStore((s) => s.updateSignal)
   const upsertComposite = useSignalStore((s) => s.upsertComposite)
   const signalsRecord = useSignalStore((s) => s.signals)
   const compositesByThesis = useSignalStore((s) => s.composites)
@@ -319,19 +323,29 @@ export const ThesisScreen: React.FC = () => {
     [signalsRecord, id]
   )
 
+  const proposedSignals = useMemo(
+    () => thesisSignals.filter((s) => s.isProposed),
+    [thesisSignals]
+  )
+
+  const confirmedSignals = useMemo(
+    () => thesisSignals.filter((s) => !s.isProposed),
+    [thesisSignals]
+  )
+
   const composites = useMemo(
     () => Object.values(compositesByThesis).filter((c) => c.linkedThesisId === id),
     [compositesByThesis, id]
   )
 
   const convergenceAlerts = useMemo(
-    () => (thesis && id ? detectConvergence(thesisSignals, id) : []),
-    [thesisSignals, id, thesis]
+    () => (thesis && id ? detectConvergence(confirmedSignals, id) : []),
+    [confirmedSignals, id, thesis]
   )
 
   const divergenceFlags = useMemo(
-    () => (thesis && id ? detectDivergence(thesisSignals, id) : []),
-    [thesisSignals, id, thesis]
+    () => (thesis && id ? detectDivergence(confirmedSignals, id) : []),
+    [confirmedSignals, id, thesis]
   )
 
   const liveDecayClock = useMemo(
@@ -406,22 +420,78 @@ export const ThesisScreen: React.FC = () => {
     navigate('/')
   }
 
-  const handleAddSignal = (partial: Omit<Signal, 'id' | 'createdAt'>) => {
-    const signal: Signal = {
-      ...partial,
-      id: `sig-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      createdAt: new Date(),
-    }
-    addSignal(signal)
-    const allSignals = [...thesisSignals, signal]
-    const newComposites = computeComposite(allSignals, thesis.id)
+  const openSignalForm = (
+    prefill?: Partial<Omit<Signal, 'id' | 'createdAt'>>,
+    convertingId?: string,
+  ) => {
+    setSignalFormPrefill(prefill ?? null)
+    setConvertingSignalId(convertingId ?? null)
+    setShowSignalForm(true)
+  }
+
+  const closeSignalForm = () => {
+    setShowSignalForm(false)
+    setSignalFormPrefill(null)
+    setConvertingSignalId(null)
+  }
+
+  const refreshComposites = (signals: Signal[]) => {
+    const newComposites = computeComposite(signals, thesis.id)
     newComposites.forEach(upsertComposite)
     const drift = computeEvidenceDrift(newComposites, thesis.primaryMispricedVariable)
     updateThesis(thesis.id, {
       evidenceDriftScore: drift.score,
       evidenceDriftDirection: drift.direction,
     })
-    setShowSignalForm(false)
+  }
+
+  const handleAddSignal = (
+    partial: Omit<Signal, 'id' | 'createdAt'>,
+    convertingId?: string,
+  ) => {
+    if (convertingId) {
+      const existing = signalsRecord[convertingId]
+      if (!existing) return
+      const updated: Signal = {
+        ...existing,
+        ...partial,
+        isProposed: false,
+        proposedDirection: undefined,
+        proposedSourceType: undefined,
+        proposedSignificance: undefined,
+        weight: computeSignalWeight({ ...existing, ...partial, isProposed: false } as Signal),
+      }
+      updateSignal(convertingId, updated)
+      refreshComposites([...confirmedSignals.filter((s) => s.id !== convertingId), updated])
+      triggerConvictionComparison(updated, thesis).catch(() => {})
+      closeSignalForm()
+      return
+    }
+
+    const signal: Signal = {
+      ...partial,
+      id: `sig-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      createdAt: new Date(),
+    }
+    addSignal(signal)
+    refreshComposites([...confirmedSignals, signal])
+    closeSignalForm()
+  }
+
+  const handleMarkProposedObserved = (signal: Signal) => {
+    openSignalForm({
+      linkedThesisId: signal.linkedThesisId,
+      variable: signal.variable,
+      direction: signal.direction,
+      sourceQuality: 'Tier2',
+      sourceIndependent: signal.sourceIndependent,
+      specificity: signal.specificity === 'Indirect' ? 'Direct-Qualitative' : signal.specificity,
+      scenarioTag: signal.scenarioTag,
+      weight: signal.weight,
+      title: signal.title,
+      notes: signal.notes,
+      observedAt: new Date(),
+    }, signal.id)
   }
 
   const handleKillComplete = (record: KillRecord) => {
@@ -795,6 +865,69 @@ export const ThesisScreen: React.FC = () => {
             </div>
           )}
 
+          {/* Proposed signals */}
+          {proposedSignals.length > 0 && (
+            <div
+              className="rounded-lg p-3 mb-3 space-y-2"
+              style={{
+                background: 'rgba(216,208,196,0.25)',
+                border: '1px solid rgba(154,122,80,0.22)',
+              }}
+            >
+              <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">
+                Proposed Signals to Track
+              </p>
+              <div className="space-y-2">
+                {proposedSignals.map((signal) => {
+                  const significance = signal.proposedSignificance ?? (signal.specificity === 'Direct-Quantifiable' ? 'High' : 'Medium')
+                  const directionLabel = signal.proposedDirection ?? (signal.direction === 'Weakening' ? 'Disconfirming' : 'Confirming')
+                  const sourceType = signal.proposedSourceType ?? 'Unknown source'
+                  return (
+                    <div
+                      key={signal.id}
+                      className="rounded-lg px-3 py-2.5"
+                      style={{
+                        background: 'rgba(248,244,238,0.7)',
+                        border: '1px solid rgba(216,208,196,0.8)',
+                      }}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="text-text-muted mt-0.5 flex-shrink-0">☐</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-xs text-text-primary leading-relaxed">{signal.title}</p>
+                            <span
+                              className="text-[9px] font-bold uppercase tracking-wider flex-shrink-0 px-1.5 py-0.5 rounded"
+                              style={{
+                                color: significance === 'High' ? '#7A4A10' : '#706050',
+                                background: significance === 'High' ? 'rgba(122,74,16,0.10)' : 'rgba(20,12,4,0.05)',
+                              }}
+                            >
+                              {significance}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-text-muted mt-1">
+                            Source: {sourceType} · {directionLabel === 'Disconfirming' ? 'Disconfirms' : 'Confirms'}: {MISPRICED_VARIABLE_LABELS[signal.variable] ?? signal.variable}
+                          </p>
+                          <div className="flex items-center justify-between mt-2 gap-2">
+                            <span className="text-[9px] font-bold uppercase tracking-widest text-text-muted">Proposed</span>
+                            <button
+                              type="button"
+                              onClick={() => handleMarkProposedObserved(signal)}
+                              className="text-[10px] text-accent hover:text-accent/80 transition-colors"
+                            >
+                              Mark as observed →
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Composites */}
           {composites.length > 0 ? (
             <div className="space-y-2">
@@ -802,7 +935,7 @@ export const ThesisScreen: React.FC = () => {
                 <SignalCompositeCard
                   key={c.id}
                   composite={c}
-                  signals={thesisSignals}
+                  signals={confirmedSignals}
                   convergenceAlert={convergenceAlerts.find((a) => a.variable === c.variable)}
                   divergenceFlag={divergenceFlags.find((f) => f.variable === c.variable)}
                 />
@@ -821,15 +954,18 @@ export const ThesisScreen: React.FC = () => {
               primaryVariable={thesis.primaryMispricedVariable}
               secondaryVariables={thesis.secondaryMispricedVariables}
               onSave={handleAddSignal}
-              onCancel={() => setShowSignalForm(false)}
+              onCancel={closeSignalForm}
+              initialValues={signalFormPrefill ?? undefined}
+              convertingId={convertingSignalId ?? undefined}
             />
           ) : (
             <div className="flex items-center justify-between pt-1">
               <span className="text-[10px] text-text-muted">
-                {thesisSignals.length} signal{thesisSignals.length !== 1 ? 's' : ''} recorded
+                {confirmedSignals.length} signal{confirmedSignals.length !== 1 ? 's' : ''} recorded
+                {proposedSignals.length > 0 && ` · ${proposedSignals.length} proposed`}
               </span>
               <button
-                onClick={() => setShowSignalForm(true)}
+                onClick={() => openSignalForm()}
                 className="px-3 py-1.5 text-xs font-medium text-white bg-accent/90 hover:bg-accent
                   rounded-lg transition-colors"
               >
@@ -841,7 +977,7 @@ export const ThesisScreen: React.FC = () => {
 
         {/* ── Conviction Ledger ── */}
         <Section title="Conviction Ledger">
-          <ConvictionLedger thesisId={thesis.id} />
+          <ConvictionLedger thesisId={thesis.id} convictionReasoning={thesis.convictionReasoning} />
         </Section>
 
 

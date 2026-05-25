@@ -13,6 +13,7 @@ const QUALITY_TIER_SCORES: Record<string, number> = {
   Tier2: 0.8,
   Tier3: 0.6,
   Tier4: 0.4,
+  Proposed: 0,
 }
 const MINIMUM_QUALITY_THRESHOLD = 0.45
 
@@ -27,6 +28,8 @@ export function shouldTriggerConvictionComparison(
   signal: Signal,
   thesis: Thesis,
 ): boolean {
+  if (signal.isProposed) return false
+
   // Must be tagged to an active thesis
   const activeStages = ['Developing', 'Actionable', 'Live']
   if (!activeStages.includes(thesis.stage)) return false

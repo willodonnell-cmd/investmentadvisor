@@ -227,9 +227,10 @@ function LedgerEntryRow({
 
 interface ConvictionLedgerProps {
   thesisId: string
+  convictionReasoning?: string
 }
 
-export const ConvictionLedger: React.FC<ConvictionLedgerProps> = ({ thesisId }) => {
+export const ConvictionLedger: React.FC<ConvictionLedgerProps> = ({ thesisId, convictionReasoning }) => {
   const getLedgerForThesis = useConvictionStore((s) => s.getLedgerForThesis)
   const getConvictionScore = useConvictionStore((s) => s.getConvictionScore)
   const getDraftsForThesis = useConvictionStore((s) => s.getDraftsForThesis)
@@ -254,33 +255,41 @@ export const ConvictionLedger: React.FC<ConvictionLedgerProps> = ({ thesisId }) 
 
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Current conviction score */}
-          <div style={{
-            display: 'flex', alignItems: 'baseline', gap: 4,
-          }}>
-            <span style={{
-              fontSize: 26, fontWeight: 800, fontFamily: 'monospace',
-              color: currentScore >= 70 ? '#1E6640' : currentScore >= 50 ? '#7A4A10' : '#A83030',
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Current conviction score */}
+            <div style={{
+              display: 'flex', alignItems: 'baseline', gap: 4,
             }}>
-              {currentScore}
+              <span style={{
+                fontSize: 26, fontWeight: 800, fontFamily: 'monospace',
+                color: currentScore >= 70 ? '#1E6640' : currentScore >= 50 ? '#7A4A10' : '#A83030',
+              }}>
+                {currentScore}
+              </span>
+              <span style={{ fontSize: 12, color: '#A89878' }}>/100</span>
+            </div>
+
+            {/* Trend */}
+            {scoreTrend !== null && (
+              <span style={{
+                fontSize: 11, fontWeight: 600, fontFamily: 'monospace',
+                color: scoreTrend > 0 ? '#1E6640' : scoreTrend < 0 ? '#A83030' : '#706050',
+              }}>
+                {scoreTrend > 0 ? `+${scoreTrend}` : scoreTrend} since inception
+              </span>
+            )}
+
+            <span style={{ fontSize: 10, color: '#B8B0A4' }}>
+              {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
             </span>
-            <span style={{ fontSize: 12, color: '#A89878' }}>/100</span>
           </div>
 
-          {/* Trend */}
-          {scoreTrend !== null && (
-            <span style={{
-              fontSize: 11, fontWeight: 600, fontFamily: 'monospace',
-              color: scoreTrend > 0 ? '#1E6640' : scoreTrend < 0 ? '#A83030' : '#706050',
-            }}>
-              {scoreTrend > 0 ? `+${scoreTrend}` : scoreTrend} since inception
-            </span>
+          {convictionReasoning && (
+            <p style={{ fontSize: 11, color: '#A89878', lineHeight: 1.5, margin: 0, maxWidth: 560 }}>
+              {convictionReasoning}
+            </p>
           )}
-
-          <span style={{ fontSize: 10, color: '#B8B0A4' }}>
-            {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
-          </span>
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
