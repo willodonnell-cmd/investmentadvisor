@@ -152,7 +152,9 @@ export async function runThesisInitialization(thesis: Thesis): Promise<InitialAs
 
 export async function initializeThesis(thesis: Thesis): Promise<void> {
   try {
+    console.log("[thesisInitializer] starting for", thesis.id)
     const assessment = await runThesisInitialization(thesis)
+    console.log("[thesisInitializer] assessment:", JSON.stringify(assessment))
     if (!assessment) return
 
     useThesisStore.getState().updateThesis(thesis.id, {
