@@ -1,6 +1,10 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { createStorage } from '../storage/persistence'
+import {
+  LIFECYCLE_STORE_VERSION,
+  migrateConvictionPersisted,
+} from '../storage/lifecycleMigration'
 import type { ConvictionDraft, ConvictionLedgerEntry } from '../types/conviction'
 
 interface ConvictionStore {
@@ -134,6 +138,8 @@ export const useConvictionStore = create<ConvictionStore>()(
     {
       name: 'conviction-store',
       storage: createStorage(),
+      version: LIFECYCLE_STORE_VERSION,
+      migrate: migrateConvictionPersisted,
     }
   )
 )

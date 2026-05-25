@@ -28,7 +28,7 @@ export function shouldTriggerConvictionComparison(
   thesis: Thesis,
 ): boolean {
   // Must be tagged to an active thesis
-  const activeStages = ['Signal', 'Hypothesis', 'PressureTest', 'Actionable', 'Watch', 'Live']
+  const activeStages = ['Developing', 'Actionable', 'Live']
   if (!activeStages.includes(thesis.stage)) return false
 
   // Signal must match a thesis variable

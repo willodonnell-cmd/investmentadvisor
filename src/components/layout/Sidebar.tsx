@@ -58,9 +58,7 @@ const NAV_ITEMS: NavItem[] = [
 const STAGE_LEGEND = [
   { label: 'Live',          color: '#2d6a4f' },
   { label: 'Actionable',    color: '#92400e' },
-  { label: 'Pressure Test', color: '#1e3a5f' },
-  { label: 'Hypothesis',    color: '#4a1d6b' },
-  { label: 'Watch',         color: '#1e4d6b' },
+  { label: 'Developing',    color: '#4a1d6b' },
 ]
 
 export const Sidebar: React.FC = () => {

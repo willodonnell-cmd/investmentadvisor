@@ -79,7 +79,7 @@ Return ONLY a JSON object with this exact structure. No preamble, no explanation
   ],
   "bestThesisName": "short evocative 3-6 word name",
   "recommendedType": "one of: LongDurationCompounder | MacroRegimeShift | DeepContrarianMispricing | SpecialSituationsCatalyst | CapitalAllocationQuality | MarketStructureReflexivity | TechnologyDisruption | RegulatoryPolicy | IndustryStructureConsumerBehavior | CapitalCycle | OperationalTurnaround | RealEstatePhysicalAssets | Geopolitical | ShortHedgeThesis | HouseholdAllocationDecision",
-  "recommendedStage": "one of: Signal | Hypothesis | PressureTest | Actionable | Watch",
+  "recommendedStage": "one of: Developing | Actionable",
   "timeHorizonMonths": 18,
   "qualityAssessment": "Strong | Moderate | Weak",
   "qualityNarrative": "one sentence on thesis quality and primary risk"

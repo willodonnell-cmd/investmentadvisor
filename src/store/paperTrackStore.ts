@@ -4,6 +4,11 @@ import type { Thesis } from '../types'
 import type { PaperTrack, PaperPosition, SimWindow } from '../types/paperTrack'
 import { fetchTickerData, fetchCandles, refreshQuote, priceAtDaysAgo, priceAtDate, sleep } from '../api/finnhub'
 import { SIM_WINDOW_DAYS } from '../types/paperTrack'
+import { createStorage } from '../storage/persistence'
+import {
+  LIFECYCLE_STORE_VERSION,
+  migratePaperTrackPersisted,
+} from '../storage/lifecycleMigration'
 
 interface PaperTrackState {
   tracks: Record<string, PaperTrack>
@@ -52,11 +57,13 @@ export const usePaperTrackStore = create<PaperTrackState>()(
             if (thesis.recommendations!.length > 1) await sleep(400)
           }
 
+          const now = new Date().toISOString()
           const track: PaperTrack = {
             id: crypto.randomUUID(),
             thesisId: thesis.id,
             thesisName: thesis.name,
-            watchedAt: new Date().toISOString(),
+            actionableAt: now,
+            ...(thesis.stage === 'Live' ? { liveAt: now } : {}),
             thesisCreatedAt: thesis.createdAt instanceof Date
               ? thesis.createdAt.toISOString()
               : String(thesis.createdAt),
@@ -191,6 +198,9 @@ export const usePaperTrackStore = create<PaperTrackState>()(
     }),
     {
       name: 'paper-tracks',
+      storage: createStorage(),
+      version: LIFECYCLE_STORE_VERSION,
+      migrate: migratePaperTrackPersisted,
       partialize: (state) => ({ tracks: state.tracks }),  // never persist loading state
     },
   ),

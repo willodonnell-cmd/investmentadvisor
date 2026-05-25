@@ -15,6 +15,7 @@ import { SignalCompositeCard } from '../components/ui/SignalCompositeCard'
 import { ReassessmentModal } from '../components/ui/ReassessmentModal'
 import { KillModal } from '../components/ui/KillModal'
 import { ConvictionLedger } from '../components/ui/ConvictionLedger'
+import { ThesisResearchPanel } from '../components/ui/ThesisResearchPanel'
 import { THESIS_TYPE_LABELS, MISPRICED_VARIABLE_LABELS } from '../constants'
 import { formatDate, formatHorizon, formatRelativeTime } from '../utils/formatting'
 import { LifecycleStage, Thesis, Signal, KillRecord, ThesisLens } from '../types'
@@ -253,7 +254,7 @@ const DetailDrawer: React.FC<{ thesis: Thesis; open: boolean; onClose: () => voi
 
 const SCENARIO_ORDER = ['ThesisConfirmed', 'ContestedPath', 'ThesisBroken'] as const
 
-const PRESSURE_TEST_PLUS: LifecycleStage[] = ['PressureTest', 'Actionable', 'Watch', 'Live']
+const ACTIONABLE_PLUS: LifecycleStage[] = ['Actionable', 'Live']
 
 const LENS_CYCLE: ThesisLens[] = ['Standalone', 'PrologisAware', 'CompareVsPrologis']
 const LENS_LABELS: Record<ThesisLens, string> = {
@@ -262,9 +263,12 @@ const LENS_LABELS: Record<ThesisLens, string> = {
   CompareVsPrologis: 'vs Prologis',
 }
 
+type ThesisTab = 'overview' | 'research'
+
 export const ThesisScreen: React.FC = () => {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [activeTab, setActiveTab] = useState<ThesisTab>('overview')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [macroModalOpen, setMacroModalOpen] = useState(false)
   const [generatingScenarios, setGeneratingScenarios] = useState(false)
@@ -392,7 +396,8 @@ export const ThesisScreen: React.FC = () => {
 
   const primaryTrigger = thesis.triggers.find((t) => t.isPrimary)
   const compatibility = computeRegimeCompatibility(thesis.type, regime)
-  const isPressureTestPlus = PRESSURE_TEST_PLUS.includes(thesis.stage)
+  const isActionablePlus = ACTIONABLE_PLUS.includes(thesis.stage)
+  const showResearchTab = thesis.stage === 'Developing'
   const totalProbPct = Math.round(scenarios.reduce((s, sc) => s + sc.probability, 0) * 100)
 
   const handleDelete = () => {
@@ -543,6 +548,28 @@ export const ThesisScreen: React.FC = () => {
           </div>
         </div>
 
+        {/* ── Tab switcher ── */}
+        {showResearchTab && (
+          <div className="tab-group">
+            <button
+              className={`tab${activeTab === 'overview' ? ' active' : ''}`}
+              onClick={() => setActiveTab('overview')}
+            >
+              Overview
+            </button>
+            <button
+              className={`tab${activeTab === 'research' ? ' active' : ''}`}
+              onClick={() => setActiveTab('research')}
+            >
+              Research
+            </button>
+          </div>
+        )}
+
+        {activeTab === 'research' && showResearchTab ? (
+          <ThesisResearchPanel thesis={thesis} active={activeTab === 'research'} />
+        ) : (
+        <>
         {/* ── Thesis Statement ── */}
         <Section title="Thesis Statement" accent>
           {inlineText('statement', thesis.statement, 'text-sm text-text-primary font-medium', 3)}
@@ -660,8 +687,8 @@ export const ThesisScreen: React.FC = () => {
           </div>
         </Section>
 
-        {/* ── Scenarios (PressureTest+) ── */}
-        {isPressureTestPlus && (
+        {/* ── Scenarios (Actionable+) ── */}
+        {isActionablePlus && (
           <Section title="Narrative Scenarios">
             {scenarios.length > 0 && (
               <>
@@ -707,8 +734,8 @@ export const ThesisScreen: React.FC = () => {
           </Section>
         )}
 
-        {/* ── Expert Synthesis (PressureTest+) ── */}
-        {isPressureTestPlus && (
+        {/* ── Expert Synthesis (Actionable+) ── */}
+        {isActionablePlus && (
           <Section title="Expert Synthesis">
             {synthesis && <ExpertSynthesisView synthesis={synthesis} />}
             <div className="flex items-center justify-between pt-1">
@@ -733,7 +760,7 @@ export const ThesisScreen: React.FC = () => {
         )}
 
         {/* ── Underwriting Memo ── */}
-        {isPressureTestPlus && (
+        {isActionablePlus && (
           <div className="flex justify-end pt-1">
             <button
               onClick={() => navigate(`/memo/${thesis.id}`)}
@@ -835,6 +862,9 @@ export const ThesisScreen: React.FC = () => {
             Capital Allocation →
           </Link>
         </div>
+
+        </>
+        )}
 
       </div>
 

@@ -35,7 +35,7 @@ const DEFAULT_SELECTION: Record<ThesisType, [ExpertVoiceId, ExpertVoiceId, Exper
 }
 
 const STAGES_NEEDING_VALUATION: LifecycleStage[] = [
-  'PressureTest', 'Actionable', 'Watch', 'Live',
+  'Actionable', 'Live',
 ]
 
 // ─── Panel selection logic ───────────────────────────────────────────────────
@@ -77,7 +77,7 @@ export const selectPanel = (thesis: Thesis, lens: ThesisLens): PanelSelection =>
   const isHedge = thesis.type === 'ShortHedgeThesis'
   if (needsValuation && !isHedge && !voiceSet.has('Greenblatt')) {
     voiceSet.add('Greenblatt')
-    rules.push('Rule B: Valuation Bridge — added Greenblatt (stage ≥ PressureTest)')
+    rules.push('Rule B: Valuation Bridge — added Greenblatt (stage ≥ Actionable)')
   }
 
   // ── Rule C: Prologis Lens Trigger ─────────────────────────────────────

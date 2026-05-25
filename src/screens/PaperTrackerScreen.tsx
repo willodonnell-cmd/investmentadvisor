@@ -271,8 +271,8 @@ function TrackCard({ track }: { track: PaperTrack }) {
               </h3>
             </div>
             <p style={{ fontSize: 10, color: '#A89878' }}>
-              Entered Watch {new Date(track.watchedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-              {' · '}{Math.floor((Date.now() - new Date(track.watchedAt).getTime()) / 86_400_000)}d
+              Entered Actionable {new Date(track.actionableAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              {' · '}{Math.floor((Date.now() - new Date(track.actionableAt).getTime()) / 86_400_000)}d
               {isPostMortem && track.postMortemReason && ` · ${track.postMortemReason}`}
             </p>
           </div>
@@ -427,17 +427,17 @@ export const PaperTrackerScreen: React.FC = () => {
   const thesesRecord = useThesisStore((s) => s.theses)
   const { tracks, createTrack, loading } = usePaperTrackStore()
 
-  const watchTheses = Object.values(thesesRecord).filter(
-    (t) => t.stage === 'Watch' || t.stage === 'Live' || t.stage === 'Broken' || t.stage === 'PlayedOut',
+  const actionableTheses = Object.values(thesesRecord).filter(
+    (t) => t.stage === 'Actionable' || t.stage === 'Live' || t.stage === 'Broken' || t.stage === 'PlayedOut',
   )
 
   const { refreshTrack } = usePaperTrackStore()
 
-  // Auto-create tracks for Watch/Live theses that don't have one yet,
+  // Auto-create tracks for Actionable/Live theses that don't have one yet,
   // and refresh current prices for existing tracks on mount
   useEffect(() => {
     const tracked = Object.values(thesesRecord).filter(
-      (t) => t.stage === 'Watch' || t.stage === 'Live',
+      (t) => t.stage === 'Actionable' || t.stage === 'Live',
     )
     tracked.forEach((t) => {
       if (!tracks[t.id] && t.recommendations?.length) {
@@ -448,11 +448,11 @@ export const PaperTrackerScreen: React.FC = () => {
     })
   }, [])
 
-  const activeTracks = watchTheses
+  const activeTracks = actionableTheses
     .map((t) => tracks[t.id])
     .filter(Boolean) as PaperTrack[]
 
-  const hasNoRecommendations = watchTheses.some(
+  const hasNoRecommendations = actionableTheses.some(
     (t) => !t.recommendations?.length && !tracks[t.id],
   )
 
@@ -464,7 +464,7 @@ export const PaperTrackerScreen: React.FC = () => {
             Performance Tracker
           </h1>
           <p style={{ fontSize: 12, color: '#706050', marginTop: 2 }}>
-            Simulated performance for Watch theses · US prices via Finnhub, international via Alpha Vantage
+            Simulated performance for Actionable theses · US prices via Finnhub, international via Alpha Vantage
           </p>
         </div>
         <div style={{ fontSize: 11, color: '#A89878' }}>
@@ -478,22 +478,22 @@ export const PaperTrackerScreen: React.FC = () => {
           background: 'rgba(122,74,16,0.06)', border: '1px solid rgba(122,74,16,0.18)',
           fontSize: 11, color: '#7A4A10',
         }}>
-          Some Watch theses were created before ticker recommendations were added. Open each thesis in Brainstorm to regenerate, or add tickers manually via the ✎ button.
+          Some Actionable theses were created before ticker recommendations were added. Open each thesis in Brainstorm to regenerate, or add tickers manually via the ✎ button.
         </div>
       )}
 
-      {watchTheses.length === 0 ? (
+      {actionableTheses.length === 0 ? (
         <div style={{
           height: 200, borderRadius: 12,
           border: '1.5px dashed #D8D0C4',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}>
-          <p style={{ fontSize: 14, color: '#A89878', fontFamily: 'DM Serif Display, serif' }}>No theses in Watch</p>
-          <p style={{ fontSize: 11, color: '#C8C0B4' }}>Move a thesis to Watch stage to start paper tracking</p>
+          <p style={{ fontSize: 14, color: '#A89878', fontFamily: 'DM Serif Display, serif' }}>No theses in Actionable</p>
+          <p style={{ fontSize: 11, color: '#C8C0B4' }}>Move a thesis to Actionable stage to start paper tracking</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {watchTheses.map((thesis) => {
+          {actionableTheses.map((thesis) => {
             const track = tracks[thesis.id]
             const isLoading = loading[thesis.id]
 

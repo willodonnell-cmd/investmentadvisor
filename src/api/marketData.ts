@@ -35,6 +35,15 @@ export interface MarketMetrics {
   dividendYield: number | null
 }
 
+export interface FundQuote {
+  ticker: string
+  currentPrice: number
+  priceChange: number
+  priceChangePct: number
+  high52W: number | null
+  low52W: number | null
+}
+
 export interface EarningsRecord {
   period: string
   actual: number | null
@@ -112,6 +121,25 @@ async function fetchMetrics(ticker: string): Promise<MarketMetrics | null> {
     low52W: m['52WeekLow'] ?? null,
     beta: m['beta'] ?? null,
     dividendYield: m['dividendYieldIndicatedAnnual'] ?? null,
+  }
+}
+
+export async function fetchFundQuote(ticker: string): Promise<FundQuote | null> {
+  const [quoteRaw, metricsRaw] = await Promise.all([
+    fetchFinnhub<any>('/quote', { symbol: ticker }),
+    fetchFinnhub<any>('/stock/metric', { symbol: ticker, metric: 'all' }),
+  ])
+  if (!quoteRaw?.c) return null
+  const m = metricsRaw?.metric ?? {}
+  const c = quoteRaw.c as number
+  const pc = quoteRaw.pc ?? c
+  return {
+    ticker,
+    currentPrice: c,
+    priceChange: quoteRaw.d ?? (c - pc),
+    priceChangePct: quoteRaw.dp ?? (pc ? ((c - pc) / pc) * 100 : 0),
+    high52W: m['52WeekHigh'] ?? null,
+    low52W: m['52WeekLow'] ?? null,
   }
 }
 

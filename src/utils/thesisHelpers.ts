@@ -2,7 +2,7 @@ import { v4 as uuid } from 'uuid'
 import { Thesis, ThesisType, LifecycleStage, MispricedVariable } from '../types'
 
 export const TERMINAL_STAGES: LifecycleStage[] = ['Broken', 'Archived', 'PlayedOut']
-export const ACTIVE_STAGES: LifecycleStage[] = ['Signal', 'Hypothesis', 'PressureTest', 'Actionable', 'Watch', 'Live']
+export const ACTIVE_STAGES: LifecycleStage[] = ['Developing', 'Actionable', 'Live']
 
 export const isTerminal = (stage: LifecycleStage): boolean =>
   TERMINAL_STAGES.includes(stage)
@@ -11,7 +11,7 @@ export const isActive = (stage: LifecycleStage): boolean =>
   ACTIVE_STAGES.includes(stage)
 
 export const LIFECYCLE_ORDER: LifecycleStage[] = [
-  'Signal', 'Hypothesis', 'PressureTest', 'Actionable', 'Watch', 'Live',
+  'Developing', 'Actionable', 'Live',
   'PlayedOut', 'Broken', 'Archived',
 ]
 
@@ -28,7 +28,7 @@ export const createPlaceholderThesis = (
   id: uuid(),
   name,
   type,
-  stage: 'Signal',
+  stage: 'Developing',
   statement: '',
   whyNow: '',
   timeHorizon: 24,
@@ -41,6 +41,7 @@ export const createPlaceholderThesis = (
   secondaryMispricedVariables: [],
   keyAssumptions: [],
   disconfirmers: [],
+  killConditions: [],
   beneficiaries: [],
   losers: [],
   triggers: [],

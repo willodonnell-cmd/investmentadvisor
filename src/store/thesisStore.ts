@@ -2,6 +2,10 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { Thesis, LifecycleStage } from '../types'
 import { createStorage } from '../storage/persistence'
+import {
+  LIFECYCLE_STORE_VERSION,
+  migrateThesisPersisted,
+} from '../storage/lifecycleMigration'
 
 interface ThesisStore {
   theses: Record<string, Thesis>
@@ -95,6 +99,8 @@ export const useThesisStore = create<ThesisStore>()(
     {
       name: 'thesis-store',
       storage: createStorage(),
+      version: LIFECYCLE_STORE_VERSION,
+      migrate: migrateThesisPersisted,
     }
   )
 )

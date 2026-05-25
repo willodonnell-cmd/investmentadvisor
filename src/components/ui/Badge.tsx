@@ -3,11 +3,8 @@ import { LifecycleStage, VerdictType } from '../../types'
 
 // Warm, print-quality stage styles
 const STAGE_STYLES: Record<LifecycleStage, { bg: string; color: string; border: string }> = {
-  Signal:       { bg: '#EEE9E2', color: '#4A4440', border: '#C8C0B4' },
-  Hypothesis:   { bg: '#EDE6F4', color: '#582880', border: '#C4A8DC' },
-  PressureTest: { bg: '#E8EDF6', color: '#2A4A80', border: '#A0B4D8' },
+  Developing:   { bg: '#EDE6F4', color: '#582880', border: '#C4A8DC' },
   Actionable:   { bg: '#F5EBD8', color: '#7A4A10', border: '#C8A06A' },
-  Watch:        { bg: '#E6F2F0', color: '#1A6060', border: '#7ABAB4' },
   Live:         { bg: '#EBF4EE', color: '#2E6E4A', border: '#A8CCBA' },
   PlayedOut:    { bg: '#EEE9E2', color: '#A8A098', border: '#C8C0B4' },
   Broken:       { bg: '#F4E8E8', color: '#A83030', border: '#D4A0A0' },

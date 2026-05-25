@@ -18,11 +18,8 @@ export type ThesisType =
   | 'HouseholdAllocationDecision'
 
 export type LifecycleStage =
-  | 'Signal'
-  | 'Hypothesis'
-  | 'PressureTest'
+  | 'Developing'
   | 'Actionable'
-  | 'Watch'
   | 'Live'
   | 'PlayedOut'
   | 'Broken'
@@ -105,6 +102,8 @@ export interface Thesis {
 
   keyAssumptions: string[]
   disconfirmers: string[]
+  killConditions?: string[]
+  ticker?: string
   beneficiaries: string[]
   losers: string[]
   recommendations?: import('./paperTrack').ThesisRecommendation[]

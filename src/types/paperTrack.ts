@@ -25,11 +25,11 @@ export interface PaperPosition {
   direction: 'Long' | 'Short'
   description: string
   convictionRank: number
-  entryPrice: number       // price when thesis entered Watch
+  entryPrice: number
   entryDate: string        // YYYY-MM-DD
   currentPrice: number
   lastUpdated: string      // ISO string
-  closes: PriceClose[]     // up to 6 months of daily closes for window simulation
+  closes: PriceClose[]
   isUserOverride: boolean
   fetchError: boolean
 }
@@ -38,7 +38,8 @@ export interface PaperTrack {
   id: string
   thesisId: string
   thesisName: string
-  watchedAt: string        // ISO string — when thesis entered Watch
+  actionableAt: string     // ISO string — when thesis entered Actionable
+  liveAt?: string          // ISO string — when thesis entered Live
   thesisCreatedAt: string  // ISO string — for 'created' window
   status: 'Active' | 'PostMortem'
   postMortemReason?: string

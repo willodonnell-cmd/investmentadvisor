@@ -9,11 +9,8 @@ import { formatHorizon } from '../../utils/formatting'
 import { LifecycleStage } from '../../types'
 
 const STAGE_ACCENT: Record<LifecycleStage, string> = {
-  Signal:       '#A8A098',
-  Hypothesis:   'linear-gradient(to bottom, #683890, #502878)',
-  PressureTest: 'linear-gradient(to bottom, #385A98, #284878)',
+  Developing:   'linear-gradient(to bottom, #683890, #502878)',
   Actionable:   'linear-gradient(to bottom, #A05818, #804010)',
-  Watch:        'linear-gradient(to bottom, #227070, #185858)',
   Live:         'linear-gradient(to bottom, #3A8058, #2A6040)',
   PlayedOut:    '#A8A098',
   Broken:       '#A83030',
