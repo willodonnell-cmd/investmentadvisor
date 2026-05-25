@@ -1,19 +1,16 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  runHunt,
   type HuntContext,
-  type HuntResult,
   type OpportunityBrief,
 } from '../api/opportunityAgent'
 import {
-  runFundHunt,
-  type FundHuntResult,
   type FundOpportunityBrief,
 } from '../api/fundHuntAgent'
 import { useThesisStore } from '../store/thesisStore'
 import { usePortfolioStore } from '../store/portfolioStore'
 import { useMacroStore } from '../store/macroStore'
+import { useHuntStore } from '../store/huntStore'
 import { getResolvedOpenAIModel } from '../api/openai'
 import { createThesisFromHuntBrief, isDuplicateInDossier } from '../utils/huntToThesis'
 import { isActive } from '../utils/thesisHelpers'
@@ -28,7 +25,6 @@ const tk = {
   blue: '#1e4d6b', blueLight: 'rgba(30,77,107,0.10)',
 }
 
-type HuntMode = 'stocks' | 'funds'
 
 interface DossierToast {
   ticker: string
@@ -276,12 +272,17 @@ const FundOpportunityCard: React.FC<{
 }
 
 export const HuntScreen: React.FC = () => {
-  const [mode, setMode] = useState<HuntMode>('stocks')
-  const [stockResult, setStockResult] = useState<HuntResult | null>(null)
-  const [fundResult, setFundResult] = useState<FundHuntResult | null>(null)
-  const [running, setRunning] = useState(false)
-  const [phase, setPhase] = useState('')
-  const [focusAreas, setFocusAreas] = useState('')
+  const mode = useHuntStore((s) => s.mode)
+  const setMode = useHuntStore((s) => s.setMode)
+  const stockResult = useHuntStore((s) => s.stockResult)
+  const fundResult = useHuntStore((s) => s.fundResult)
+  const isRunning = useHuntStore((s) => s.isRunning)
+  const phase = useHuntStore((s) => s.phase)
+  const progress = useHuntStore((s) => s.progress)
+  const focusAreas = useHuntStore((s) => s.focusAreas)
+  const setFocusAreas = useHuntStore((s) => s.setFocusAreas)
+  const startHunt = useHuntStore((s) => s.startHunt)
+  const startFundHunt = useHuntStore((s) => s.startFundHunt)
   const [toast, setToast] = useState<DossierToast | null>(null)
 
   const thesesMap = useThesisStore((s) => s.theses)
@@ -369,37 +370,11 @@ export const HuntScreen: React.FC = () => {
   }
 
   const handleHunt = async () => {
-    setRunning(true)
-    setStockResult(null)
-    setFundResult(null)
-    const stockPhases = [
-      'Mining your Readwise vault for signals…',
-      'Sweeping PitchBook and Morningstar…',
-      'Selecting candidates via pattern matching…',
-      'Enriching with Finnhub market data…',
-      'Running 18-voice advisor panel…',
-      'Assembling opportunity brief…',
-    ]
-    const fundPhases = [
-      'Identifying regime-aligned fund candidates…',
-      'Fetching Finnhub quotes…',
-      'Running 18-voice fund underwriting panel…',
-      'Assembling fund opportunity briefs…',
-    ]
-    const phases = mode === 'stocks' ? stockPhases : fundPhases
-    let idx = 0
-    setPhase(phases[0])
-    const timer = setInterval(() => { idx = (idx + 1) % phases.length; setPhase(phases[idx]) }, 4500)
-    try {
-      if (mode === 'stocks') {
-        setStockResult(await runHunt(buildContext()))
-      } else {
-        setFundResult(await runFundHunt(buildContext()))
-      }
-    } finally {
-      clearInterval(timer)
-      setRunning(false)
-      setPhase('')
+    const context = buildContext()
+    if (mode === 'stocks') {
+      await startHunt(context)
+    } else {
+      await startFundHunt(context)
     }
   }
 
@@ -468,39 +443,46 @@ export const HuntScreen: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ padding: '16px 20px', borderRadius: 10, background: tk.surface, border: `1px solid ${tk.border}`, marginBottom: 20 }}>
-          <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 10 }}>Hunt Context</p>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-            <div>
-              <p style={{ fontSize: 10, color: tk.textMuted, marginBottom: 3 }}>Macro Regime</p>
-              <p style={{ fontSize: 12, color: tk.textMid, fontWeight: 500, margin: 0 }}>{macroRegime}</p>
+        {!isRunning && (
+          <div style={{ padding: '16px 20px', borderRadius: 10, background: tk.surface, border: `1px solid ${tk.border}`, marginBottom: 20 }}>
+            <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 10 }}>Hunt Context</p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+              <div>
+                <p style={{ fontSize: 10, color: tk.textMuted, marginBottom: 3 }}>Macro Regime</p>
+                <p style={{ fontSize: 12, color: tk.textMid, fontWeight: 500, margin: 0 }}>{macroRegime}</p>
+              </div>
+              <div>
+                <p style={{ fontSize: 10, color: tk.textMuted, marginBottom: 3 }}>Data Sources</p>
+                <p style={{ fontSize: 12, color: tk.textMid, margin: 0 }}>Finnhub · OpenAI ({getResolvedOpenAIModel()})</p>
+              </div>
             </div>
-            <div>
-              <p style={{ fontSize: 10, color: tk.textMuted, marginBottom: 3 }}>Data Sources</p>
-              <p style={{ fontSize: 12, color: tk.textMid, margin: 0 }}>Finnhub · OpenAI ({getResolvedOpenAIModel()})</p>
-            </div>
+            <p style={{ fontSize: 10, color: tk.textMuted, marginBottom: 5 }}>Focus Areas (optional)</p>
+            <input
+              type="text"
+              value={focusAreas}
+              onChange={e => setFocusAreas(e.target.value)}
+              placeholder={mode === 'stocks'
+                ? "e.g. 'freight infrastructure, defense supply chain, energy transition'"
+                : "e.g. 'rate-sensitive bonds, small-cap value, international diversification'"}
+              style={{ width: '100%', padding: '8px 12px', borderRadius: 7, border: `1px solid ${tk.border}`, background: tk.bg, fontSize: 12, color: tk.text, outline: 'none', boxSizing: 'border-box' as const }}
+            />
           </div>
-          <p style={{ fontSize: 10, color: tk.textMuted, marginBottom: 5 }}>Focus Areas (optional)</p>
-          <input
-            type="text"
-            value={focusAreas}
-            onChange={e => setFocusAreas(e.target.value)}
-            placeholder={mode === 'stocks'
-              ? "e.g. 'freight infrastructure, defense supply chain, energy transition'"
-              : "e.g. 'rate-sensitive bonds, small-cap value, international diversification'"}
-            style={{ width: '100%', padding: '8px 12px', borderRadius: 7, border: `1px solid ${tk.border}`, background: tk.bg, fontSize: 12, color: tk.text, outline: 'none', boxSizing: 'border-box' as const }}
-          />
-        </div>
+        )}
 
         <div style={{ marginBottom: 32 }}>
-          {!running ? (
+          {!isRunning ? (
             <button onClick={handleHunt} style={{ padding: '14px 32px', borderRadius: 10, background: `linear-gradient(135deg, ${tk.amber}, #b07820)`, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#fff', boxShadow: '0 4px 16px rgba(196,137,42,0.35)' }}>
               Hunt for me →
             </button>
           ) : (
-            <div style={{ padding: '14px 24px', borderRadius: 10, background: tk.surface, border: `1px solid ${tk.border}`, display: 'inline-flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${tk.amber}`, borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
-              <span style={{ fontSize: 13, color: tk.textMid }}>{phase}</span>
+            <div style={{ padding: '16px 24px', borderRadius: 10, background: tk.surface, border: `1px solid ${tk.border}`, display: 'flex', flexDirection: 'column' as const, gap: 12, maxWidth: 480 }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${tk.amber}`, borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: tk.textMid }}>{phase}</span>
+              </div>
+              <div style={{ height: 4, borderRadius: 2, background: 'rgba(216,208,196,0.5)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${progress}%`, background: tk.amber, borderRadius: 2, transition: 'width 0.4s ease' }} />
+              </div>
             </div>
           )}
         </div>

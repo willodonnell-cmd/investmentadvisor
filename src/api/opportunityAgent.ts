@@ -270,33 +270,48 @@ Return ONLY this JSON:
   } catch { return null }
 }
 
-export async function runHunt(context: HuntContext): Promise<HuntResult> {
+export async function runHunt(
+  context: HuntContext,
+  onProgress?: (phase: string, progress: number) => void,
+): Promise<HuntResult> {
   const startTime = Date.now()
   const openaiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
 
   if (!openaiKey) return { runAt: new Date(), durationMs: 0, macroRegime: context.macroRegime, vaultSignalsFound: 0, candidatesEvaluated: 0, opportunities: [], agentNotes: '', error: 'VITE_OPENAI_API_KEY not set — add it to .env' }
 
+  onProgress?.('Generating investment signals…', 10)
   const vaultSignals = await mineVaultSignals(context.macroRegime)
+
+  onProgress?.('Building research brief…', 25)
   const researchBrief = await sweepPitchBook(vaultSignals, context.macroRegime)
+
+  onProgress?.('Identifying candidates…', 40)
   const candidates = await selectCandidates(vaultSignals, researchBrief, context)
 
   if (candidates.length === 0) {
     return { runAt: new Date(), durationMs: Date.now() - startTime, macroRegime: context.macroRegime, vaultSignalsFound: vaultSignals.length, candidatesEvaluated: 0, opportunities: [], agentNotes: 'No candidates identified', error: 'No candidates found — try adding focus areas' }
   }
 
+  onProgress?.('Fetching market data…', 55)
   const marketDataMap = new Map<string, Awaited<ReturnType<typeof enrichFromMarket>>>()
   await Promise.all(candidates.map(async c => {
     marketDataMap.set(c.ticker, await enrichFromMarket(c.ticker, c.companyName))
   }))
 
-  const briefs: OpportunityBrief[] = []
-  for (const candidate of candidates.slice(0, context.targetThesisCount + 1)) {
-    const md = marketDataMap.get(candidate.ticker)
-    if (!md) continue
-    const brief = await underwriteOpportunity(candidate, md, researchBrief, context)
-    if (brief) briefs.push(brief)
-  }
+  onProgress?.('Underwriting opportunities…', 70)
+  const results = await Promise.allSettled(
+    candidates.slice(0, context.targetThesisCount + 1).map(async (candidate) => {
+      const md = marketDataMap.get(candidate.ticker)
+      if (!md) return null
+      return underwriteOpportunity(candidate, md, researchBrief, context)
+    }),
+  )
+  const briefs = results
+    .filter((r): r is PromiseFulfilledResult<OpportunityBrief | null> => r.status === 'fulfilled')
+    .map(r => r.value)
+    .filter((b): b is OpportunityBrief => b !== null)
 
+  onProgress?.('Finalizing results…', 95)
   briefs.sort((a, b) => b.conviction - a.conviction)
   briefs.forEach((b, i) => { b.rank = i + 1 })
 

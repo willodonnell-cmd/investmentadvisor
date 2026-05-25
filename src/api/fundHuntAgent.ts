@@ -224,7 +224,10 @@ Return ONLY this JSON:
   }
 }
 
-export async function runFundHunt(context: HuntContext): Promise<FundHuntResult> {
+export async function runFundHunt(
+  context: HuntContext,
+  onProgress?: (phase: string, progress: number) => void,
+): Promise<FundHuntResult> {
   const startTime = Date.now()
   const openaiKey = import.meta.env.VITE_OPENAI_API_KEY as string | undefined
 
@@ -240,6 +243,7 @@ export async function runFundHunt(context: HuntContext): Promise<FundHuntResult>
     }
   }
 
+  onProgress?.('Identifying fund candidates…', 40)
   const candidates = await identifyFundCandidates(
     context.macroRegime,
     context.focusAreas,
@@ -258,20 +262,27 @@ export async function runFundHunt(context: HuntContext): Promise<FundHuntResult>
     }
   }
 
+  onProgress?.('Fetching market data…', 55)
   const quoteMap = new Map<string, FundQuote>()
   await Promise.all(candidates.map(async (c) => {
     const quote = await fetchFundQuote(c.ticker)
     if (quote) quoteMap.set(c.ticker, quote)
   }))
 
-  const briefs: FundOpportunityBrief[] = []
-  for (const candidate of candidates.slice(0, context.targetThesisCount + 2)) {
-    const quote = quoteMap.get(candidate.ticker)
-    if (!quote) continue
-    const brief = await underwriteFund(candidate, quote, context)
-    if (brief) briefs.push(brief)
-  }
+  onProgress?.('Underwriting opportunities…', 70)
+  const results = await Promise.allSettled(
+    candidates.slice(0, context.targetThesisCount + 2).map(async (candidate) => {
+      const quote = quoteMap.get(candidate.ticker)
+      if (!quote) return null
+      return underwriteFund(candidate, quote, context)
+    }),
+  )
+  const briefs = results
+    .filter((r): r is PromiseFulfilledResult<FundOpportunityBrief | null> => r.status === 'fulfilled')
+    .map(r => r.value)
+    .filter((b): b is FundOpportunityBrief => b !== null)
 
+  onProgress?.('Finalizing results…', 95)
   briefs.sort((a, b) => b.conviction - a.conviction)
   briefs.forEach((b, i) => { b.rank = i + 1 })
 

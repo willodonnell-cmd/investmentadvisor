@@ -2,6 +2,7 @@ import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { OpenAIModelSelect } from '../ui/OpenAIModelSelect'
 import { getEnvLabel } from '../../lib/envLabel'
+import { useHuntStore } from '../../store/huntStore'
 
 interface NavItem {
   label: string
@@ -61,9 +62,57 @@ const STAGE_LEGEND = [
   { label: 'Developing',    color: '#4a1d6b' },
 ]
 
+const HuntStatusDot: React.FC<{ running: boolean; completed: boolean; phase: string }> = ({ running, completed, phase }) => {
+  if (!running && !completed) return null
+  const color = running ? '#ff6b6b' : '#2e6e4a'
+  return (
+    <span
+      title={running ? phase : 'Hunt complete'}
+      style={{
+        width: 7,
+        height: 7,
+        borderRadius: '50%',
+        background: color,
+        flexShrink: 0,
+        marginLeft: 'auto',
+        animation: running ? 'huntPulse 1.4s ease-in-out infinite' : undefined,
+        boxShadow: running ? '0 0 0 0 rgba(255,107,107,0.5)' : undefined,
+      }}
+    />
+  )
+}
+
 export const Sidebar: React.FC = () => {
   const location = useLocation()
   const env = getEnvLabel()
+  const isRunning = useHuntStore((s) => s.isRunning)
+  const phase = useHuntStore((s) => s.phase)
+  const justCompleted = useHuntStore((s) => s.justCompleted)
+
+  const renderNavItem = (item: NavItem) => {
+    const isActive = item.path === '/'
+      ? location.pathname === '/'
+      : location.pathname.startsWith(item.path)
+    const isHunt = item.path === '/hunt'
+    return (
+      <NavLink key={item.path} to={item.path} style={{ textDecoration: 'none' }}>
+        <div className="nav-item" style={{ color: isActive ? '#ffffff' : undefined }}>
+          {isActive && (
+            <span style={{
+              position: 'absolute', left: 0, top: 6, bottom: 6,
+              width: 3, borderRadius: '0 2px 2px 0',
+              background: '#ffffff',
+            }} />
+          )}
+          <span style={{ opacity: isActive ? 1 : 0.55 }}>{item.icon}</span>
+          {item.label}
+          {isHunt && (
+            <HuntStatusDot running={isRunning} completed={justCompleted} phase={phase} />
+          )}
+        </div>
+      </NavLink>
+    )
+  }
 
   return (
     <nav style={{
@@ -126,47 +175,11 @@ export const Sidebar: React.FC = () => {
       {/* Workspace */}
       <div className="nav-section">Workspace</div>
 
-      {NAV_ITEMS.slice(0, 4).map(item => {
-        const isActive = item.path === '/'
-          ? location.pathname === '/'
-          : location.pathname.startsWith(item.path)
-        return (
-          <NavLink key={item.path} to={item.path} style={{ textDecoration: 'none' }}>
-            <div className="nav-item" style={{ color: isActive ? '#ffffff' : undefined }}>
-              {isActive && (
-                <span style={{
-                  position: 'absolute', left: 0, top: 6, bottom: 6,
-                  width: 3, borderRadius: '0 2px 2px 0',
-                  background: '#ffffff',
-                }} />
-              )}
-              <span style={{ opacity: isActive ? 1 : 0.55 }}>{item.icon}</span>
-              {item.label}
-            </div>
-          </NavLink>
-        )
-      })}
+      {NAV_ITEMS.slice(0, 4).map(renderNavItem)}
 
       <div className="nav-section">Analysis</div>
 
-      {NAV_ITEMS.slice(4).map(item => {
-        const isActive = location.pathname.startsWith(item.path)
-        return (
-          <NavLink key={item.path} to={item.path} style={{ textDecoration: 'none' }}>
-            <div className="nav-item" style={{ color: isActive ? '#ffffff' : undefined }}>
-              {isActive && (
-                <span style={{
-                  position: 'absolute', left: 0, top: 6, bottom: 6,
-                  width: 3, borderRadius: '0 2px 2px 0',
-                  background: '#ffffff',
-                }} />
-              )}
-              <span style={{ opacity: isActive ? 1 : 0.55 }}>{item.icon}</span>
-              {item.label}
-            </div>
-          </NavLink>
-        )
-      })}
+      {NAV_ITEMS.slice(4).map(renderNavItem)}
 
       {/* Stage legend */}
       <div style={{
@@ -194,6 +207,12 @@ export const Sidebar: React.FC = () => {
           ))}
         </div>
       </div>
+      <style>{`
+        @keyframes huntPulse {
+          0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,107,107,0.5); }
+          50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(255,107,107,0); }
+        }
+      `}</style>
     </nav>
   )
 }
