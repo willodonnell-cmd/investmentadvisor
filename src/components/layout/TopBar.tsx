@@ -36,7 +36,7 @@ const REGIME_LABELS: Record<string, string> = {
 
 export const TopBar: React.FC = () => {
   const { regime } = useMacroStore()
-  const pendingDraftCount = useConvictionStore((s) => s.getPendingDraftCount())
+  const pendingDraftCount = useConvictionStore((s) => Object.keys(s.drafts ?? {}).length)
   const [macroOpen, setMacroOpen] = useState(false)
   const [convictionOpen, setConvictionOpen] = useState(false)
 
