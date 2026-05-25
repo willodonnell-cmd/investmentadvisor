@@ -1,6 +1,7 @@
 import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { OpenAIModelSelect } from '../ui/OpenAIModelSelect'
+import { getEnvLabel } from '../../lib/envLabel'
 
 interface NavItem {
   label: string
@@ -25,6 +26,10 @@ const NAV_ITEMS: NavItem[] = [
     icon: <Icon d={<path d="M13 2L4.5 13.5H11L10 22L19.5 10.5H13L13 2z"/>} />,
   },
   {
+    label: 'Hunt', path: '/hunt',
+    icon: <Icon d={<path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>} />,
+  },
+  {
     label: 'Theses', path: '/theses',
     icon: <Icon d={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></>} />,
   },
@@ -44,6 +49,10 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Performance', path: '/paper',
     icon: <Icon d={<><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></>} />,
   },
+  {
+    label: 'Workspace', path: '/workspace',
+    icon: <Icon d={<><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></>} />,
+  },
 ]
 
 const STAGE_LEGEND = [
@@ -56,6 +65,7 @@ const STAGE_LEGEND = [
 
 export const Sidebar: React.FC = () => {
   const location = useLocation()
+  const env = getEnvLabel()
 
   return (
     <nav style={{
@@ -93,12 +103,32 @@ export const Sidebar: React.FC = () => {
         }}>
           Dossier
         </span>
+        <span
+          title={env.detail}
+          style={{
+            marginLeft: 'auto',
+            fontSize: 9,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            padding: '3px 7px',
+            borderRadius: 4,
+            flexShrink: 0,
+            ...(env.tone === 'local'
+              ? { color: '#8ecae6', background: 'rgba(142,202,230,0.12)', border: '1px solid rgba(142,202,230,0.25)' }
+              : env.tone === 'prod'
+                ? { color: '#d4a843', background: 'rgba(212,168,67,0.12)', border: '1px solid rgba(212,168,67,0.25)' }
+                : { color: '#a8a5a0', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)' }),
+          }}
+        >
+          {env.label}
+        </span>
       </div>
 
       {/* Workspace */}
       <div className="nav-section">Workspace</div>
 
-      {NAV_ITEMS.slice(0, 3).map(item => {
+      {NAV_ITEMS.slice(0, 4).map(item => {
         const isActive = item.path === '/'
           ? location.pathname === '/'
           : location.pathname.startsWith(item.path)
@@ -121,7 +151,7 @@ export const Sidebar: React.FC = () => {
 
       <div className="nav-section">Analysis</div>
 
-      {NAV_ITEMS.slice(3).map(item => {
+      {NAV_ITEMS.slice(4).map(item => {
         const isActive = location.pathname.startsWith(item.path)
         return (
           <NavLink key={item.path} to={item.path} style={{ textDecoration: 'none' }}>

@@ -1,0 +1,274 @@
+import React, { useState, useCallback } from 'react'
+import { runHunt, type HuntContext, type HuntResult, type OpportunityBrief } from '../api/opportunityAgent'
+import { useThesisStore } from '../store/thesisStore'
+import { useMacroStore } from '../store/macroStore'
+import { getResolvedOpenAIModel } from '../api/openai'
+
+const tk = {
+  bg: '#ede9e0', surface: '#f5f2eb', border: '#d8d0c4',
+  borderLight: 'rgba(216,208,196,0.5)', amber: '#c4892a',
+  amberLight: 'rgba(196,137,42,0.12)', text: '#18140e',
+  textMid: '#4a3c2e', textMuted: '#8a7a6a',
+  green: '#2e6e4a', greenLight: 'rgba(46,110,74,0.10)',
+  red: '#a83030', redLight: 'rgba(168,48,48,0.10)',
+  blue: '#1e4d6b', blueLight: 'rgba(30,77,107,0.10)',
+}
+
+const ConvictionBar: React.FC<{ score: number; label: string }> = ({ score, label }) => {
+  const color = score >= 70 ? tk.green : score >= 45 ? tk.amber : tk.red
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ flex: 1, height: 5, borderRadius: 3, background: 'rgba(216,208,196,0.5)', overflow: 'hidden' }}>
+        <div style={{ height: '100%', width: `${score}%`, background: color, borderRadius: 3 }} />
+      </div>
+      <span style={{ fontSize: 11, fontWeight: 700, color, minWidth: 28, textAlign: 'right' as const }}>{score}</span>
+      <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.07em', padding: '2px 7px', borderRadius: 4, background: color === tk.green ? tk.greenLight : color === tk.amber ? tk.amberLight : tk.redLight, color, border: `1px solid ${color}40` }}>{label}</span>
+    </div>
+  )
+}
+
+const EvidencePill: React.FC<{ label: string; value: string; color?: string }> = ({ label, value, color = tk.blue }) => {
+  const rgb = color === tk.green ? '46,110,74' : color === tk.amber ? '196,137,42' : '30,77,107'
+  return (
+    <div style={{ padding: '6px 11px', borderRadius: 7, background: `rgba(${rgb},0.07)`, border: `1px solid rgba(${rgb},0.20)`, display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
+      <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted }}>{label}</span>
+      <span style={{ fontSize: 11, color: tk.textMid, lineHeight: 1.4 }}>{value}</span>
+    </div>
+  )
+}
+
+const ActionBadge: React.FC<{ action: OpportunityBrief['suggestedAction'] }> = ({ action }) => {
+  const cfg = {
+    advance_to_dossier: { label: 'Advance to Dossier', color: tk.green, bg: tk.greenLight },
+    watch: { label: 'Watch', color: tk.amber, bg: tk.amberLight },
+    pass: { label: 'Pass', color: tk.textMuted, bg: 'rgba(216,208,196,0.4)' },
+  }[action]
+  return <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', padding: '4px 11px', borderRadius: 5, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}40` }}>{cfg.label}</span>
+}
+
+const OpportunityCard: React.FC<{ brief: OpportunityBrief; onAdvance: (b: OpportunityBrief) => void }> = ({ brief, onAdvance }) => {
+  const [expanded, setExpanded] = useState(brief.rank === 1)
+  return (
+    <div style={{ border: `1px solid ${brief.rank === 1 ? tk.amber : tk.border}`, borderRadius: 12, background: tk.surface, overflow: 'hidden', boxShadow: brief.rank === 1 ? `0 0 0 1px rgba(196,137,42,0.15), 0 4px 20px rgba(0,0,0,0.06)` : '0 2px 8px rgba(0,0,0,0.04)' }}>
+      <div onClick={() => setExpanded(e => !e)} style={{ padding: '16px 20px', cursor: 'pointer', background: brief.rank === 1 ? 'rgba(196,137,42,0.04)' : 'transparent', borderBottom: expanded ? `1px solid ${tk.borderLight}` : 'none', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+        <div style={{ width: 28, height: 28, borderRadius: 7, flexShrink: 0, background: brief.rank === 1 ? tk.amber : 'rgba(216,208,196,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: 12, fontWeight: 800, color: brief.rank === 1 ? '#fff' : tk.textMuted }}>{brief.rank}</span>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const, marginBottom: 4 }}>
+            <span style={{ fontFamily: 'monospace', fontSize: 15, fontWeight: 800, color: tk.text }}>{brief.ticker}</span>
+            <span style={{ fontSize: 12, color: tk.textMid }}>{brief.companyName}</span>
+            <span style={{ fontSize: 9, color: tk.textMuted, padding: '2px 7px', borderRadius: 4, background: tk.amberLight, border: `1px solid rgba(196,137,42,0.2)` }}>{brief.thesisType}</span>
+            <div style={{ marginLeft: 'auto' }}><ActionBadge action={brief.suggestedAction} /></div>
+          </div>
+          <p style={{ fontSize: 12, color: tk.textMid, lineHeight: 1.6, margin: '0 0 10px' }}>{brief.thesisStatement}</p>
+          <ConvictionBar score={brief.conviction} label={brief.convictionLabel} />
+        </div>
+        <span style={{ fontSize: 14, color: tk.textMuted, flexShrink: 0, marginTop: 4 }}>{expanded ? '▲' : '▼'}</span>
+      </div>
+
+      {expanded && (
+        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column' as const, gap: 18 }}>
+          <div>
+            <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 10 }}>Evidence Chain</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
+              {brief.vaultSignals.length > 0 && <EvidencePill label="Your Vault" value={brief.vaultSignals[0]} color={tk.amber} />}
+              {brief.insiderSignal && brief.insiderSignal !== 'No recent insider activity data' && (
+                <EvidencePill label="Insider Signal" value={brief.insiderSignal} color={brief.insiderSignal.includes('purchase') || brief.insiderSignal.includes('buying') ? tk.green : tk.red} />
+              )}
+              {brief.analystConsensus && <EvidencePill label="Analyst Consensus" value={brief.analystConsensus} color={tk.blue} />}
+              {brief.morningstarView && brief.morningstarView !== 'See full research brief' && (
+                <EvidencePill label="Morningstar" value={brief.morningstarView.slice(0, 120)} color={tk.amber} />
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 6 }}>Transmission Path</p>
+              <p style={{ fontSize: 11, color: tk.textMid, lineHeight: 1.6, margin: 0 }}>{brief.transmissionPath}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 6 }}>Variant Perception</p>
+              <p style={{ fontSize: 11, color: tk.textMid, lineHeight: 1.6, margin: 0 }}>{brief.variantPerception}</p>
+            </div>
+          </div>
+
+          {brief.marketMetrics && (
+            <div>
+              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 6 }}>Market Data (Finnhub)</p>
+              <div style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(242,236,226,0.6)', border: `1px solid ${tk.borderLight}`, fontSize: 11, color: tk.textMid, lineHeight: 1.7, whiteSpace: 'pre-line' as const }}>{brief.marketMetrics}</div>
+            </div>
+          )}
+
+          <div>
+            <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 6 }}>18-Voice Advisor Panel</p>
+            <div style={{ padding: '12px 16px', borderRadius: 8, background: 'rgba(26,26,31,0.04)', border: `1px solid ${tk.borderLight}`, fontSize: 12, color: tk.textMid, lineHeight: 1.7, fontStyle: 'italic' }}>"{brief.advisorVerdict}"</div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.red, marginBottom: 6 }}>Key Risks</p>
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
+                {brief.keyRisks.map((r, i) => <li key={i} style={{ display: 'flex', gap: 8, fontSize: 11, color: tk.textMid, lineHeight: 1.5 }}><span style={{ color: tk.red, flexShrink: 0 }}>⚠</span>{r}</li>)}
+              </ul>
+            </div>
+            <div>
+              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 6 }}>Kill Conditions</p>
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
+                {brief.killConditions.map((k, i) => <li key={i} style={{ display: 'flex', gap: 8, fontSize: 11, color: tk.textMid, lineHeight: 1.5 }}><span style={{ color: tk.textMuted, flexShrink: 0 }}>✕</span>{k}</li>)}
+              </ul>
+            </div>
+          </div>
+
+          {brief.suggestedAction === 'watch' && brief.watchTriggers && brief.watchTriggers.length > 0 && (
+            <div>
+              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.amber, marginBottom: 6 }}>Watch Triggers — advance when...</p>
+              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
+                {brief.watchTriggers.map((wt, i) => <li key={i} style={{ display: 'flex', gap: 8, fontSize: 11, color: tk.textMid, lineHeight: 1.5 }}><span style={{ color: tk.amber, flexShrink: 0 }}>→</span>{wt}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {brief.suggestedAction === 'advance_to_dossier' && (
+            <button onClick={() => onAdvance(brief)} style={{ padding: '10px 20px', borderRadius: 8, background: `linear-gradient(135deg, ${tk.amber}, #b07820)`, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#fff', alignSelf: 'flex-start', boxShadow: '0 2px 8px rgba(196,137,42,0.3)' }}>
+              Add to Dossier →
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export const HuntScreen: React.FC = () => {
+  const [result, setResult] = useState<HuntResult | null>(null)
+  const [running, setRunning] = useState(false)
+  const [phase, setPhase] = useState('')
+  const [focusAreas, setFocusAreas] = useState('')
+
+  const theses = useThesisStore((s: any) => Object.values(s.theses ?? {}))
+  const macroRegimeObj = useMacroStore((s: any) => s.regime)
+  const macroRegime = macroRegimeObj
+    ? `${macroRegimeObj.realRates} Real Rates, ${macroRegimeObj.creditCycle}, ${macroRegimeObj.liquidity} Liquidity, ${macroRegimeObj.riskAppetite} Risk Appetite, ${macroRegimeObj.dollar} Dollar, ${macroRegimeObj.policy} Policy`
+    : 'High Real Rates, LateCycle, Normal Liquidity, Neutral Risk Appetite, Strong Dollar, Restrictive Policy'
+
+  const buildContext = useCallback((): HuntContext => ({
+    macroRegime,
+    activeThesisSummaries: theses.filter((th: any) => th.status === 'active').slice(0, 5).map((th: any) => `${th.ticker ?? ''}: ${th.statement?.slice(0, 100) ?? ''}`),
+    killRecordSummaries: theses.filter((th: any) => th.status === 'killed').slice(0, 5).map((th: any) => `${th.ticker ?? ''}: killed — ${th.killReason?.slice(0, 80) ?? 'not recorded'}`),
+    portfolioExposures: ['Industrial REIT (Prologis / PLD) — very heavy concentration', 'US large-cap equities (general)'],
+    targetThesisCount: 3,
+    focusAreas: focusAreas.trim() || undefined,
+  }), [theses, macroRegime, focusAreas])
+
+  const handleHunt = async () => {
+    setRunning(true)
+    setResult(null)
+    const phases = [
+      'Mining your Readwise vault for signals…',
+      'Sweeping PitchBook and Morningstar…',
+      'Selecting candidates via pattern matching…',
+      'Enriching with Finnhub market data…',
+      'Running 18-voice advisor panel…',
+      'Assembling opportunity brief…',
+    ]
+    let idx = 0
+    setPhase(phases[0])
+    const timer = setInterval(() => { idx = (idx + 1) % phases.length; setPhase(phases[idx]) }, 4500)
+    try { setResult(await runHunt(buildContext())) }
+    finally { clearInterval(timer); setRunning(false); setPhase('') }
+  }
+
+  const handleAdvance = (brief: OpportunityBrief) => {
+    alert(`Advancing ${brief.ticker} to Dossier — wire useThesisStore.addThesis() here to complete`)
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', background: tk.bg, padding: '32px 40px', fontFamily: 'Geist, -apple-system, sans-serif' }}>
+      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, ${tk.amber}, #b07820)`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(196,137,42,0.3)' }}>
+            <span style={{ fontSize: 16 }}>⚡</span>
+          </div>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 800, color: tk.text, margin: 0, letterSpacing: '-0.02em' }}>Opportunity Agent</h1>
+            <p style={{ fontSize: 12, color: tk.textMuted, margin: 0 }}>Hunts while you're busy. Returns fully underwritten thesis drafts.</p>
+          </div>
+        </div>
+
+        <div style={{ padding: '16px 20px', borderRadius: 10, background: tk.surface, border: `1px solid ${tk.border}`, marginBottom: 20 }}>
+          <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 10 }}>Hunt Context</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div>
+              <p style={{ fontSize: 10, color: tk.textMuted, marginBottom: 3 }}>Macro Regime</p>
+              <p style={{ fontSize: 12, color: tk.textMid, fontWeight: 500, margin: 0 }}>{macroRegime}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: 10, color: tk.textMuted, marginBottom: 3 }}>Data Sources</p>
+              <p style={{ fontSize: 12, color: tk.textMid, margin: 0 }}>Finnhub · OpenAI ({getResolvedOpenAIModel()})</p>
+            </div>
+          </div>
+          <p style={{ fontSize: 10, color: tk.textMuted, marginBottom: 5 }}>Focus Areas (optional)</p>
+          <input
+            type="text"
+            value={focusAreas}
+            onChange={e => setFocusAreas(e.target.value)}
+            placeholder="e.g. 'freight infrastructure, defense supply chain, energy transition'"
+            style={{ width: '100%', padding: '8px 12px', borderRadius: 7, border: `1px solid ${tk.border}`, background: tk.bg, fontSize: 12, color: tk.text, outline: 'none', boxSizing: 'border-box' as const }}
+          />
+        </div>
+
+        <div style={{ marginBottom: 32 }}>
+          {!running ? (
+            <button onClick={handleHunt} style={{ padding: '14px 32px', borderRadius: 10, background: `linear-gradient(135deg, ${tk.amber}, #b07820)`, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#fff', boxShadow: '0 4px 16px rgba(196,137,42,0.35)' }}>
+              Hunt for me →
+            </button>
+          ) : (
+            <div style={{ padding: '14px 24px', borderRadius: 10, background: tk.surface, border: `1px solid ${tk.border}`, display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${tk.amber}`, borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite' }} />
+              <span style={{ fontSize: 13, color: tk.textMid }}>{phase}</span>
+            </div>
+          )}
+        </div>
+
+        {result && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${tk.borderLight}` }}>
+              {([
+                { label: 'Vault Signals', value: String(result.vaultSignalsFound), hi: false },
+                { label: 'Candidates', value: String(result.candidatesEvaluated), hi: false },
+                { label: 'Opportunities', value: String(result.opportunities.length), hi: true },
+                { label: 'Duration', value: `${(result.durationMs / 1000).toFixed(0)}s`, hi: false },
+              ] as const).map((stat, i) => (
+                <React.Fragment key={stat.label}>
+                  {i > 0 && <div style={{ width: 1, height: 36, background: tk.borderLight }} />}
+                  <div>
+                    <span style={{ fontSize: 9, color: tk.textMuted, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>{stat.label}</span>
+                    <p style={{ fontSize: 20, fontWeight: 800, color: stat.hi ? tk.amber : tk.text, margin: '2px 0 0', fontFamily: 'monospace' }}>{stat.value}</p>
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
+
+            {result.agentNotes && (
+              <div style={{ padding: '10px 16px', borderRadius: 8, background: tk.blueLight, border: `1px solid rgba(30,77,107,0.2)`, marginBottom: 20, fontSize: 11, color: tk.textMid, lineHeight: 1.6 }}>
+                <span style={{ fontWeight: 700, color: tk.blue }}>Agent: </span>{result.agentNotes}
+              </div>
+            )}
+
+            {result.error && (
+              <div style={{ padding: '12px 16px', borderRadius: 8, background: tk.redLight, border: `1px solid rgba(168,48,48,0.25)`, marginBottom: 20, fontSize: 12, color: tk.red }}>{result.error}</div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
+              {result.opportunities.map(brief => <OpportunityCard key={brief.ticker} brief={brief} onAdvance={handleAdvance} />)}
+            </div>
+          </div>
+        )}
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+}

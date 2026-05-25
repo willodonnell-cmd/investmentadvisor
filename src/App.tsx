@@ -9,6 +9,8 @@ import { ComparisonScreen } from './screens/ComparisonScreen'
 import { DecisionScreen } from './screens/DecisionScreen'
 import { PortfolioScreen } from './screens/PortfolioScreen'
 import { PaperTrackerScreen } from './screens/PaperTrackerScreen'
+import { WorkspaceScreen } from './screens/WorkspaceScreen'
+import { HuntScreen } from './screens/HuntScreen'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
 
 const App: React.FC = () => (
@@ -25,6 +27,8 @@ const App: React.FC = () => (
         <Route path="/decision/:id" element={<ErrorBoundary label="Decision"><DecisionScreen /></ErrorBoundary>} />
         <Route path="/portfolio" element={<ErrorBoundary label="Portfolio"><PortfolioScreen /></ErrorBoundary>} />
         <Route path="/paper" element={<ErrorBoundary label="Performance Tracker"><PaperTrackerScreen /></ErrorBoundary>} />
+        <Route path="/workspace" element={<ErrorBoundary label="Workspace"><WorkspaceScreen /></ErrorBoundary>} />
+        <Route path="/hunt" element={<ErrorBoundary label="Hunt"><HuntScreen /></ErrorBoundary>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
