@@ -1,12 +1,9 @@
-import React, { useState, useCallback, useMemo } from 'react'
-import { Link } from 'react-router-dom'
-import {
-  type HuntContext,
-  type OpportunityBrief,
-} from '../api/opportunityAgent'
-import {
-  type FundOpportunityBrief,
-} from '../api/fundHuntAgent'
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import { useVolatilityStore } from '../store/volatilityStore'
+import type { VolRegime } from '../api/volatilityOverlay'
+import { type HuntContext, type OpportunityBrief } from '../api/opportunityAgent'
+import { type FundOpportunityBrief } from '../api/fundHuntAgent'
 import { useThesisStore } from '../store/thesisStore'
 import { usePortfolioStore } from '../store/portfolioStore'
 import { useMacroStore } from '../store/macroStore'
@@ -14,266 +11,475 @@ import { useHuntStore } from '../store/huntStore'
 import { getResolvedOpenAIModel } from '../api/openai'
 import { addHuntThesisToDossier, isDuplicateInDossier } from '../utils/huntToThesis'
 import { isActive } from '../utils/thesisHelpers'
+import { useTopBar } from '../store/topbarStore'
+import { AskAIDock } from '../components/ui/AskAIDock'
+import { Sunburst } from '../components/ui/Sunburst'
+
+type FilterAction = 'all' | 'advance_to_dossier' | 'watch' | 'pass'
 
 const tk = {
-  bg: '#ede9e0', surface: '#f5f2eb', border: '#d8d0c4',
-  borderLight: 'rgba(216,208,196,0.5)', amber: '#c4892a',
-  amberLight: 'rgba(196,137,42,0.12)', text: '#18140e',
-  textMid: '#4a3c2e', textMuted: '#8a7a6a',
-  green: '#2e6e4a', greenLight: 'rgba(46,110,74,0.10)',
-  red: '#a83030', redLight: 'rgba(168,48,48,0.10)',
-  blue: '#1e4d6b', blueLight: 'rgba(30,77,107,0.10)',
+  bg: '#ede9e0', surface: '#f5f2eb', surface2: '#e8e4d8', card: '#fbf8f1',
+  ink: '#1a1a1f', ink2: '#3a3a42', muted: '#6b6960', muted2: '#8b8980',
+  hairline: 'rgba(0,0,0,0.08)', hairline2: 'rgba(0,0,0,0.14)',
+  sun2: '#f4922c', sun3: '#e0511a',
+  green: '#2d6a4f', greenLight: 'rgba(45,106,79,0.10)',
+  neg: '#9b2c1a', negLight: 'rgba(155,44,26,0.10)',
+  amber: '#c4892a', amberLight: 'rgba(196,137,42,0.12)',
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-interface DossierToast {
-  ticker: string
-  thesisId: string
-  kind: 'success' | 'duplicate'
+function convColor(score: number) {
+  return score >= 70 ? tk.green : score >= 45 ? tk.amber : tk.neg
 }
 
-const ConvictionBar: React.FC<{ score: number; label: string }> = ({ score, label }) => {
-  const color = score >= 70 ? tk.green : score >= 45 ? tk.amber : tk.red
+function thesisTypePill(label: string) {
+  const upper = label.toUpperCase().slice(0, 10)
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{ flex: 1, height: 5, borderRadius: 3, background: 'rgba(216,208,196,0.5)', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${score}%`, background: color, borderRadius: 3 }} />
-      </div>
-      <span style={{ fontSize: 11, fontWeight: 700, color, minWidth: 28, textAlign: 'right' as const }}>{score}</span>
-      <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.07em', padding: '2px 7px', borderRadius: 4, background: color === tk.green ? tk.greenLight : color === tk.amber ? tk.amberLight : tk.redLight, color, border: `1px solid ${color}40` }}>{label}</span>
-    </div>
+    <span style={{
+      fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em',
+      padding: '2px 7px', borderRadius: 3,
+      background: tk.amberLight, color: '#7a4a0c',
+      border: '1px solid rgba(196,137,42,0.25)',
+    }}>
+      {upper}
+    </span>
   )
 }
 
-const EvidencePill: React.FC<{ label: string; value: string; color?: string }> = ({ label, value, color = tk.blue }) => {
-  const rgb = color === tk.green ? '46,110,74' : color === tk.amber ? '196,137,42' : '30,77,107'
-  return (
-    <div style={{ padding: '6px 11px', borderRadius: 7, background: `rgba(${rgb},0.07)`, border: `1px solid rgba(${rgb},0.20)`, display: 'flex', flexDirection: 'column' as const, gap: 2 }}>
-      <span style={{ fontSize: 8, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted }}>{label}</span>
-      <span style={{ fontSize: 11, color: tk.textMid, lineHeight: 1.4 }}>{value}</span>
-    </div>
-  )
-}
-
-const ActionBadge: React.FC<{ action: 'advance_to_dossier' | 'watch' | 'pass' }> = ({ action }) => {
+function actionBadge(action: string) {
   const cfg = {
     advance_to_dossier: { label: 'Advance to Dossier', color: tk.green, bg: tk.greenLight },
-    watch: { label: 'Watch', color: tk.amber, bg: tk.amberLight },
-    pass: { label: 'Pass', color: tk.textMuted, bg: 'rgba(216,208,196,0.4)' },
-  }[action] ?? { label: "Watch", color: tk.amber, bg: tk.amberLight }
-  return <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.06em', padding: '4px 11px', borderRadius: 5, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}40` }}>{cfg.label}</span>
+    watch:              { label: 'Watch',              color: tk.amber,  bg: tk.amberLight },
+    pass:               { label: 'Pass',               color: tk.muted2, bg: 'rgba(216,208,196,0.35)' },
+  }[action] ?? { label: action, color: tk.muted2, bg: 'rgba(216,208,196,0.35)' }
+  return (
+    <span style={{
+      fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em',
+      padding: '3px 9px', borderRadius: 4,
+      background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}40`,
+    }}>
+      {cfg.label}
+    </span>
+  )
 }
 
-const OpportunityCard: React.FC<{
+// ── Opportunity card (stocks) ─────────────────────────────────────────────────
+
+const StockOppCard: React.FC<{
   brief: OpportunityBrief
-  onAdvance: (b: OpportunityBrief) => void
-  duplicate?: boolean
-}> = ({ brief, onAdvance, duplicate }) => {
-  const [expanded, setExpanded] = useState(brief.rank === 1)
+  onAdvance: () => void
+  duplicate: boolean
+  volElevated?: boolean
+}> = ({ brief, onAdvance, duplicate, volElevated }) => {
+  const [hovered, setHovered] = useState(false)
+  const score = brief.conviction
+  const color = convColor(score)
+  const isTop = brief.rank === 1
+
+  const evidencePills = [
+    brief.vaultSignals?.[0] && { dot: tk.amber, text: brief.vaultSignals[0].slice(0, 40) },
+    brief.insiderSignal && { dot: tk.green, text: brief.insiderSignal.slice(0, 40) },
+    brief.morningstarView && { dot: tk.amber, text: `Morningstar · ${brief.morningstarView.slice(0, 30)}` },
+    brief.analystConsensus && { dot: '#1e4d6b', text: brief.analystConsensus.slice(0, 40) },
+  ].filter(Boolean) as { dot: string; text: string }[]
+
   return (
-    <div style={{ border: `1px solid ${brief.rank === 1 ? tk.amber : tk.border}`, borderRadius: 12, background: tk.surface, overflow: 'hidden', boxShadow: brief.rank === 1 ? `0 0 0 1px rgba(196,137,42,0.15), 0 4px 20px rgba(0,0,0,0.06)` : '0 2px 8px rgba(0,0,0,0.04)' }}>
-      <div onClick={() => setExpanded(e => !e)} style={{ padding: '16px 20px', cursor: 'pointer', background: brief.rank === 1 ? 'rgba(196,137,42,0.04)' : 'transparent', borderBottom: expanded ? `1px solid ${tk.borderLight}` : 'none', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 7, flexShrink: 0, background: brief.rank === 1 ? tk.amber : 'rgba(216,208,196,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 12, fontWeight: 800, color: brief.rank === 1 ? '#fff' : tk.textMuted }}>{brief.rank}</span>
+    <Link to={`/stock/${brief.ticker}`} style={{ textDecoration: 'none', display: 'block' }}>
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          display: 'flex', flexDirection: 'column',
+          border: `1px solid ${hovered ? tk.amber + '60' : isTop ? tk.amber + '40' : tk.hairline}`,
+          borderRadius: 12,
+          background: isTop
+            ? `linear-gradient(to right, rgba(196,137,42,0.05), ${tk.card})`
+            : tk.card,
+          overflow: 'hidden',
+          boxShadow: hovered
+            ? '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 20px -14px rgba(0,0,0,0.18)'
+            : '0 1px 0 rgba(255,255,255,0.5) inset, 0 1px 2px rgba(0,0,0,0.02)',
+          transition: 'box-shadow 150ms, border-color 150ms',
+          cursor: 'pointer',
+        }}
+      >
+      <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr 200px' }}>
+        {/* Rank disc */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '18px 0',
+        }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            ...(isTop ? {
+              background: `radial-gradient(circle at 50% 32%, rgba(255,250,235,.7) 0%, rgba(255,250,235,0) 38%), radial-gradient(circle at 50% 50%, #ffd87a 0%, #f4922c 30%, #e0511a 70%, #a01a0c 100%)`,
+              boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.25), 0 1px 2px rgba(0,0,0,.4)',
+            } : {
+              background: tk.surface2,
+              border: `1px solid ${tk.hairline}`,
+            }),
+          }}>
+            <span style={{
+              fontFamily: 'GeistMono, monospace', fontSize: 12, fontWeight: 700,
+              color: isTop ? '#fff' : tk.muted2,
+            }}>
+              {brief.rank}
+            </span>
+          </div>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const, marginBottom: 4 }}>
-            <span style={{ fontFamily: 'monospace', fontSize: 15, fontWeight: 800, color: tk.text }}>{brief.ticker}</span>
-            <span style={{ fontSize: 12, color: tk.textMid }}>{brief.companyName}</span>
-            <span style={{ fontSize: 9, color: tk.textMuted, padding: '2px 7px', borderRadius: 4, background: tk.amberLight, border: `1px solid rgba(196,137,42,0.2)` }}>{brief.thesisType}</span>
-            <div style={{ marginLeft: 'auto' }}><ActionBadge action={brief.suggestedAction} /></div>
+
+        {/* Content */}
+        <div style={{ padding: '16px 14px 16px 4px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 15, fontWeight: 700, color: tk.ink, letterSpacing: '0.02em' }}>
+              {brief.ticker}
+            </span>
+            <span style={{ fontSize: 13, color: tk.ink2, fontWeight: 500 }}>
+              {brief.companyName}
+            </span>
+            {thesisTypePill(brief.thesisType)}
+            <span style={{ marginLeft: 'auto', flexShrink: 0 }}>
+              {brief.suggestedAction === 'advance_to_dossier' && !duplicate && (
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAdvance() }}
+                  style={{
+                    fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em',
+                    padding: '4px 10px', borderRadius: 5, border: 'none', cursor: 'pointer',
+                    background: tk.green, color: '#fff',
+                  }}
+                >
+                  Advance to Dossier
+                </button>
+              )}
+              {brief.suggestedAction === 'advance_to_dossier' && duplicate && (
+                <span style={{ fontSize: 9.5, color: tk.muted2, fontWeight: 600 }}>In Dossier</span>
+              )}
+              {brief.suggestedAction !== 'advance_to_dossier' && actionBadge(brief.suggestedAction)}
+            </span>
           </div>
-          <p style={{ fontSize: 12, color: tk.textMid, lineHeight: 1.6, margin: '0 0 10px' }}>{brief.thesisStatement}</p>
-          <ConvictionBar score={brief.conviction} label={brief.convictionLabel} />
+
+          <p style={{ fontSize: 13, color: tk.ink2, lineHeight: 1.5, margin: 0 }}>
+            {brief.thesisStatement}
+          </p>
+
+          {evidencePills.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+              {evidencePills.slice(0, 4).map((p, i) => (
+                <span key={i} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  fontSize: 10.5, color: tk.ink2, fontFamily: 'GeistMono, monospace',
+                  background: tk.surface, border: `1px solid ${tk.hairline}`,
+                  borderRadius: 99, padding: '2px 8px',
+                }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: p.dot, flexShrink: 0 }} />
+                  {p.text}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
-        <span style={{ fontSize: 14, color: tk.textMuted, flexShrink: 0, marginTop: 4 }}>{expanded ? '▲' : '▼'}</span>
-      </div>
 
-      {expanded && (
-        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column' as const, gap: 18 }}>
-          <div>
-            <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 10 }}>Evidence Chain</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
-              {brief.vaultSignals.length > 0 && <EvidencePill label="Your Vault" value={brief.vaultSignals[0]} color={tk.amber} />}
-              {brief.insiderSignal && brief.insiderSignal !== 'No recent insider activity data' && (
-                <EvidencePill label="Insider Signal" value={brief.insiderSignal} color={brief.insiderSignal.includes('purchase') || brief.insiderSignal.includes('buying') ? tk.green : tk.red} />
-              )}
-              {brief.analystConsensus && <EvidencePill label="Analyst Consensus" value={brief.analystConsensus} color={tk.blue} />}
-              {brief.morningstarView && brief.morningstarView !== 'See full research brief' && (
-                <EvidencePill label="Morningstar" value={brief.morningstarView.slice(0, 120)} color={tk.amber} />
-              )}
-            </div>
+        {/* Conviction column */}
+        <div style={{
+          borderLeft: `1px solid ${tk.hairline}`,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '16px 18px', gap: 8,
+        }}>
+          <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.13em', color: tk.muted2 }}>
+            Conviction
+          </span>
+          <span style={{
+            fontFamily: 'GeistMono, monospace', fontSize: 22, fontWeight: 600,
+            color, letterSpacing: '-0.01em', lineHeight: 1,
+          }}>
+            {score}
+          </span>
+          <div style={{ width: '100%', height: 5, borderRadius: 99, background: tk.surface2, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', width: `${score}%`,
+              background: `linear-gradient(90deg, ${tk.sun2}, ${tk.sun3})`,
+              borderRadius: 99,
+            }} />
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 6 }}>Transmission Path</p>
-              <p style={{ fontSize: 11, color: tk.textMid, lineHeight: 1.6, margin: 0 }}>{brief.transmissionPath}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 6 }}>Variant Perception</p>
-              <p style={{ fontSize: 11, color: tk.textMid, lineHeight: 1.6, margin: 0 }}>{brief.variantPerception}</p>
-            </div>
-          </div>
-
-          {brief.marketMetrics && (
-            <div>
-              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 6 }}>Market Data (Finnhub)</p>
-              <div style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(242,236,226,0.6)', border: `1px solid ${tk.borderLight}`, fontSize: 11, color: tk.textMid, lineHeight: 1.7, whiteSpace: 'pre-line' as const }}>{brief.marketMetrics}</div>
-            </div>
-          )}
-
-          <div>
-            <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 6 }}>18-Voice Advisor Panel</p>
-            <div style={{ padding: '12px 16px', borderRadius: 8, background: 'rgba(26,26,31,0.04)', border: `1px solid ${tk.borderLight}`, fontSize: 12, color: tk.textMid, lineHeight: 1.7, fontStyle: 'italic' }}>"{brief.advisorVerdict}"</div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.red, marginBottom: 6 }}>Key Risks</p>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
-                {brief.keyRisks.map((r, i) => <li key={i} style={{ display: 'flex', gap: 8, fontSize: 11, color: tk.textMid, lineHeight: 1.5 }}><span style={{ color: tk.red, flexShrink: 0 }}>⚠</span>{r}</li>)}
-              </ul>
-            </div>
-            <div>
-              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 6 }}>Kill Conditions</p>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
-                {brief.killConditions.map((k, i) => <li key={i} style={{ display: 'flex', gap: 8, fontSize: 11, color: tk.textMid, lineHeight: 1.5 }}><span style={{ color: tk.textMuted, flexShrink: 0 }}>✕</span>{k}</li>)}
-              </ul>
-            </div>
-          </div>
-
-          {brief.suggestedAction === 'watch' && brief.watchTriggers && brief.watchTriggers.length > 0 && (
-            <div>
-              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.amber, marginBottom: 6 }}>Watch Triggers — advance when...</p>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
-                {brief.watchTriggers.map((wt, i) => <li key={i} style={{ display: 'flex', gap: 8, fontSize: 11, color: tk.textMid, lineHeight: 1.5 }}><span style={{ color: tk.amber, flexShrink: 0 }}>→</span>{wt}</li>)}
-              </ul>
-            </div>
-          )}
-
-          {brief.suggestedAction === 'advance_to_dossier' && (
-            duplicate ? (
-              <span style={{ fontSize: 11, color: tk.textMuted, fontWeight: 600 }}>Already in Dossier</span>
-            ) : (
-              <button onClick={(e) => { e.stopPropagation(); onAdvance(brief) }} style={{ padding: '10px 20px', borderRadius: 8, background: `linear-gradient(135deg, ${tk.amber}, #b07820)`, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#fff', alignSelf: 'flex-start', boxShadow: '0 2px 8px rgba(196,137,42,0.3)' }}>
-                Add to Dossier →
-              </button>
-            )
-          )}
+        </div>
+      </div>{/* end inner grid */}
+      {volElevated && (
+        <div style={{
+          borderTop: `1px solid ${tk.hairline}`,
+          padding: '5px 14px',
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'rgba(196,137,42,0.04)',
+        }}>
+          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#c4892a', flexShrink: 0 }} />
+          <span style={{ fontSize: 10.5, color: '#7a4a0c', fontFamily: 'GeistMono, monospace', letterSpacing: '0.005em' }}>
+            Vol elevated — consider scaling entry
+          </span>
         </div>
       )}
-    </div>
+      </div>
+    </Link>
   )
 }
 
-const FundOpportunityCard: React.FC<{
+// ── Fund opportunity card ─────────────────────────────────────────────────────
+
+const FundOppCard: React.FC<{
   brief: FundOpportunityBrief
-  onAdvance: (b: FundOpportunityBrief) => void
-  duplicate?: boolean
-}> = ({ brief, onAdvance, duplicate }) => {
-  const [expanded, setExpanded] = useState(brief.rank === 1)
-  const topHoldingsStr = brief.topHoldings.slice(0, 5).join(', ') || 'Not available'
-  const liquidityAum = `Liquidity: ${brief.liquidityAssessment} · AUM: ${brief.aum}`
+  onAdvance: () => void
+  duplicate: boolean
+  volElevated?: boolean
+}> = ({ brief, onAdvance, duplicate, volElevated }) => {
+  const [hovered, setHovered] = useState(false)
+  const score = brief.conviction
+  const color = convColor(score)
+  const isTop = brief.rank === 1
+
+  const evidencePills = [
+    brief.expenseRatio && { dot: tk.green, text: `ER ${brief.expenseRatio}` },
+    brief.aum && { dot: '#1e4d6b', text: `AUM ${brief.aum}` },
+    brief.topHoldings?.[0] && { dot: tk.amber, text: `Top: ${brief.topHoldings[0]}` },
+  ].filter(Boolean) as { dot: string; text: string }[]
 
   return (
-    <div style={{ border: `1px solid ${brief.rank === 1 ? tk.amber : tk.border}`, borderRadius: 12, background: tk.surface, overflow: 'hidden', boxShadow: brief.rank === 1 ? `0 0 0 1px rgba(196,137,42,0.15), 0 4px 20px rgba(0,0,0,0.06)` : '0 2px 8px rgba(0,0,0,0.04)' }}>
-      <div onClick={() => setExpanded(e => !e)} style={{ padding: '16px 20px', cursor: 'pointer', background: brief.rank === 1 ? 'rgba(196,137,42,0.04)' : 'transparent', borderBottom: expanded ? `1px solid ${tk.borderLight}` : 'none', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 7, flexShrink: 0, background: brief.rank === 1 ? tk.amber : 'rgba(216,208,196,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 12, fontWeight: 800, color: brief.rank === 1 ? '#fff' : tk.textMuted }}>{brief.rank}</span>
+    <Link to={`/fund/${brief.ticker}`} style={{ textDecoration: 'none', display: 'block' }}>
+      <div
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          display: 'flex', flexDirection: 'column',
+          border: `1px solid ${hovered ? tk.amber + '60' : isTop ? tk.amber + '40' : tk.hairline}`,
+          borderRadius: 12, background: isTop
+            ? `linear-gradient(to right, rgba(196,137,42,0.05), ${tk.card})`
+            : tk.card,
+          overflow: 'hidden',
+          boxShadow: hovered
+            ? '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 20px -14px rgba(0,0,0,0.18)'
+            : '0 1px 0 rgba(255,255,255,0.5) inset, 0 1px 2px rgba(0,0,0,0.02)',
+          transition: 'box-shadow 150ms, border-color 150ms',
+          cursor: 'pointer',
+        }}
+      >
+      <div style={{ display: 'grid', gridTemplateColumns: '52px 1fr 200px' }}>
+        {/* Rank disc */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '18px 0' }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: '50%',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            ...(isTop ? {
+              background: `radial-gradient(circle at 50% 32%, rgba(255,250,235,.7) 0%, rgba(255,250,235,0) 38%), radial-gradient(circle at 50% 50%, #ffd87a 0%, #f4922c 30%, #e0511a 70%, #a01a0c 100%)`,
+              boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.25), 0 1px 2px rgba(0,0,0,.4)',
+            } : { background: tk.surface2, border: `1px solid ${tk.hairline}` }),
+          }}>
+            <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 12, fontWeight: 700, color: isTop ? '#fff' : tk.muted2 }}>
+              {brief.rank}
+            </span>
+          </div>
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' as const, marginBottom: 4 }}>
-            <span style={{ fontFamily: 'monospace', fontSize: 15, fontWeight: 800, color: tk.text }}>{brief.ticker}</span>
-            <span style={{ fontSize: 12, color: tk.textMid }}>{brief.fundName}</span>
-            <span style={{ fontSize: 9, color: tk.textMuted, padding: '2px 7px', borderRadius: 4, background: tk.amberLight, border: `1px solid rgba(196,137,42,0.2)` }}>{brief.fundType}</span>
-            <div style={{ marginLeft: 'auto' }}><ActionBadge action={brief.suggestedAction} /></div>
-          </div>
-          <p style={{ fontSize: 12, color: tk.textMid, lineHeight: 1.6, margin: '0 0 10px' }}>{brief.regimeFit}</p>
-          <ConvictionBar score={brief.conviction} label={brief.convictionLabel} />
-        </div>
-        <span style={{ fontSize: 14, color: tk.textMuted, flexShrink: 0, marginTop: 4 }}>{expanded ? '▲' : '▼'}</span>
-      </div>
 
-      {expanded && (
-        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column' as const, gap: 18 }}>
-          <div>
-            <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 10 }}>Evidence Chain</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
-              <EvidencePill label="Regime Fit" value={brief.regimeFit.slice(0, 120)} color={tk.amber} />
-              <EvidencePill label="Expense Ratio" value={brief.expenseRatio} color={tk.blue} />
-              <EvidencePill label="Top Holdings" value={topHoldingsStr.slice(0, 120)} color={tk.green} />
-            </div>
+        {/* Content */}
+        <div style={{ padding: '16px 14px 16px 4px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 15, fontWeight: 700, color: tk.ink }}>
+              {brief.ticker}
+            </span>
+            <span style={{ fontSize: 13, color: tk.ink2, fontWeight: 500 }}>{brief.fundName}</span>
+            {thesisTypePill(brief.fundType)}
+            <span style={{ marginLeft: 'auto', flexShrink: 0 }}>
+              {brief.suggestedAction === 'advance_to_dossier' && !duplicate && (
+                <button
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onAdvance() }}
+                  style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', padding: '4px 10px', borderRadius: 5, border: 'none', cursor: 'pointer', background: tk.green, color: '#fff' }}
+                >Advance to Dossier</button>
+              )}
+              {brief.suggestedAction === 'advance_to_dossier' && duplicate && (
+                <span style={{ fontSize: 9.5, color: tk.muted2, fontWeight: 600 }}>In Dossier</span>
+              )}
+              {brief.suggestedAction !== 'advance_to_dossier' && actionBadge(brief.suggestedAction)}
+            </span>
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 6 }}>Transmission Path</p>
-              <p style={{ fontSize: 11, color: tk.textMid, lineHeight: 1.6, margin: 0 }}>{brief.transmissionPath}</p>
-            </div>
-            <div>
-              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 6 }}>Variant Perception</p>
-              <p style={{ fontSize: 11, color: tk.textMid, lineHeight: 1.6, margin: 0 }}>{brief.variantPerception}</p>
-            </div>
-          </div>
-
-          <div>
-            <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 6 }}>Liquidity & AUM</p>
-            <div style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(242,236,226,0.6)', border: `1px solid ${tk.borderLight}`, fontSize: 11, color: tk.textMid, lineHeight: 1.7 }}>
-              {liquidityAum}
-              <br />
-              Price: ${brief.currentPrice.toFixed(2)} ({brief.priceChangePct >= 0 ? '+' : ''}{brief.priceChangePct.toFixed(2)}%)
-              {brief.concentrationRisk && <> · Concentration: {brief.concentrationRisk}</>}
-            </div>
-          </div>
-
-          <div>
-            <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 6 }}>18-Voice Advisor Panel</p>
-            <div style={{ padding: '12px 16px', borderRadius: 8, background: 'rgba(26,26,31,0.04)', border: `1px solid ${tk.borderLight}`, fontSize: 12, color: tk.textMid, lineHeight: 1.7, fontStyle: 'italic' }}>"{brief.advisorVerdict}"</div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div>
-              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.red, marginBottom: 6 }}>Key Risks</p>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
-                {brief.keyRisks.map((r, i) => <li key={i} style={{ display: 'flex', gap: 8, fontSize: 11, color: tk.textMid, lineHeight: 1.5 }}><span style={{ color: tk.red, flexShrink: 0 }}>⚠</span>{r}</li>)}
-              </ul>
-            </div>
-            <div>
-              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 6 }}>Kill Conditions</p>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
-                {brief.killConditions.map((k, i) => <li key={i} style={{ display: 'flex', gap: 8, fontSize: 11, color: tk.textMid, lineHeight: 1.5 }}><span style={{ color: tk.textMuted, flexShrink: 0 }}>✕</span>{k}</li>)}
-              </ul>
-            </div>
-          </div>
-
-          {brief.suggestedAction === 'watch' && brief.watchTriggers && brief.watchTriggers.length > 0 && (
-            <div>
-              <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.amber, marginBottom: 6 }}>Watch Triggers — advance when...</p>
-              <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column' as const, gap: 5 }}>
-                {brief.watchTriggers.map((wt, i) => <li key={i} style={{ display: 'flex', gap: 8, fontSize: 11, color: tk.textMid, lineHeight: 1.5 }}><span style={{ color: tk.amber, flexShrink: 0 }}>→</span>{wt}</li>)}
-              </ul>
+          <p style={{ fontSize: 13, color: tk.ink2, lineHeight: 1.5, margin: 0 }}>{brief.regimeFit}</p>
+          {evidencePills.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+              {evidencePills.map((p, i) => (
+                <span key={i} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  fontSize: 10.5, color: tk.ink2, fontFamily: 'GeistMono, monospace',
+                  background: tk.surface, border: `1px solid ${tk.hairline}`,
+                  borderRadius: 99, padding: '2px 8px',
+                }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: p.dot, flexShrink: 0 }} />
+                  {p.text}
+                </span>
+              ))}
             </div>
           )}
+        </div>
 
-          {brief.suggestedAction === 'advance_to_dossier' && (
-            duplicate ? (
-              <span style={{ fontSize: 11, color: tk.textMuted, fontWeight: 600 }}>Already in Dossier</span>
-            ) : (
-              <button onClick={(e) => { e.stopPropagation(); onAdvance(brief) }} style={{ padding: '10px 20px', borderRadius: 8, background: `linear-gradient(135deg, ${tk.amber}, #b07820)`, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#fff', alignSelf: 'flex-start', boxShadow: '0 2px 8px rgba(196,137,42,0.3)' }}>
-                Add to Dossier →
-              </button>
-            )
-          )}
+        {/* Conviction column */}
+        <div style={{
+          borderLeft: `1px solid ${tk.hairline}`,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '16px 18px', gap: 8,
+        }}>
+          <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.13em', color: tk.muted2 }}>Conviction</span>
+          <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 22, fontWeight: 600, color, letterSpacing: '-0.01em', lineHeight: 1 }}>
+            {score}
+          </span>
+          <div style={{ width: '100%', height: 5, borderRadius: 99, background: tk.surface2, overflow: 'hidden' }}>
+            <div style={{ height: '100%', width: `${score}%`, background: `linear-gradient(90deg, ${tk.sun2}, ${tk.sun3})`, borderRadius: 99 }} />
+          </div>
+        </div>
+      </div>{/* end inner grid */}
+      {volElevated && (
+        <div style={{
+          borderTop: `1px solid ${tk.hairline}`,
+          padding: '5px 14px',
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'rgba(196,137,42,0.04)',
+        }}>
+          <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#c4892a', flexShrink: 0 }} />
+          <span style={{ fontSize: 10.5, color: '#7a4a0c', fontFamily: 'GeistMono, monospace', letterSpacing: '0.005em' }}>
+            Vol elevated — consider scaling entry
+          </span>
         </div>
       )}
+      </div>
+    </Link>
+  )
+}
+
+// ── Vol regime banner ─────────────────────────────────────────────────────────
+
+const REGIME_COLORS: Record<VolRegime, { pill: string; pillBg: string; dot: string }> = {
+  Calm:     { pill: '#2d6a4f', pillBg: 'rgba(45,106,79,0.10)',   dot: '#2d6a4f' },
+  Elevated: { pill: '#7a4a0c', pillBg: 'rgba(196,137,42,0.12)',  dot: '#c4892a' },
+  Spike:    { pill: '#9a3a10', pillBg: 'rgba(224,81,26,0.12)',   dot: '#e0511a' },
+  Crash:    { pill: '#7a1a1a', pillBg: 'rgba(155,44,26,0.12)',   dot: '#9b2c1a' },
+}
+
+const VolBanner: React.FC = () => {
+  const { regime, lastFetched, isLoading, error, fetch } = useVolatilityStore()
+
+  if (isLoading && !regime) {
+    return (
+      <div style={{
+        marginBottom: 14, padding: '8px 14px', borderRadius: 8,
+        background: tk.card, border: `1px solid ${tk.hairline}`,
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <span style={{ fontSize: 10.5, color: tk.muted2, fontFamily: 'GeistMono, monospace' }}>
+          Loading vol regime…
+        </span>
+      </div>
+    )
+  }
+
+  if (error && !regime) {
+    return (
+      <div style={{
+        marginBottom: 14, padding: '8px 14px', borderRadius: 8,
+        background: tk.card, border: `1px solid ${tk.hairline}`,
+        display: 'flex', alignItems: 'center', gap: 8,
+      }}>
+        <span style={{ fontSize: 10.5, color: tk.muted2, fontFamily: 'GeistMono, monospace' }}>
+          Vol data unavailable
+        </span>
+        <button
+          onClick={() => fetch()}
+          style={{ fontSize: 10, color: tk.muted2, background: 'none', border: 'none', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+        >
+          retry
+        </button>
+      </div>
+    )
+  }
+
+  if (!regime) return null
+
+  const c = REGIME_COLORS[regime.regime]
+  const ago = lastFetched
+    ? (() => {
+        const s = Math.round((Date.now() - lastFetched) / 1000)
+        if (s < 60) return `${s}s ago`
+        const m = Math.round(s / 60)
+        return `${m}m ago`
+      })()
+    : null
+
+  return (
+    <div style={{
+      marginBottom: 14, padding: '9px 14px', borderRadius: 8,
+      background: tk.card, border: `1px solid ${tk.hairline}`,
+      display: 'flex', alignItems: 'center', gap: 10,
+    }}>
+      {/* Regime pill */}
+      <span style={{
+        fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em',
+        padding: '3px 9px', borderRadius: 99,
+        color: c.pill, background: c.pillBg, border: `1px solid ${c.dot}40`,
+        flexShrink: 0,
+      }}>
+        {regime.regime}
+      </span>
+
+      {/* VIX level */}
+      <span style={{
+        fontFamily: 'GeistMono, monospace', fontSize: 12, fontWeight: 700, color: tk.ink,
+        flexShrink: 0,
+      }}>
+        VIX {regime.level.toFixed(1)}
+      </span>
+
+      {/* Term structure */}
+      {regime.termStructure !== 'unknown' && (
+        <span style={{ fontSize: 10.5, color: tk.muted2, fontFamily: 'GeistMono, monospace', flexShrink: 0 }}>
+          {regime.termStructure}
+        </span>
+      )}
+
+      {/* Signal */}
+      <span style={{ fontSize: 11.5, color: tk.ink2, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {regime.signal}
+      </span>
+
+      {/* Last refreshed */}
+      {ago && (
+        <span style={{ fontSize: 10, color: tk.muted2, fontFamily: 'GeistMono, monospace', flexShrink: 0 }}>
+          {ago}
+        </span>
+      )}
+
+      {/* Refresh button */}
+      <button
+        onClick={() => fetch()}
+        disabled={isLoading}
+        title="Refresh vol data"
+        style={{
+          background: 'none', border: 'none', cursor: isLoading ? 'default' : 'pointer',
+          color: isLoading ? tk.hairline2 : tk.muted2, fontSize: 13, padding: '0 2px', flexShrink: 0,
+        }}
+      >
+        ↻
+      </button>
     </div>
   )
 }
+
+// ── Main screen ───────────────────────────────────────────────────────────────
+
+interface DossierToast { ticker: string; thesisId: string; kind: 'success' | 'duplicate' }
 
 export const HuntScreen: React.FC = () => {
+  const [searchParams] = useSearchParams()
   const mode = useHuntStore((s) => s.mode)
   const setMode = useHuntStore((s) => s.setMode)
+
+  useEffect(() => {
+    const urlMode = searchParams.get('mode')
+    if (urlMode === 'stocks' || urlMode === 'funds') setMode(urlMode)
+  }, [searchParams])
   const stockResult = useHuntStore((s) => s.stockResult)
   const fundResult = useHuntStore((s) => s.fundResult)
   const isRunning = useHuntStore((s) => s.isRunning)
@@ -283,17 +489,39 @@ export const HuntScreen: React.FC = () => {
   const setFocusAreas = useHuntStore((s) => s.setFocusAreas)
   const startHunt = useHuntStore((s) => s.startHunt)
   const startFundHunt = useHuntStore((s) => s.startFundHunt)
+
+  const { regime: volRegime, fetch: fetchVol } = useVolatilityStore()
+  useEffect(() => { fetchVol() }, [])
+  const volElevated = volRegime
+    ? (['Elevated', 'Spike', 'Crash'] as const).includes(volRegime.regime)
+    : false
+
   const [toast, setToast] = useState<DossierToast | null>(null)
+  const [filterAction, setFilterAction] = useState<FilterAction>('all')
+  const [search, setSearch] = useState('')
+
+  const title = mode === 'stocks' ? 'Search Stocks' : 'Search Funds'
+  const result = mode === 'stocks' ? stockResult : fundResult
+
+  useTopBar({
+    title,
+    crumb: result
+      ? `Opportunity feed · ${result.opportunities.length} candidates from today's hunt`
+      : undefined,
+  })
 
   const thesesMap = useThesisStore((s) => s.theses)
   const lens = usePortfolioStore((s) => s.lens)
   const macroRegimeObj = useMacroStore((s) => s.regime)
-
   const theses = useMemo(() => Object.values(thesesMap), [thesesMap])
 
   const macroRegime = macroRegimeObj
     ? `${macroRegimeObj.realRates} Real Rates, ${macroRegimeObj.creditCycle}, ${macroRegimeObj.liquidity} Liquidity, ${macroRegimeObj.riskAppetite} Risk Appetite, ${macroRegimeObj.dollar} Dollar, ${macroRegimeObj.policy} Policy`
     : 'High Real Rates, LateCycle, Normal Liquidity, Neutral Risk Appetite, Strong Dollar, Restrictive Policy'
+
+  const regimeLabel = macroRegimeObj
+    ? `${macroRegimeObj.creditCycle.replace('LateCycle', 'Late-cycle').replace('EarlyCycle', 'Early-cycle')} · ${macroRegimeObj.dollar.toLowerCase()} dollar · ${macroRegimeObj.policy.toLowerCase()} policy`
+    : 'Late-cycle · strong dollar · restrictive policy'
 
   const buildContext = useCallback((): HuntContext => ({
     macroRegime,
@@ -301,254 +529,339 @@ export const HuntScreen: React.FC = () => {
       .filter((th) => isActive(th.stage))
       .slice(0, 5)
       .map((th) => `${th.ticker ?? th.name}: ${th.statement?.slice(0, 100) ?? ''}`),
-    killRecordSummaries: theses
-      .filter((th) => th.stage === 'Broken')
-      .slice(0, 5)
-      .map((th) => `${th.ticker ?? th.name}: killed`),
+    killRecordSummaries: theses.filter((th) => th.stage === 'Broken').slice(0, 5).map((th) => `${th.ticker ?? th.name}: killed`),
     portfolioExposures: ['Industrial REIT (Prologis / PLD) — very heavy concentration', 'US large-cap equities (general)'],
     targetThesisCount: 3,
     focusAreas: focusAreas.trim() || undefined,
   }), [theses, macroRegime, focusAreas])
 
-  const isDuplicate = useCallback((ticker: string) =>
-    isDuplicateInDossier(thesesMap, ticker), [thesesMap])
+  const isDuplicate = useCallback((ticker: string) => isDuplicateInDossier(thesesMap, ticker), [thesesMap])
 
-  const showToast = (next: DossierToast) => {
-    setToast(next)
-    setTimeout(() => setToast(null), 6000)
-  }
+  const showToast = (next: DossierToast) => { setToast(next); setTimeout(() => setToast(null), 6000) }
 
-  const addBriefToDossier = (input: {
-    ticker: string
-    displayName: string
-    thesisType: string
-    mispricedVariable?: string
-    thesisStatement: string
-    transmissionPath: string
-    variantPerception: string
-    vaultSignals: string[]
-    keyRisks: string[]
-    killConditions?: string[]
-  }) => {
-    if (isDuplicate(input.ticker)) {
-      showToast({ ticker: input.ticker, thesisId: '', kind: 'duplicate' })
-      return
-    }
+  const addBriefToDossier = (input: Parameters<typeof addHuntThesisToDossier>[0]) => {
+    if (isDuplicate(input.ticker)) { showToast({ ticker: input.ticker, thesisId: '', kind: 'duplicate' }); return }
     const thesis = addHuntThesisToDossier(input, lens)
     showToast({ ticker: input.ticker, thesisId: thesis.id, kind: 'success' })
   }
 
-  const handleStockAdvance = (brief: OpportunityBrief) => {
-    addBriefToDossier({
-      ticker: brief.ticker,
-      displayName: brief.companyName,
-      thesisType: brief.thesisType,
-      mispricedVariable: brief.mispricedVariable,
-      thesisStatement: brief.thesisStatement,
-      transmissionPath: brief.transmissionPath,
-      variantPerception: brief.variantPerception,
-      vaultSignals: brief.vaultSignals,
-      keyRisks: brief.keyRisks,
-      killConditions: brief.killConditions,
-    })
-  }
-
-  const handleFundAdvance = (brief: FundOpportunityBrief) => {
-    addBriefToDossier({
-      ticker: brief.ticker,
-      displayName: brief.fundName,
-      thesisType: brief.thesisType,
-      thesisStatement: brief.regimeFit,
-      transmissionPath: brief.transmissionPath,
-      variantPerception: brief.variantPerception,
-      vaultSignals: brief.topHoldings,
-      keyRisks: brief.keyRisks,
-      killConditions: brief.killConditions,
-    })
-  }
-
   const handleHunt = async () => {
     const context = buildContext()
-    if (mode === 'stocks') {
-      await startHunt(context)
-    } else {
-      await startFundHunt(context)
-    }
+    if (mode === 'stocks') await startHunt(context)
+    else await startFundHunt(context)
   }
 
-  const result = mode === 'stocks' ? stockResult : fundResult
+  // Filtered opportunities
+  const stockOpps = useMemo(() => {
+    let opps = stockResult?.opportunities ?? []
+    if (filterAction !== 'all') opps = opps.filter(o => o.suggestedAction === filterAction)
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      opps = opps.filter(o =>
+        o.ticker.toLowerCase().includes(q) ||
+        o.companyName.toLowerCase().includes(q) ||
+        o.thesisStatement.toLowerCase().includes(q)
+      )
+    }
+    return opps
+  }, [stockResult, filterAction, search])
+
+  const fundOpps = useMemo(() => {
+    let opps = fundResult?.opportunities ?? []
+    if (filterAction !== 'all') opps = opps.filter(o => o.suggestedAction === filterAction)
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      opps = opps.filter(o =>
+        o.ticker.toLowerCase().includes(q) ||
+        o.fundName.toLowerCase().includes(q) ||
+        o.regimeFit.toLowerCase().includes(q)
+      )
+    }
+    return opps
+  }, [fundResult, filterAction, search])
+
+  const activeOpps = mode === 'stocks' ? stockOpps : fundOpps
+  const totalOpps = result?.opportunities.length ?? 0
+  const advanceCount = result?.opportunities.filter(o => o.suggestedAction === 'advance_to_dossier').length ?? 0
+  const watchCount = result?.opportunities.filter(o => o.suggestedAction === 'watch').length ?? 0
+  const passCount = result?.opportunities.filter(o => o.suggestedAction === 'pass').length ?? 0
 
   return (
-    <div style={{ minHeight: '100vh', background: tk.bg, padding: '32px 40px', fontFamily: 'Geist, -apple-system, sans-serif' }}>
-      <div style={{ maxWidth: 900, margin: '0 auto' }}>
+    <div style={{ padding: '18px 24px 60px', minWidth: 900 }}>
 
-        {toast && (
-          <div style={{
-            marginBottom: 16,
-            padding: '12px 16px',
-            borderRadius: 10,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            background: toast.kind === 'success' ? tk.greenLight : 'rgba(216,208,196,0.5)',
-            border: `1px solid ${toast.kind === 'success' ? 'rgba(46,110,74,0.35)' : tk.border}`,
-          }}>
-            <span style={{ fontSize: 12, color: toast.kind === 'success' ? tk.green : tk.textMid, fontWeight: 600 }}>
-              {toast.kind === 'success'
-                ? `${toast.ticker} added to Dossier → Developing`
-                : 'Already in Dossier'}
-            </span>
-            {toast.kind === 'success' && toast.thesisId && (
-              <Link
-                to={`/thesis/${toast.thesisId}`}
-                style={{ fontSize: 11, fontWeight: 700, color: tk.green, textDecoration: 'none', whiteSpace: 'nowrap' }}
-              >
-                View thesis →
-              </Link>
-            )}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, ${tk.amber}, #b07820)`, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(196,137,42,0.3)' }}>
-            <span style={{ fontSize: 16 }}>⚡</span>
-          </div>
-          <div style={{ flex: 1 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 800, color: tk.text, margin: 0, letterSpacing: '-0.02em' }}>Opportunity Agent</h1>
-            <p style={{ fontSize: 12, color: tk.textMuted, margin: 0 }}>Hunts while you're busy. Returns fully underwritten thesis drafts.</p>
-          </div>
-          <div style={{ display: 'inline-flex', background: '#f5f2eb', border: '1px solid rgba(0,0,0,0.15)', borderRadius: 8, padding: 3, gap: 2 }}>
-            {(['stocks', 'funds'] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: 6,
-                  fontSize: 13,
-                  fontWeight: mode === m ? 600 : 500,
-                  color: mode === m ? '#1a1a1f' : '#6b6860',
-                  border: 'none',
-                  background: mode === m ? '#e8e4d8' : 'transparent',
-                  cursor: 'pointer',
-                  textTransform: 'capitalize',
-                }}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {!isRunning && (
-          <div style={{ padding: '16px 20px', borderRadius: 10, background: tk.surface, border: `1px solid ${tk.border}`, marginBottom: 20 }}>
-            <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.08em', color: tk.textMuted, marginBottom: 10 }}>Hunt Context</p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-              <div>
-                <p style={{ fontSize: 10, color: tk.textMuted, marginBottom: 3 }}>Macro Regime</p>
-                <p style={{ fontSize: 12, color: tk.textMid, fontWeight: 500, margin: 0 }}>{macroRegime}</p>
-              </div>
-              <div>
-                <p style={{ fontSize: 10, color: tk.textMuted, marginBottom: 3 }}>Data Sources</p>
-                <p style={{ fontSize: 12, color: tk.textMid, margin: 0 }}>Finnhub · OpenAI ({getResolvedOpenAIModel()})</p>
-              </div>
-            </div>
-            <p style={{ fontSize: 10, color: tk.textMuted, marginBottom: 5 }}>Focus Areas (optional)</p>
-            <input
-              type="text"
-              value={focusAreas}
-              onChange={e => setFocusAreas(e.target.value)}
-              placeholder={mode === 'stocks'
-                ? "e.g. 'freight infrastructure, defense supply chain, energy transition'"
-                : "e.g. 'rate-sensitive bonds, small-cap value, international diversification'"}
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 7, border: `1px solid ${tk.border}`, background: tk.bg, fontSize: 12, color: tk.text, outline: 'none', boxSizing: 'border-box' as const }}
-            />
-          </div>
-        )}
-
-        <div style={{ marginBottom: 32 }}>
-          {!isRunning ? (
-            <button onClick={handleHunt} style={{ padding: '14px 32px', borderRadius: 10, background: `linear-gradient(135deg, ${tk.amber}, #b07820)`, border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700, color: '#fff', boxShadow: '0 4px 16px rgba(196,137,42,0.35)' }}>
-              Hunt for me →
-            </button>
-          ) : (
-            <div style={{ padding: '16px 24px', borderRadius: 10, background: tk.surface, border: `1px solid ${tk.border}`, display: 'flex', flexDirection: 'column' as const, gap: 12, maxWidth: 480 }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 14, height: 14, borderRadius: '50%', border: `2px solid ${tk.amber}`, borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
-                <span style={{ fontSize: 13, color: tk.textMid }}>{phase}</span>
-              </div>
-              <div style={{ height: 4, borderRadius: 2, background: 'rgba(216,208,196,0.5)', overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${progress}%`, background: tk.amber, borderRadius: 2, transition: 'width 0.4s ease' }} />
-              </div>
-            </div>
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: 'fixed', top: 72, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 200, display: 'flex', alignItems: 'center', gap: 10,
+          background: tk.card, border: `1px solid ${tk.hairline2}`,
+          borderRadius: 99, padding: '8px 16px',
+          boxShadow: '0 10px 28px -16px rgba(0,0,0,.30), 0 2px 6px rgba(0,0,0,.06)',
+          animation: 'toastIn 300ms ease',
+        }}>
+          <Sunburst size={16} />
+          <span style={{ fontSize: 12, color: toast.kind === 'success' ? tk.green : tk.muted, fontWeight: 600 }}>
+            {toast.kind === 'success' ? `${toast.ticker} added to Dossier` : 'Already in Dossier'}
+          </span>
+          {toast.kind === 'success' && toast.thesisId && (
+            <Link to={`/thesis/${toast.thesisId}`} style={{ fontSize: 11, fontWeight: 700, color: tk.green, textDecoration: 'none' }}>
+              Open →
+            </Link>
           )}
+          <button onClick={() => setToast(null)} style={{ fontSize: 14, color: tk.muted2, background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}>×</button>
         </div>
+      )}
 
+      <VolBanner />
+
+      {/* Mode tabs */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 18 }}>
+        <div style={{
+          display: 'inline-flex', background: tk.surface,
+          border: `1px solid ${tk.hairline2}`, borderRadius: 8, padding: 3, gap: 2,
+        }}>
+          {(['stocks', 'funds'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => { setMode(m); setFilterAction('all'); setSearch('') }}
+              style={{
+                padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                fontSize: 13, fontWeight: mode === m ? 600 : 400,
+                color: mode === m ? tk.ink : tk.muted,
+                background: mode === m ? tk.surface2 : 'transparent',
+                textTransform: 'capitalize',
+                transition: 'all 120ms',
+              }}
+            >
+              {m === 'stocks' ? 'Stocks' : 'Funds'}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Search bar + filter chips */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <div style={{
+          flex: 1, display: 'flex', alignItems: 'center', gap: 8,
+          background: tk.card, border: `1px solid ${tk.hairline2}`,
+          borderRadius: 8, padding: '8px 14px',
+        }}>
+          <span style={{ color: tk.muted2, fontSize: 13 }}>⌕</span>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={`Search by ticker, company, or thesis keyword…`}
+            style={{
+              flex: 1, border: 'none', outline: 'none', background: 'transparent',
+              fontSize: 13, color: tk.ink, fontFamily: 'inherit',
+            }}
+          />
+          {search && (
+            <button onClick={() => setSearch('')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: tk.muted2, fontSize: 13, padding: 0 }}>×</button>
+          )}
+          <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 10, color: tk.muted2, background: tk.surface, border: `1px solid ${tk.hairline}`, borderRadius: 4, padding: '2px 6px' }}>⌘K</span>
+        </div>
+        {/* Action filter chips */}
         {result && (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${tk.borderLight}` }}>
-              {mode === 'stocks' && stockResult && ([
-                { label: 'Vault Signals', value: String(stockResult.vaultSignalsFound), hi: false },
-                { label: 'Candidates', value: String(stockResult.candidatesEvaluated), hi: false },
-                { label: 'Opportunities', value: String(stockResult.opportunities.length), hi: true },
-                { label: 'Duration', value: `${(stockResult.durationMs / 1000).toFixed(0)}s`, hi: false },
-              ] as const).map((stat, i) => (
-                <React.Fragment key={stat.label}>
-                  {i > 0 && <div style={{ width: 1, height: 36, background: tk.borderLight }} />}
-                  <div>
-                    <span style={{ fontSize: 9, color: tk.textMuted, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>{stat.label}</span>
-                    <p style={{ fontSize: 20, fontWeight: 800, color: stat.hi ? tk.amber : tk.text, margin: '2px 0 0', fontFamily: 'monospace' }}>{stat.value}</p>
-                  </div>
-                </React.Fragment>
-              ))}
-              {mode === 'funds' && fundResult && ([
-                { label: 'Candidates', value: String(fundResult.candidatesEvaluated), hi: false },
-                { label: 'Opportunities', value: String(fundResult.opportunities.length), hi: true },
-                { label: 'Duration', value: `${(fundResult.durationMs / 1000).toFixed(0)}s`, hi: false },
-              ] as const).map((stat, i) => (
-                <React.Fragment key={stat.label}>
-                  {i > 0 && <div style={{ width: 1, height: 36, background: tk.borderLight }} />}
-                  <div>
-                    <span style={{ fontSize: 9, color: tk.textMuted, textTransform: 'uppercase' as const, letterSpacing: '0.07em' }}>{stat.label}</span>
-                    <p style={{ fontSize: 20, fontWeight: 800, color: stat.hi ? tk.amber : tk.text, margin: '2px 0 0', fontFamily: 'monospace' }}>{stat.value}</p>
-                  </div>
-                </React.Fragment>
-              ))}
-            </div>
-
-            {result.agentNotes && (
-              <div style={{ padding: '10px 16px', borderRadius: 8, background: tk.blueLight, border: `1px solid rgba(30,77,107,0.2)`, marginBottom: 20, fontSize: 11, color: tk.textMid, lineHeight: 1.6 }}>
-                <span style={{ fontWeight: 700, color: tk.blue }}>Agent: </span>{result.agentNotes}
-              </div>
-            )}
-
-            {result.error && (
-              <div style={{ padding: '12px 16px', borderRadius: 8, background: tk.redLight, border: `1px solid rgba(168,48,48,0.25)`, marginBottom: 20, fontSize: 12, color: tk.red }}>{result.error}</div>
-            )}
-
-            <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
-              {mode === 'stocks' && stockResult?.opportunities.map(brief => (
-                <OpportunityCard
-                  key={brief.ticker}
-                  brief={brief}
-                  onAdvance={handleStockAdvance}
-                  duplicate={isDuplicate(brief.ticker)}
-                />
-              ))}
-              {mode === 'funds' && fundResult?.opportunities.map(brief => (
-                <FundOpportunityCard
-                  key={brief.ticker}
-                  brief={brief}
-                  onAdvance={handleFundAdvance}
-                  duplicate={isDuplicate(brief.ticker)}
-                />
-              ))}
-            </div>
+          <div style={{ display: 'flex', gap: 5 }}>
+            {(['all', 'advance_to_dossier', 'watch', 'pass'] as const).map(f => {
+              const labels: Record<FilterAction, string> = { all: 'All', advance_to_dossier: 'Advance', watch: 'Watch', pass: 'Pass' }
+              const active = filterAction === f
+              return (
+                <button
+                  key={f}
+                  onClick={() => setFilterAction(f)}
+                  style={{
+                    padding: '6px 12px', borderRadius: 99, border: 'none', cursor: 'pointer',
+                    fontSize: 11, fontWeight: active ? 700 : 500,
+                    background: active ? tk.sun2 : tk.surface,
+                    color: active ? '#fff' : tk.muted,
+                    border: `1px solid ${active ? 'transparent' : tk.hairline}`,
+                    transition: 'all 120ms',
+                  } as React.CSSProperties}
+                >
+                  {labels[f]}
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* Hunt context card */}
+      <div style={{
+        background: tk.surface, border: `1px solid ${tk.hairline}`,
+        borderRadius: 12, marginBottom: 20, overflow: 'hidden',
+      }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 0 }}>
+          <div style={{ padding: '12px 16px', borderRight: `1px solid ${tk.hairline}` }}>
+            <p style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: tk.muted2, marginBottom: 4 }}>REGIME</p>
+            <p style={{ fontSize: 12.5, color: tk.ink2, fontWeight: 500, margin: 0, lineHeight: 1.4 }}>{regimeLabel}</p>
+          </div>
+          <div style={{ padding: '12px 16px', borderRight: `1px solid ${tk.hairline}` }}>
+            <p style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: tk.muted2, marginBottom: 4 }}>FOCUS AREAS</p>
+            <input
+              value={focusAreas}
+              onChange={e => setFocusAreas(e.target.value)}
+              placeholder={mode === 'stocks' ? 'e.g. energy transition, uranium, grid infr…' : 'e.g. low-ER bond funds, EM ex-China…'}
+              style={{
+                width: '100%', border: 'none', outline: 'none', background: 'transparent',
+                fontSize: 12.5, color: tk.ink, fontFamily: 'inherit', padding: 0,
+              }}
+            />
+          </div>
+          <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center' }}>
+            {!isRunning ? (
+              <button
+                onClick={handleHunt}
+                style={{
+                  padding: '8px 20px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                  fontSize: 13, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap',
+                  background: `radial-gradient(circle at 50% 32%, rgba(255,250,235,.7) 0%, rgba(255,250,235,0) 38%), radial-gradient(circle at 50% 50%, #ffd87a 0%, #f4922c 30%, #e0511a 70%, #a01a0c 100%)`,
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,.25), 0 1px 2px rgba(0,0,0,.18)',
+                }}
+              >
+                Hunt for me →
+              </button>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 140 }}>
+                <div style={{ width: 12, height: 12, borderRadius: '50%', border: `2px solid ${tk.sun2}`, borderTopColor: 'transparent', animation: 'spin 0.8s linear infinite', flexShrink: 0 }} />
+                <span style={{ fontSize: 11, color: tk.muted }}>{phase}</span>
+              </div>
+            )}
+          </div>
+        </div>
+        {isRunning && (
+          <div style={{ height: 3, background: tk.surface2 }}>
+            <div style={{ height: '100%', width: `${progress}%`, background: `linear-gradient(90deg, ${tk.sun2}, ${tk.sun3})`, transition: 'width 0.4s ease' }} />
+          </div>
+        )}
+      </div>
+
+      {/* Opportunities meta bar */}
+      {result && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14,
+        }}>
+          <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: tk.muted2 }}>
+            Opportunities
+          </span>
+          <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 12, color: tk.ink2 }}>
+            {totalOpps} shown
+          </span>
+          {advanceCount > 0 && (
+            <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 12, color: tk.green }}>
+              · {advanceCount} advance-ready
+            </span>
+          )}
+          {watchCount > 0 && (
+            <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 12, color: tk.amber }}>
+              · {watchCount} watch
+            </span>
+          )}
+          {passCount > 0 && (
+            <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 12, color: tk.muted2 }}>
+              · {passCount} pass
+            </span>
+          )}
+          {result.agentNotes && (
+            <span style={{ marginLeft: 'auto', fontSize: 11, color: tk.muted, maxWidth: 400, textAlign: 'right' }}>
+              {result.agentNotes.slice(0, 80)}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Results list */}
+      {result?.error && (
+        <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(155,44,26,0.08)', border: '1px solid rgba(155,44,26,0.20)', marginBottom: 16, fontSize: 12.5, color: tk.neg }}>
+          {result.error}
+        </div>
+      )}
+
+      {result && activeOpps.length === 0 && (
+        <div style={{ padding: '40px 24px', textAlign: 'center', border: `1.5px dashed ${tk.hairline2}`, borderRadius: 12 }}>
+          <p style={{ fontSize: 13, color: tk.muted2, margin: 0 }}>
+            {search || filterAction !== 'all' ? 'No results match your filter.' : 'No opportunities yet. Run a hunt first.'}
+          </p>
+        </div>
+      )}
+
+      {!result && !isRunning && (
+        <div style={{ padding: '60px 24px', textAlign: 'center', border: `1.5px dashed ${tk.hairline2}`, borderRadius: 12 }}>
+          <p style={{ fontSize: 14, color: tk.muted2, marginBottom: 8 }}>
+            No hunt results yet.
+          </p>
+          <p style={{ fontSize: 12, color: tk.muted2, margin: 0 }}>
+            Set your focus areas and click <strong>Hunt for me →</strong> above to surface opportunities.
+          </p>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {mode === 'stocks' && stockOpps.map(brief => (
+          <StockOppCard
+            key={brief.ticker}
+            brief={brief}
+            duplicate={isDuplicate(brief.ticker)}
+            volElevated={volElevated}
+            onAdvance={() => addBriefToDossier({
+              ticker: brief.ticker,
+              displayName: brief.companyName,
+              thesisType: brief.thesisType,
+              mispricedVariable: brief.mispricedVariable,
+              thesisStatement: brief.thesisStatement,
+              transmissionPath: brief.transmissionPath,
+              variantPerception: brief.variantPerception,
+              vaultSignals: brief.vaultSignals,
+              keyRisks: brief.keyRisks,
+              killConditions: brief.killConditions,
+            })}
+          />
+        ))}
+        {mode === 'funds' && fundOpps.map(brief => (
+          <FundOppCard
+            key={brief.ticker}
+            brief={brief}
+            duplicate={isDuplicate(brief.ticker)}
+            volElevated={volElevated}
+            onAdvance={() => addBriefToDossier({
+              ticker: brief.ticker,
+              displayName: brief.fundName,
+              thesisType: brief.thesisType,
+              thesisStatement: brief.regimeFit,
+              transmissionPath: brief.transmissionPath,
+              variantPerception: brief.variantPerception,
+              vaultSignals: brief.topHoldings,
+              keyRisks: brief.keyRisks,
+              killConditions: brief.killConditions,
+            })}
+          />
+        ))}
+      </div>
+
+      <AskAIDock
+        context={mode === 'stocks' ? 'Search Stocks' : 'Search Funds'}
+        starterQuestions={mode === 'stocks' ? [
+          'Find 3 non-crowded AI-power names',
+          'Contrarian short that survives +75bp?',
+          'Insider buys + analyst upgrades, 30d',
+          'Re-hunt: quality at 5-yr-low multiples',
+        ] : [
+          'Cheaper alternatives to URA?',
+          'EM ex-China, single-country picks?',
+          'Income ETFs that survive +100bp.',
+          'Re-hunt: low-correlation, < 0.20% ER',
+        ]}
+      />
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes toastIn {
+          from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+          to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+      `}</style>
     </div>
   )
 }

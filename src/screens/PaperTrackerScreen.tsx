@@ -1,8 +1,13 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import { useThesisStore } from '../store'
 import { usePaperTrackStore } from '../store/paperTrackStore'
 import type { PaperTrack, PaperPosition, SimWindow } from '../types/paperTrack'
-import { SIM_WINDOW_LABELS } from '../types/paperTrack'
+import { SIM_WINDOW_LABELS, SIM_WINDOW_DAYS } from '../types/paperTrack'
+import { useTopBar } from '../store/topbarStore'
+import { AskAIDock } from '../components/ui/AskAIDock'
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine,
+} from 'recharts'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -21,6 +26,127 @@ function returnColor(n: number) {
   if (n > 0.005) return '#1E7042'
   if (n < -0.005) return '#A02828'
   return '#706050'
+}
+
+const CHART_COLORS = [
+  '#f4922c', '#2d6a4f', '#4a1d6b', '#9b2c1a', '#1e4d6b',
+  '#c4692a', '#3a8058', '#6b2fa0', '#c44a30', '#2d6b8a',
+]
+
+function buildChartData(tracks: PaperTrack[]) {
+  const tracksWithData = tracks.filter(t =>
+    t.positions.some(p => p.closes.length > 0 && !p.fetchError && p.entryPrice > 0)
+  )
+  if (!tracksWithData.length) return []
+
+  const allDates = new Set<string>()
+  tracksWithData.forEach(track => {
+    track.positions.forEach(pos => {
+      pos.closes.forEach(c => allDates.add(c.date))
+    })
+  })
+
+  const sortedDates = Array.from(allDates).sort()
+
+  return sortedDates.map(date => {
+    const point: Record<string, unknown> = { date: date.slice(5) } // MM-DD
+    tracksWithData.forEach(track => {
+      const rets = track.positions
+        .filter(p => !p.fetchError && p.entryPrice > 0)
+        .map(p => {
+          const close = p.closes.find(c => c.date === date)
+          if (!close) return null
+          const raw = (close.price - p.entryPrice) / p.entryPrice
+          return p.direction === 'Short' ? -raw : raw
+        })
+        .filter((r): r is number => r !== null)
+      if (rets.length) {
+        point[track.thesisId] = +(rets.reduce((a, b) => a + b, 0) / rets.length * 100).toFixed(2)
+      }
+    })
+    return point
+  })
+}
+
+const PerformanceChart: React.FC<{ tracks: PaperTrack[] }> = ({ tracks }) => {
+  const hasHistory = tracks.some(t => t.positions.some(p => p.closes.length > 0))
+  const data = useMemo(() => buildChartData(tracks), [tracks])
+
+  if (!hasHistory || !data.length) {
+    return (
+      <div style={{
+        height: 180, borderRadius: 10,
+        background: 'rgba(248,244,238,0.85)', border: '1px solid rgba(216,208,196,0.7)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 6,
+      }}>
+        <p style={{ fontSize: 13, color: '#a8a5a0', fontWeight: 500 }}>No history loaded</p>
+        <p style={{ fontSize: 11, color: '#c8c0b4' }}>Click "Load History" on a track to view the chart</p>
+      </div>
+    )
+  }
+
+  const activeTracks = tracks.filter(t =>
+    t.positions.some(p => p.closes.length > 0 && !p.fetchError)
+  )
+
+  return (
+    <div style={{
+      borderRadius: 10, overflow: 'hidden',
+      background: 'rgba(248,244,238,0.85)', border: '1px solid rgba(216,208,196,0.7)',
+      padding: '14px 4px 10px 0',
+    }}>
+      <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#a8a5a0', marginBottom: 12, paddingLeft: 16 }}>
+        Cumulative Return (%)
+      </p>
+      <ResponsiveContainer width="100%" height={180}>
+        <LineChart data={data} margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(216,208,196,0.5)" vertical={false} />
+          <XAxis
+            dataKey="date"
+            tick={{ fontSize: 9, fill: '#a8a5a0' }}
+            tickLine={false}
+            axisLine={{ stroke: 'rgba(216,208,196,0.6)' }}
+            interval="preserveStartEnd"
+          />
+          <YAxis
+            tick={{ fontSize: 9, fill: '#a8a5a0' }}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(v: number) => `${v > 0 ? '+' : ''}${v.toFixed(0)}%`}
+            width={46}
+          />
+          <ReferenceLine y={0} stroke="rgba(0,0,0,0.18)" strokeDasharray="4 2" />
+          <Tooltip
+            contentStyle={{ background: 'rgba(248,244,238,0.97)', border: '1px solid rgba(216,208,196,0.8)', borderRadius: 8, fontSize: 11 }}
+            formatter={(v: number, name: string) => {
+              const track = activeTracks.find(t => t.thesisId === name)
+              return [`${v > 0 ? '+' : ''}${v.toFixed(2)}%`, track?.thesisName ?? name]
+            }}
+          />
+          {activeTracks.map((track, i) => (
+            <Line
+              key={track.thesisId}
+              type="monotone"
+              dataKey={track.thesisId}
+              stroke={CHART_COLORS[i % CHART_COLORS.length]}
+              strokeWidth={2}
+              dot={false}
+              connectNulls
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+      {/* Legend */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', paddingLeft: 16, marginTop: 10 }}>
+        {activeTracks.map((track, i) => (
+          <div key={track.thesisId} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ width: 12, height: 2, borderRadius: 1, background: CHART_COLORS[i % CHART_COLORS.length], flexShrink: 0 }} />
+            <span style={{ fontSize: 10, color: '#6b6860' }}>{track.thesisName}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 // ─── Ticker Override Modal ────────────────────────────────────────────────────
@@ -425,16 +551,17 @@ function TrackCard({ track }: { track: PaperTrack }) {
 
 export const PaperTrackerScreen: React.FC = () => {
   const thesesRecord = useThesisStore((s) => s.theses)
-  const { tracks, createTrack, loading } = usePaperTrackStore()
+  const { tracks, createTrack, loading, refreshTrack } = usePaperTrackStore()
+
+  useTopBar({
+    title: 'Performance',
+    crumb: 'Thesis-linked · vs. cost basis',
+  })
 
   const actionableTheses = Object.values(thesesRecord).filter(
-    (t) => t.stage === 'Actionable' || t.stage === 'Live' || t.stage === 'Broken' || t.stage === 'PlayedOut',
+    (t) => t.stage === 'Actionable' || t.stage === 'Live' || t.stage === 'Broken' || t.stage === 'PlayedOut' || t.stage === 'Killed',
   )
 
-  const { refreshTrack } = usePaperTrackStore()
-
-  // Auto-create tracks for Actionable/Live theses that don't have one yet,
-  // and refresh current prices for existing tracks on mount
   useEffect(() => {
     const tracked = Object.values(thesesRecord).filter(
       (t) => t.stage === 'Actionable' || t.stage === 'Live',
@@ -448,85 +575,248 @@ export const PaperTrackerScreen: React.FC = () => {
     })
   }, [])
 
-  const activeTracks = actionableTheses
-    .map((t) => tracks[t.id])
-    .filter(Boolean) as PaperTrack[]
+  const activeTracks = useMemo(() =>
+    actionableTheses.map((t) => tracks[t.id]).filter(Boolean) as PaperTrack[],
+    [actionableTheses, tracks]
+  )
 
   const hasNoRecommendations = actionableTheses.some(
     (t) => !t.recommendations?.length && !tracks[t.id],
   )
 
+  // Compute headline metrics
+  const allPositions = activeTracks.flatMap(t => t.positions)
+  const totalPositions = allPositions.length
+  const { computeReturn } = usePaperTrackStore.getState()
+
+  const trackNetReturns = activeTracks.map(track => {
+    const rets = track.positions
+      .filter(p => !p.fetchError && p.entryPrice > 0)
+      .map(p => {
+        const r = computeReturn(p, 'created', track.thesisCreatedAt)
+        return isNaN(r) ? null : r
+      })
+      .filter((r): r is number => r !== null)
+    return { track, avg: rets.length ? rets.reduce((a, b) => a + b, 0) / rets.length : NaN }
+  }).filter(x => !isNaN(x.avg))
+
+  const sortedByReturn = [...trackNetReturns].sort((a, b) => b.avg - a.avg)
+  const bestTrack = sortedByReturn[0]
+  const worstTrack = sortedByReturn[sortedByReturn.length - 1]
+  const portfolioAvg = trackNetReturns.length
+    ? trackNetReturns.reduce((s, x) => s + x.avg, 0) / trackNetReturns.length
+    : NaN
+
+  const postMortemTracks = activeTracks.filter(t => t.status === 'PostMortem')
+
+  // Derived headline metrics
+  const hitRate = postMortemTracks.length > 0
+    ? Math.round((postMortemTracks.filter(t => {
+        const rets = t.positions.filter(p => !p.fetchError && p.entryPrice > 0)
+          .map(p => computeReturn(p, 'created', t.thesisCreatedAt))
+          .filter(r => !isNaN(r))
+        return rets.length > 0 && rets.reduce((a, b) => a + b, 0) / rets.length > 0
+      }).length / postMortemTracks.length) * 100)
+    : null
+
+  const pfMetrics = [
+    {
+      label: 'Portfolio avg', key: 'avg',
+      value: isNaN(portfolioAvg) ? '—' : `${portfolioAvg >= 0 ? '+' : ''}${(portfolioAvg * 100).toFixed(1)}`,
+      unit: isNaN(portfolioAvg) ? '' : '%',
+      ctx: `${activeTracks.length} active track${activeTracks.length !== 1 ? 's' : ''}`,
+      pos: !isNaN(portfolioAvg) && portfolioAvg > 0, neg: !isNaN(portfolioAvg) && portfolioAvg < 0,
+    },
+    {
+      label: 'Best track', key: 'best',
+      value: bestTrack ? `+${(bestTrack.avg * 100).toFixed(1)}` : '—',
+      unit: bestTrack ? '%' : '',
+      ctx: bestTrack ? bestTrack.track.thesisName.slice(0, 22) : 'no data yet',
+      pos: !!bestTrack, neg: false,
+    },
+    {
+      label: 'Worst track', key: 'worst',
+      value: worstTrack && worstTrack.avg < 0 ? `${(worstTrack.avg * 100).toFixed(1)}` : '—',
+      unit: worstTrack && worstTrack.avg < 0 ? '%' : '',
+      ctx: worstTrack && worstTrack.avg < 0 ? worstTrack.track.thesisName.slice(0, 22) : 'no losers yet',
+      pos: false, neg: !!worstTrack && worstTrack.avg < 0,
+    },
+    {
+      label: 'Hit rate', key: 'hit',
+      value: hitRate != null ? String(hitRate) : '—',
+      unit: hitRate != null ? '%' : '',
+      ctx: `${postMortemTracks.length} closed`,
+      pos: (hitRate ?? 0) >= 60, neg: (hitRate ?? 100) < 40 && hitRate != null,
+    },
+    {
+      label: 'Positions', key: 'positions',
+      value: String(totalPositions),
+      unit: '',
+      ctx: `${activeTracks.length} tracks`,
+      pos: false, neg: false,
+    },
+    {
+      label: 'Data source', key: 'source',
+      value: 'Finnhub',
+      unit: '',
+      ctx: 'AV fallback',
+      pos: false, neg: false,
+    },
+  ]
+
   return (
-    <div className="p-5 space-y-5 max-w-[1200px]">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 style={{ fontFamily: 'DM Serif Display, serif', fontSize: 22, color: '#18140E', letterSpacing: '-0.015em' }}>
-            Performance Tracker
-          </h1>
-          <p style={{ fontSize: 12, color: '#706050', marginTop: 2 }}>
-            Simulated performance for Actionable theses · US prices via Finnhub, international via Alpha Vantage
-          </p>
-        </div>
-        <div style={{ fontSize: 11, color: '#A89878' }}>
-          {activeTracks.length} {activeTracks.length === 1 ? 'thesis' : 'theses'} tracked
+    <>
+
+      {/* ── pf-summary: 6-cell headline metrics ── */}
+      <div style={{
+        margin: '14px 24px 0',
+        display: 'flex', borderRadius: 12, overflow: 'hidden',
+        background: '#fbf8f1', border: '1px solid rgba(0,0,0,0.08)',
+        position: 'relative',
+      }}>
+        <div style={{ width: 4, flexShrink: 0, background: 'linear-gradient(to bottom, #ffd87a 0%, #f4922c 35%, #e0511a 70%, #a01a0c 100%)' }} />
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)' }}>
+          {pfMetrics.map((cell, i) => (
+            <div key={cell.key} style={{
+              padding: '18px 20px', borderRight: i < 5 ? '1px solid rgba(0,0,0,0.08)' : 'none',
+              display: 'flex', flexDirection: 'column', gap: 6,
+            }}>
+              <span style={{ fontSize: 9.5, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#8b8980', fontWeight: 700 }}>
+                {cell.label}
+              </span>
+              <span style={{
+                fontFamily: 'GeistMono, monospace', fontSize: 22, fontWeight: 600,
+                color: cell.pos ? '#2d6a4f' : cell.neg ? '#9b2c1a' : '#1a1a1f',
+                letterSpacing: '-0.01em', lineHeight: 1,
+              }}>
+                {cell.value}<small style={{ fontSize: 12, color: '#8b8980', fontWeight: 400, marginLeft: 3 }}>{cell.unit}</small>
+              </span>
+              <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 10.5, color: '#6b6960', letterSpacing: '0.005em' }}>
+                {cell.ctx}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 
+      {/* ── pf-chart: chart + per-track period selector ── */}
+      {activeTracks.length > 0 && (
+        <div style={{
+          margin: '22px 24px 0',
+          background: '#fbf8f1', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 12,
+          padding: '14px 18px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, marginBottom: 14 }}>
+            <h2 style={{ margin: 0, fontSize: 12, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#1a1a1f' }}>
+              Cumulative return
+            </h2>
+            <span style={{ fontSize: 12, color: '#6b6960', fontWeight: 400 }}>thesis-level · since open</span>
+          </div>
+          <PerformanceChart tracks={activeTracks} />
+        </div>
+      )}
+
       {hasNoRecommendations && (
         <div style={{
+          margin: '14px 24px 0',
           padding: '10px 14px', borderRadius: 8,
           background: 'rgba(122,74,16,0.06)', border: '1px solid rgba(122,74,16,0.18)',
           fontSize: 11, color: '#7A4A10',
         }}>
-          Some Actionable theses were created before ticker recommendations were added. Open each thesis in Brainstorm to regenerate, or add tickers manually via the ✎ button.
+          Some theses were created before ticker recommendations were added. Open each thesis in Brainstorm to regenerate, or add tickers manually via the ✎ button.
         </div>
       )}
 
+      {/* ── pf-grid: active + closed ── */}
       {actionableTheses.length === 0 ? (
         <div style={{
-          height: 200, borderRadius: 12,
-          border: '1.5px dashed #D8D0C4',
+          margin: '22px 24px',
+          height: 200, borderRadius: 12, border: '1.5px dashed rgba(0,0,0,0.14)',
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}>
-          <p style={{ fontSize: 14, color: '#A89878', fontFamily: 'DM Serif Display, serif' }}>No theses in Actionable</p>
-          <p style={{ fontSize: 11, color: '#C8C0B4' }}>Move a thesis to Actionable stage to start paper tracking</p>
+          <p style={{ fontSize: 14, color: '#8b8980', margin: 0 }}>No theses in Actionable</p>
+          <p style={{ fontSize: 11, color: '#c8c0b4', margin: 0 }}>Move a thesis to Actionable stage to start tracking</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {actionableTheses.map((thesis) => {
-            const track = tracks[thesis.id]
-            const isLoading = loading[thesis.id]
+        <div style={{
+          margin: '22px 24px 60px',
+          display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14,
+        }}>
+          {/* Active positions card */}
+          <div style={{ background: '#fbf8f1', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{
+              padding: '14px 18px', borderBottom: '1px solid rgba(0,0,0,0.08)',
+              display: 'flex', alignItems: 'baseline', gap: 12,
+            }}>
+              <h2 style={{ margin: 0, fontSize: 12, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#1a1a1f' }}>
+                Active positions
+              </h2>
+              <span style={{ fontSize: 11, color: '#6b6960' }}>
+                {activeTracks.filter(t => t.status === 'Active').length} tracks
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {actionableTheses.map((thesis) => {
+                const track = tracks[thesis.id]
+                const isLoading = loading[thesis.id]
+                if (track?.status === 'PostMortem') return null
+                if (isLoading) {
+                  return (
+                    <div key={thesis.id} style={{ padding: '20px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: 12, color: '#8b8980' }}>Loading {thesis.name}…</span>
+                    </div>
+                  )
+                }
+                if (!track) {
+                  return (
+                    <div key={thesis.id} style={{ padding: '14px 18px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+                      <p style={{ fontSize: 13, color: '#1a1a1f', fontWeight: 600, margin: '0 0 3px' }}>{thesis.name}</p>
+                      <p style={{ fontSize: 11, color: '#8b8980', margin: 0 }}>No tickers found. Regenerate in Brainstorm or add manually via ✎.</p>
+                    </div>
+                  )
+                }
+                return <TrackCard key={thesis.id} track={track} />
+              })}
+            </div>
+          </div>
 
-            if (isLoading) {
-              return (
-                <div key={thesis.id} style={{
-                  background: '#FDFCF9', borderRadius: 12, padding: 40,
-                  boxShadow: '0 0 0 1px rgba(20,12,4,0.06)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                }}>
-                  <span style={{ fontSize: 12, color: '#A89878' }}>Fetching prices for {thesis.name}…</span>
-                </div>
-              )
-            }
-
-            if (!track) {
-              return (
-                <div key={thesis.id} style={{
-                  background: '#FDFCF9', borderRadius: 12, padding: 24,
-                  boxShadow: '0 0 0 1px rgba(20,12,4,0.06)',
-                }}>
-                  <p style={{ fontSize: 13, color: '#18140E', fontWeight: 600, marginBottom: 4 }}>{thesis.name}</p>
-                  <p style={{ fontSize: 11, color: '#A89878' }}>
-                    No ticker recommendations found. Regenerate this thesis in Brainstorm to get auto-recommendations.
-                  </p>
-                </div>
-              )
-            }
-
-            return <TrackCard key={thesis.id} track={track} />
-          })}
+          {/* Recently closed card */}
+          <div style={{ background: '#fbf8f1', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{
+              padding: '14px 18px', borderBottom: '1px solid rgba(0,0,0,0.08)',
+              display: 'flex', alignItems: 'baseline', gap: 12,
+            }}>
+              <h2 style={{ margin: 0, fontSize: 12, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#1a1a1f' }}>
+                Recently closed
+              </h2>
+              <span style={{ fontSize: 11, color: '#6b6960' }}>
+                {postMortemTracks.length} track{postMortemTracks.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            {postMortemTracks.length === 0 ? (
+              <div style={{ padding: '32px 18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <p style={{ fontSize: 12, color: '#8b8980', margin: 0, textAlign: 'center' }}>No closed tracks yet</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {postMortemTracks.map(track => (
+                  <TrackCard key={track.thesisId} track={track} />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
-    </div>
+
+    <AskAIDock
+      context="Performance Tracker"
+      starterQuestions={[
+        'Which thesis has the best risk-adjusted return?',
+        'Are any positions showing divergence from their thesis?',
+        'How does portfolio performance correlate with macro regime shifts?',
+        'Which positions should be reassessed based on performance?',
+      ]}
+    />
+    </>
   )
 }

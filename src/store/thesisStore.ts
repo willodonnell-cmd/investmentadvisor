@@ -10,12 +10,15 @@ import {
 interface ThesisStore {
   theses: Record<string, Thesis>
   activeThesisId: string | null
+  justPromotedId: string | null
 
   addThesis: (thesis: Thesis) => void
   updateThesis: (id: string, updates: Partial<Thesis>) => void
   removeThesis: (id: string) => void
   setActiveThesis: (id: string | null) => void
   advanceLifecycle: (id: string, stage: LifecycleStage, reason: string) => void
+  promoteToDeveloping: (thesis: Thesis) => void
+  clearJustPromoted: () => void
   getActiveTheses: () => Thesis[]
   getThesisByStage: (stage: LifecycleStage) => Thesis[]
 }
@@ -25,6 +28,7 @@ export const useThesisStore = create<ThesisStore>()(
     (set, get) => ({
       theses: {},
       activeThesisId: null,
+      justPromotedId: null,
 
       addThesis: (thesis) =>
         set((state) => ({ theses: { ...state.theses, [thesis.id]: thesis } })),
@@ -63,6 +67,14 @@ export const useThesisStore = create<ThesisStore>()(
 
       setActiveThesis: (id) => set({ activeThesisId: id }),
 
+      promoteToDeveloping: (thesis) =>
+        set((state) => ({
+          theses: { ...state.theses, [thesis.id]: { ...thesis, stage: 'Developing', promotedAt: new Date() } },
+          justPromotedId: thesis.id,
+        })),
+
+      clearJustPromoted: () => set({ justPromotedId: null }),
+
       advanceLifecycle: (id, stage, reason) => {
         const thesis = get().theses[id]
         if (!thesis) return
@@ -90,7 +102,7 @@ export const useThesisStore = create<ThesisStore>()(
 
       getActiveTheses: () =>
         Object.values(get().theses).filter(
-          (t) => !['Broken', 'Archived', 'PlayedOut'].includes(t.stage)
+          (t) => !['Killed', 'Archived', 'PlayedOut', 'Broken'].includes(t.stage)
         ),
 
       getThesisByStage: (stage) =>

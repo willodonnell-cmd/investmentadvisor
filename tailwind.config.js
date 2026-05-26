@@ -52,6 +52,31 @@ export default {
 
         // ── Accent (identity mark only) ───────────────────────
         accent: '#c4892a',
+
+        // ── Warm cream scale ──────────────────────────────────
+        cream: {
+          50:  '#fbf8f1',
+          100: '#f5f2eb',
+          200: '#ede9e0',
+          300: '#e8e4d8',
+          400: '#d8d0c4',
+        },
+
+        // ── Ink (rich dark text) ──────────────────────────────
+        ink: { DEFAULT: '#1a1a1f', 2: '#3a3a42' },
+
+        // ── Muted text ────────────────────────────────────────
+        muted: { DEFAULT: '#6b6960', 2: '#8b8980' },
+
+        // ── Sunburst amber accent ─────────────────────────────
+        sun: { 1: '#ffd87a', 2: '#f4922c', 3: '#e0511a', 4: '#a01a0c' },
+
+        // ── Stage (pipeline columns) ──────────────────────────
+        stage: { dev: '#4a1d6b', act: '#92400e', live: '#2d6a4f' },
+
+        // ── Semantic ──────────────────────────────────────────
+        pos: '#2d6a4f',
+        neg: '#9b2c1a',
       },
       borderRadius: {
         card:   '12px',

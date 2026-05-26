@@ -1,650 +1,617 @@
-import React, { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useThesisStore, useSignalStore, usePortfolioStore } from '../store'
-import { ThesisCard } from '../components/cards/ThesisCard'
-import { LifecycleBadge } from '../components/ui/Badge'
-import { ErrorBoundary } from '../components/ui/ErrorBoundary'
-import { LifecycleStage, ThesisLens } from '../types'
-import { detectConvergence, detectDivergence } from '../api/signals'
-import { computePrologisOverlap, PrologisOverlapLabel } from '../api/correlation'
-import { canAdvanceTo } from '../utils/thesisHelpers'
-import { deleteThesisFromSystem, deleteAllThesesFromSystem } from '../utils/deleteThesis'
-import { MISPRICED_VARIABLE_LABELS } from '../constants'
-import { DeleteThesisButton } from '../components/ui/DeleteThesisButton'
+import React, { useMemo, useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useThesisStore } from '../store/thesisStore'
+import { usePortfolioStore } from '../store/portfolioStore'
+import { useMacroStore } from '../store/macroStore'
+import { LifecycleStage } from '../types'
+import { deleteThesisFromSystem } from '../utils/deleteThesis'
+import { useTopBar } from '../store/topbarStore'
+import { AskAIDock } from '../components/ui/AskAIDock'
+import { Sunburst } from '../components/ui/Sunburst'
+import { Thesis } from '../types'
 
-const PIPELINE_STAGES: LifecycleStage[] = [
-  'Developing', 'Actionable', 'Live',
-]
-
-const STAGE_ACCENT: Record<LifecycleStage, string> = {
-  Developing:   'linear-gradient(to right, #683890, #502878)',
-  Actionable:   'linear-gradient(to right, #A05818, #804010)',
-  Live:         'linear-gradient(to right, #3A8058, #2A6040)',
-  PlayedOut:    '#A8A098',
-  Broken:       '#A83030',
-  Archived:     '#C8C0B4',
+const tk = {
+  bg: '#ede9e0', surface: '#f5f2eb', surface2: '#e8e4d8', card: '#fbf8f1',
+  ink: '#1a1a1f', ink2: '#3a3a42', muted: '#6b6960', muted2: '#8b8980',
+  hairline: 'rgba(0,0,0,0.08)', hairline2: 'rgba(0,0,0,0.14)',
+  sun2: '#f4922c', sun3: '#e0511a',
+  purple: '#4a1d6b', rust: '#92400e', green: '#2d6a4f',
+  neg: '#9b2c1a',
 }
 
-const OVERLAP_STYLE: Record<PrologisOverlapLabel, { bg: string; color: string; dot: string }> = {
-  High:   { bg: 'rgba(160,40,40,0.10)',  color: '#A02828', dot: '#A02828' },
-  Medium: { bg: 'rgba(122,74,16,0.10)',  color: '#7A4A10', dot: '#7A4A10' },
-  Low:    { bg: 'rgba(20,12,4,0.06)',    color: '#706050', dot: '#A89878' },
-  Hedge:  { bg: 'rgba(30,112,66,0.10)', color: '#1E7042', dot: '#1E7042' },
+const STAGE_CONFIG = {
+  Developing: { color: tk.purple, bg: 'rgba(74,29,107,0.06)', label: 'DEVELOPING' },
+  Actionable:  { color: tk.rust,   bg: 'rgba(146,64,14,0.06)',  label: 'ACTIONABLE' },
+  Live:        { color: tk.green,  bg: 'rgba(45,106,79,0.06)',  label: 'LIVE' },
 }
 
-const OVERLAP_LABEL_TEXT: Record<PrologisOverlapLabel, string> = {
-  High: 'High Corr', Medium: 'Med Corr', Low: 'Low Corr', Hedge: 'Hedge',
+// ── Regime label helpers ──────────────────────────────────────────────────────
+
+function regimeVerdict(regime: ReturnType<typeof useMacroStore.getState>['regime']): string {
+  const parts: string[] = []
+  if (regime.creditCycle === 'LateCycle') parts.push('Late-cycle')
+  else if (regime.creditCycle === 'EarlyCycle') parts.push('Early-cycle')
+  if (regime.liquidity === 'Tight') parts.push('tight liquidity')
+  else if (regime.liquidity === 'Ample') parts.push('ample liquidity')
+  else if (regime.realRates === 'High') parts.push('high real rates')
+  if (regime.policy === 'Restrictive') parts.push('restrictive policy')
+  return parts.join(' · ') || 'Neutral regime'
 }
 
-function OverlapPill({ label }: { label: PrologisOverlapLabel }) {
-  const s = OVERLAP_STYLE[label]
+function regimeStance(regime: ReturnType<typeof useMacroStore.getState>['regime']): string {
+  if (regime.riskAppetite === 'RiskOff') return 'DEFENSIVE · SELECTIVE'
+  if (regime.riskAppetite === 'RiskOn') return 'OFFENSIVE · BROAD'
+  return 'SELECTIVE · HEDGED'
+}
+
+function cycleLabel(v: string): string {
+  return v.replace('LateCycle', 'Late').replace('EarlyCycle', 'Early').replace('MidCycle', 'Mid')
+}
+
+// ── Macro regime band ─────────────────────────────────────────────────────────
+
+function MacroBand() {
+  const [expanded, setExpanded] = useState(false)
+  const regime = useMacroStore((s) => s.regime)
+
+  const indicators = [
+    { label: 'RATES',     value: regime.realRates },
+    { label: 'CYCLE',     value: cycleLabel(regime.creditCycle) },
+    { label: 'LIQUIDITY', value: regime.liquidity },
+    { label: 'RISK',      value: regime.riskAppetite === 'RiskOff' ? 'Risk-Off' : regime.riskAppetite === 'RiskOn' ? 'Risk-On' : 'Neutral' },
+    { label: 'DOLLAR',    value: regime.dollar },
+    { label: 'POLICY',    value: regime.policy },
+  ]
+
+  const dotColor = regime.riskAppetite === 'RiskOff' ? tk.neg
+    : regime.riskAppetite === 'RiskOn' ? tk.green : tk.sun2
+
   return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 3,
-      background: s.bg, color: s.color,
-      fontSize: 9, fontWeight: 600, letterSpacing: '0.04em',
-      borderRadius: 4, padding: '2px 5px', flexShrink: 0,
+    <div style={{
+      background: tk.surface, border: `1px solid ${tk.hairline}`,
+      borderRadius: 12, marginBottom: 18, overflow: 'hidden',
     }}>
-      <span style={{ width: 4, height: 4, borderRadius: '50%', background: s.dot }} />
-      {OVERLAP_LABEL_TEXT[label]}
-    </span>
+      <div
+        onClick={() => setExpanded(e => !e)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 0,
+          minHeight: 38, cursor: 'pointer',
+        }}
+      >
+        {/* Verdict pill */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '0 16px', borderRight: `1px solid ${tk.hairline}`, height: 38, flexShrink: 0,
+        }}>
+          <span style={{
+            width: 7, height: 7, borderRadius: '50%',
+            background: dotColor, flexShrink: 0,
+            boxShadow: `0 0 0 2px ${dotColor}30`,
+          }} />
+          <span style={{ fontSize: 12, fontWeight: 600, color: tk.ink2, whiteSpace: 'nowrap' }}>
+            {regimeVerdict(regime)}
+          </span>
+          <span style={{
+            fontSize: 9.5, fontWeight: 700, letterSpacing: '0.10em',
+            color: tk.muted2, fontFamily: 'GeistMono, monospace', marginLeft: 4,
+          }}>
+            {regimeStance(regime)}
+          </span>
+        </div>
+
+        {/* Indicator cells */}
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          {indicators.map((ind, i) => (
+            <div key={ind.label} style={{
+              display: 'flex', flexDirection: 'column', justifyContent: 'center',
+              padding: '0 14px', borderRight: i < indicators.length - 1 ? `1px solid ${tk.hairline}` : 'none',
+              flex: 1, minWidth: 0,
+            }}>
+              <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: tk.muted2, lineHeight: 1.2 }}>
+                {ind.label}
+              </span>
+              <span style={{ fontSize: 11.5, fontWeight: 600, color: tk.ink, fontFamily: 'GeistMono, monospace', lineHeight: 1.3 }}>
+                {ind.value}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Expand chevron */}
+        <div style={{ padding: '0 14px', color: tk.muted2, fontSize: 11, flexShrink: 0 }}>
+          {expanded ? '▴' : '▾'}
+        </div>
+      </div>
+
+      {/* Expanded detail */}
+      {expanded && (
+        <div style={{
+          borderTop: `1px solid ${tk.hairline}`,
+          background: tk.surface2, padding: '12px 16px',
+          fontSize: 12, color: tk.muted,
+        }}>
+          <p style={{ margin: 0 }}>
+            Regime last updated · <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 11 }}>
+              {regime.lastUpdated ? new Date(regime.lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'never'}
+            </span>
+            &nbsp;· Click <strong>Macro</strong> in the topbar to update.
+          </p>
+        </div>
+      )}
+    </div>
   )
 }
 
-const BANNER_CONFIG: Record<Exclude<ThesisLens, 'Standalone'>, {
-  title: string; desc: string; color: string; bg: string; border: string
-}> = {
-  PrologisAware: {
-    title: 'Prologis-Aware Overlay',
-    desc: '35% synthetic household weight applied · Macro drivers: Real Asset Repricing · Consumer Health · Rates · Overlap shown per thesis',
-    color: '#7A4A10',
-    bg: 'rgba(122,74,16,0.05)',
-    border: 'rgba(122,74,16,0.20)',
-  },
-  CompareVsPrologis: {
-    title: 'vs Prologis Mode',
-    desc: 'Theses sized at −20% vs direct Prologis allocation · Real-asset theses are most direct alternatives · Overlap shown per thesis',
-    color: '#2A4A90',
-    bg: 'rgba(42,74,144,0.05)',
-    border: 'rgba(42,74,144,0.20)',
-  },
-}
+// ── Summary stats line ────────────────────────────────────────────────────────
 
-function PrologisContextBanner({ lens }: { lens: Exclude<ThesisLens, 'Standalone'> }) {
-  const cfg = BANNER_CONFIG[lens]
+function SummaryLine({ developing, actionable, live }: { developing: number; actionable: number; live: number }) {
+  const allTheses = useThesisStore((s) => s.theses)
+  const total = Object.keys(allTheses).length
+  const active = developing + actionable + live
+
+  const avgConviction = useMemo(() => {
+    const activeList = Object.values(allTheses).filter(t =>
+      ['Developing', 'Actionable', 'Live'].includes(t.stage)
+    )
+    if (!activeList.length) return 0
+    const scores = activeList.map(t => {
+      const raw = t.thesisQualityScore ?? t.businessQualityScore ?? 0
+      return raw <= 10 ? Math.round(raw * 10) : Math.round(Math.min(raw, 100))
+    })
+    return Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+  }, [allTheses])
+
+  const stats = [
+    { k: 'ACTIVE', v: active > 0 ? `${active}/${total}` : '—', mono: true },
+    { k: 'AT RISK NAV', v: '—', mono: true },
+    { k: 'MTD', v: '—', mono: true, color: tk.muted2 },
+    { k: 'YTD', v: '—', mono: true, color: tk.muted2 },
+    { k: 'AVG CONV.', v: avgConviction > 0 ? `${avgConviction}/100` : '—', mono: true },
+  ]
+
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 10,
-      background: cfg.bg, border: `1px solid ${cfg.border}`,
-      borderRadius: 8, padding: '8px 14px',
+      display: 'flex', alignItems: 'center',
+      borderTop: `1px solid ${tk.hairline}`,
+      borderBottom: `1px solid ${tk.hairline}`,
+      marginBottom: 22, background: tk.surface,
+      borderRadius: 10, overflow: 'hidden',
     }}>
+      {stats.map((s, i) => (
+        <div key={s.k} style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 16px',
+          borderRight: i < stats.length - 1 ? `1px solid ${tk.hairline}` : 'none',
+          flex: 1,
+        }}>
+          <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: tk.muted2 }}>
+            {s.k}
+          </span>
+          <span style={{
+            fontFamily: s.mono ? 'GeistMono, monospace' : 'inherit',
+            fontSize: 13.5, fontWeight: 600,
+            color: s.color ?? tk.ink,
+            letterSpacing: '-0.01em',
+          }}>
+            {s.v}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Thesis card ───────────────────────────────────────────────────────────────
+
+function convictionScore(t: Thesis): number {
+  const raw = t.thesisQualityScore ?? t.businessQualityScore ?? 0
+  if (raw <= 10) return Math.round(raw * 10)
+  return Math.round(Math.min(raw, 100))
+}
+
+function typeChip(t: Thesis): string {
+  if (t.type.includes('RealEstate') || t.type.includes('Household')) return 'F'
+  if (t.type.includes('Short') || t.type.includes('Hedge')) return 'S'
+  return 'T'
+}
+
+function ageLabel(t: Thesis): string {
+  const ms = Date.now() - new Date(t.createdAt).getTime()
+  const days = Math.floor(ms / 86_400_000)
+  if (days === 0) return 'Today'
+  if (days === 1) return '1d'
+  if (days < 30) return `${days}d`
+  return `${Math.floor(days / 30)}mo`
+}
+
+function sectorLabel(t: Thesis): { label: string; color: string; bg: string } {
+  const type = t.type ?? ''
+  if (type.includes('Energy')) return { label: 'ENERGY', color: '#1e4d5c', bg: '#dbeaef' }
+  if (type.includes('Material') || type.includes('Lithium') || type.includes('Commodity'))
+    return { label: 'COMMODITY', color: '#7a4a0c', bg: '#f0e2c4' }
+  if (type.includes('RealEstate') || type.includes('REIT'))
+    return { label: 'REIT', color: '#3a3650', bg: '#dedce8' }
+  if (type.includes('Technology') || type.includes('AI'))
+    return { label: 'TECH', color: '#1a4a36', bg: '#d5e6dc' }
+  return { label: 'THESIS', color: '#56504a', bg: '#e8e4d8' }
+}
+
+function PipelineCard({ thesis, onDelete }: { thesis: Thesis; onDelete: () => void }) {
+  const navigate = useNavigate()
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const chip = typeChip(thesis)
+  const score = convictionScore(thesis)
+  const sector = sectorLabel(thesis)
+  const convColor = score >= 70 ? tk.green : score >= 45 ? tk.sun2 : tk.neg
+
+  return (
+    <div
+      style={{
+        position: 'relative', borderRadius: 12, overflow: 'hidden',
+        background: `linear-gradient(180deg, rgba(196,137,42,0.04) 0%, ${tk.card} 100%)`,
+        border: `1px solid ${hovered ? tk.hairline2 : tk.hairline}`,
+        boxShadow: hovered
+          ? '0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 20px -14px rgba(0,0,0,0.18)'
+          : '0 1px 0 rgba(255,255,255,0.5) inset, 0 1px 2px rgba(0,0,0,0.02)',
+        cursor: 'pointer',
+        transition: 'box-shadow 150ms ease, border-color 150ms ease',
+        transform: hovered ? 'translateY(-1px)' : 'none',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => { setHovered(false); setConfirmDelete(false) }}
+    >
+      {/* Delete button */}
+      {hovered && !confirmDelete && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
+          style={{
+            position: 'absolute', top: 8, right: 8, zIndex: 2,
+            width: 22, height: 22, borderRadius: 5,
+            background: 'transparent', border: '1px solid transparent',
+            color: tk.muted2, fontSize: 14, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'all 100ms',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(155,44,26,0.10)'
+            e.currentTarget.style.borderColor = 'rgba(155,44,26,0.20)'
+            e.currentTarget.style.color = tk.neg
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'transparent'
+            e.currentTarget.style.borderColor = 'transparent'
+            e.currentTarget.style.color = tk.muted2
+          }}
+        >×</button>
+      )}
+
+      {/* Confirm overlay */}
+      {confirmDelete && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 3,
+          background: 'rgba(251,248,241,0.95)', borderRadius: 12,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 10,
+          backdropFilter: 'blur(4px)',
+        }}>
+          <p style={{ fontSize: 12, color: tk.ink, fontWeight: 500 }}>Delete this thesis?</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setConfirmDelete(false) }}
+              style={{ padding: '5px 12px', borderRadius: 6, border: `1px solid ${tk.hairline2}`, background: 'transparent', fontSize: 12, cursor: 'pointer', color: tk.ink2 }}
+            >Cancel</button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete() }}
+              style={{ padding: '5px 12px', borderRadius: 6, border: 'none', background: tk.neg, fontSize: 12, cursor: 'pointer', color: '#fff' }}
+            >Delete</button>
+          </div>
+        </div>
+      )}
+
+      {/* Card header strip */}
       <div style={{
-        width: 6, height: 6, borderRadius: '50%',
-        background: cfg.color, flexShrink: 0,
-      }} />
-      <div>
-        <span style={{ fontSize: 10, fontWeight: 700, color: cfg.color, letterSpacing: '0.08em', textTransform: 'uppercase', marginRight: 8 }}>
-          {cfg.title}
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '10px 12px 8px',
+        background: 'rgba(196,137,42,0.05)',
+        borderBottom: `1px solid ${tk.hairline}`,
+      }}>
+        <span style={{
+          width: 18, height: 18, borderRadius: '50%',
+          background: 'rgba(196,137,42,0.14)', border: '1px solid rgba(196,137,42,0.35)',
+          color: '#7a4a0c', fontSize: 9, fontWeight: 700,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          {chip}
         </span>
-        <span style={{ fontSize: 10.5, color: '#706050' }}>{cfg.desc}</span>
+        {thesis.ticker && (
+          <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 11.5, fontWeight: 700, color: tk.ink, letterSpacing: '0.04em' }}>
+            {thesis.ticker}
+          </span>
+        )}
+        <span style={{
+          marginLeft: 'auto',
+          fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em',
+          padding: '1px 6px', borderRadius: 3,
+          color: sector.color, background: sector.bg,
+        }}>
+          {sector.label}
+        </span>
+        <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 9.5, color: tk.muted2 }}>
+          #{thesis.id.slice(-3).toUpperCase()}
+        </span>
+      </div>
+
+      {/* Card body */}
+      <div
+        onClick={() => navigate(`/thesis/${thesis.id}`)}
+        style={{ padding: '14px 14px 0' }}
+      >
+        <p style={{ fontSize: 14.5, fontWeight: 600, color: tk.ink, lineHeight: 1.28, marginBottom: 6, letterSpacing: '-0.005em' }}>
+          {thesis.name}
+        </p>
+        {thesis.statement && (
+          <p style={{
+            fontSize: 12, color: tk.muted, lineHeight: 1.55, marginBottom: 10,
+            display: '-webkit-box', WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          }}>
+            {thesis.statement}
+          </p>
+        )}
+
+        {/* Conviction */}
+        <div style={{ marginBottom: 4 }}>
+          <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: tk.muted2 }}>
+            Conviction
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
+            <div style={{ flex: 1, height: 4, borderRadius: 99, background: tk.surface2, overflow: 'hidden', position: 'relative' }}>
+              <div style={{
+                position: 'absolute', inset: 0, right: `${100 - score}%`,
+                background: `linear-gradient(90deg, ${tk.sun2}, ${tk.sun3})`,
+                borderRadius: 99, transition: 'right 400ms ease',
+              }} />
+            </div>
+            <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 19, fontWeight: 600, color: tk.ink, letterSpacing: '-0.01em', lineHeight: 1, minWidth: 30, textAlign: 'right' }}>
+              {score}
+            </span>
+            <span style={{ fontSize: 10, color: tk.muted2, fontFamily: 'GeistMono, monospace' }}>/100</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Card footer */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '10px 14px 12px',
+        background: 'rgba(0,0,0,0.015)',
+        borderTop: `1px solid ${tk.hairline}`,
+        marginTop: 10,
+      }}>
+        <span style={{ fontSize: 10.5, color: tk.muted2, letterSpacing: '0.02em' }}>
+          {thesis.type.replace(/([A-Z])/g, ' $1').trim().split(' ').slice(0, 3).join(' ')}
+        </span>
+        <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 10, color: tk.muted2 }}>
+          {ageLabel(thesis)}
+        </span>
       </div>
     </div>
   )
 }
 
-type EvidenceSort = 'score' | 'direction' | 'convergence' | 'lastSignal'
+// ── Promote toast ─────────────────────────────────────────────────────────────
 
-function EvidenceDashboard({ onDeleteThesis }: { onDeleteThesis: (id: string, name: string, e: React.MouseEvent) => void }) {
+function PromoteToast({ thesisId, onDismiss }: { thesisId: string; onDismiss: () => void }) {
   const navigate = useNavigate()
-  const thesesRecord = useThesisStore((s) => s.theses)
-  const signalsRecord = useSignalStore((s) => s.signals)
-  const compositesRecord = useSignalStore((s) => s.composites)
+  const thesis = useThesisStore((s) => s.theses[thesisId])
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 7000)
+    return () => clearTimeout(t)
+  }, [onDismiss])
+
+  if (!thesis) return null
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      background: tk.card, border: `1px solid ${tk.hairline2}`,
+      borderRadius: 99, padding: '8px 16px',
+      boxShadow: '0 10px 28px -16px rgba(0,0,0,.30), 0 2px 6px rgba(0,0,0,.06)',
+      position: 'fixed', top: 72, left: '50%', transform: 'translateX(-50%)',
+      zIndex: 200, animation: 'toastIn 300ms ease',
+    }}>
+      <Sunburst size={18} />
+      <span style={{ fontSize: 12.5, color: tk.ink, fontWeight: 500 }}>
+        {thesis.ticker || thesis.name.split(' ').slice(0, 2).join(' ')} promoted to Developing
+      </span>
+      <button onClick={() => navigate(`/thesis/${thesisId}`)} style={{ fontSize: 12, fontWeight: 600, color: tk.sun2, background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px' }}>
+        Open →
+      </button>
+      <button onClick={onDismiss} style={{ fontSize: 13, color: tk.muted2, background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px' }}>
+        ×
+      </button>
+    </div>
+  )
+}
+
+// ── Main screen ───────────────────────────────────────────────────────────────
+
+export const InvestmentDesk: React.FC = () => {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const stageFilter = searchParams.get('stage') as LifecycleStage | null
+
+  const getThesisByStage = useThesisStore((s) => s.getThesisByStage)
+  const advanceLifecycle = useThesisStore((s) => s.advanceLifecycle)
+  const justPromotedId = useThesisStore((s) => s.justPromotedId)
+  const clearJustPromoted = useThesisStore((s) => s.clearJustPromoted)
   const lens = usePortfolioStore((s) => s.lens)
 
-  const [sort, setSort] = useState<EvidenceSort>('score')
+  const developing = useMemo(() => getThesisByStage('Developing'), [getThesisByStage])
+  const actionable  = useMemo(() => getThesisByStage('Actionable'),  [getThesisByStage])
+  const live        = useMemo(() => getThesisByStage('Live'),        [getThesisByStage])
 
-  const showPrologis = lens !== 'Standalone'
-
-  const activeTheses = useMemo(
-    () =>
-      Object.values(thesesRecord).filter(
-        (t) => !['Broken', 'Archived', 'PlayedOut'].includes(t.stage),
-      ),
-    [thesesRecord],
-  )
-
-  const allSignals = useMemo(() => Object.values(signalsRecord), [signalsRecord])
-  const allComposites = useMemo(() => Object.values(compositesRecord), [compositesRecord])
-
-  const rows = useMemo(() => {
-    return activeTheses.map((t) => {
-      const thesisSignals = allSignals.filter((s) => s.linkedThesisId === t.id)
-      const thesisComposites = allComposites.filter((c) => c.linkedThesisId === t.id)
-
-      const primaryComposite = thesisComposites.find(
-        (c) => c.variable === t.primaryMispricedVariable,
-      )
-      const compositeScore = primaryComposite?.compositeScore ?? 0
-      const overallScore =
-        thesisComposites.length > 0
-          ? thesisComposites.reduce((s, c) => s + c.compositeScore, 0) / thesisComposites.length
-          : 0
-
-      const lastSignal = thesisSignals.reduce<Date | null>((latest, s) => {
-        const d = new Date(s.observedAt)
-        return !latest || d > latest ? d : latest
-      }, null)
-      const daysSinceLast = lastSignal
-        ? Math.floor((Date.now() - lastSignal.getTime()) / 86_400_000)
-        : null
-
-      const convergenceAlerts = detectConvergence(thesisSignals, t.id)
-      const divergenceFlags = detectDivergence(thesisSignals, t.id)
-
-      const cascadeAlert =
-        convergenceAlerts.length >= 3 ||
-        (convergenceAlerts.length >= 2 && divergenceFlags.length === 0)
-
-      const direction =
-        overallScore > 1 ? 'Strengthening' : overallScore < -1 ? 'Weakening' : 'Stable'
-
-      const prologisOverlap = computePrologisOverlap(t)
-
-      return {
-        thesis: t,
-        compositeScore: overallScore,
-        primaryCompositeScore: compositeScore,
-        direction,
-        convergenceCount: convergenceAlerts.length,
-        divergenceCount: divergenceFlags.length,
-        daysSinceLast,
-        cascadeAlert,
-        signalCount: thesisSignals.length,
-        prologisOverlap,
-      }
-    })
-  }, [activeTheses, allSignals, allComposites])
-
-  const sorted = useMemo(() => {
-    const copy = [...rows]
-    if (sort === 'score') return copy.sort((a, b) => b.compositeScore - a.compositeScore)
-    if (sort === 'direction') {
-      const order = { Strengthening: 0, Stable: 1, Weakening: 2 }
-      return copy.sort((a, b) => order[a.direction as keyof typeof order] - order[b.direction as keyof typeof order])
-    }
-    if (sort === 'convergence') {
-      return copy.sort((a, b) => b.convergenceCount - a.convergenceCount)
-    }
-    if (sort === 'lastSignal') {
-      return copy.sort((a, b) => {
-        if (a.daysSinceLast === null) return 1
-        if (b.daysSinceLast === null) return -1
-        return a.daysSinceLast - b.daysSinceLast
-      })
-    }
-    return copy
-  }, [rows, sort])
-
-  const DIR_STYLES = {
-    Strengthening: { color: 'text-success', arrow: '↑', barColor: '#2E6E4A' },
-    Stable:        { color: 'text-text-secondary', arrow: '→', barColor: '#9A7A50' },
-    Weakening:     { color: 'text-danger', arrow: '↓', barColor: '#A83030' },
-  }
-
-  const SORT_OPTS: { value: EvidenceSort; label: string }[] = [
-    { value: 'score', label: 'Score' },
-    { value: 'direction', label: 'Direction' },
-    { value: 'convergence', label: 'Convergence' },
-    { value: 'lastSignal', label: 'Freshness' },
+  const columns = [
+    { stage: 'Developing' as LifecycleStage, theses: developing },
+    { stage: 'Actionable' as LifecycleStage, theses: actionable },
+    { stage: 'Live'       as LifecycleStage, theses: live       },
   ]
 
-  if (activeTheses.length === 0) return null
+  const [dragging, setDragging] = useState<{ id: string; from: LifecycleStage } | null>(null)
+  const [dragOver, setDragOver] = useState<LifecycleStage | null>(null)
 
-  const gridCols = showPrologis
-    ? 'grid-cols-[2fr_1.2fr_80px_70px_100px_80px_80px]'
-    : 'grid-cols-[2fr_1.2fr_80px_100px_80px_80px]'
+  useTopBar({
+    title: 'Command Center',
+    crumb: lens !== 'Standalone' ? 'Prologis-aware lens active' : undefined,
+  })
+
+  const handleDelete = (id: string, name: string) => deleteThesisFromSystem(id, name)
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <h2 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-            Evidence Dashboard
-          </h2>
-          <span className="text-[10px] text-text-muted">
-            {rows.filter((r) => r.signalCount > 0).length} of {rows.length} theses with signals
-          </span>
-        </div>
-        <div className="flex gap-1.5">
-          {SORT_OPTS.map((o) => (
-            <button
-              key={o.value}
-              onClick={() => setSort(o.value)}
-              style={sort === o.value ? {
-                borderColor: 'rgba(154,122,80,0.5)',
-                color: '#1A1410',
-                background: 'rgba(154,122,80,0.10)',
-              } : {
-                borderColor: '#D8D0C4',
-                color: '#A8A098',
-              }}
-              className="px-2 py-1 text-[10px] rounded border transition-colors hover:border-accent/40"
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
+    <div style={{ padding: '18px 24px 40px', minWidth: 1100 }}>
+      {justPromotedId && (
+        <PromoteToast thesisId={justPromotedId} onDismiss={clearJustPromoted} />
+      )}
+
+      {/* Macro regime band */}
+      <MacroBand />
+
+      {/* Portfolio summary line */}
+      <SummaryLine developing={developing.length} actionable={actionable.length} live={live.length} />
+
+      {/* Thesis Pipeline header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <span style={{
+          fontSize: 11, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase',
+          color: tk.muted2,
+        }}>
+          Thesis Pipeline
+        </span>
+        <span style={{
+          fontFamily: 'GeistMono, monospace', fontSize: 10.5, color: tk.muted2,
+          background: tk.surface, border: `1px solid ${tk.hairline}`,
+          borderRadius: 99, padding: '1px 8px',
+        }}>
+          {developing.length + actionable.length + live.length}
+        </span>
       </div>
 
-      <div style={{
-        borderRadius: 10,
-        overflow: 'hidden',
-        background: '#FDFCF9',
-        boxShadow: '0 0 0 1px rgba(20,12,4,0.06), 0 1px 3px rgba(20,12,4,0.06), 0 4px 12px rgba(20,12,4,0.07)',
-      }}>
-        {/* Header */}
-        <div className={`grid ${gridCols} gap-2 px-4 py-2 text-[10px] uppercase tracking-wider text-text-muted`}
-          style={{ background: '#F5F2EC', borderBottom: '1px solid rgba(20,12,4,0.07)' }}>
-          <span>Thesis</span>
-          <span>Primary Variable</span>
-          <span className="text-right">Score</span>
-          {showPrologis && <span>P-Corr</span>}
-          <span>Direction</span>
-          <span>Status</span>
-          <span className="text-right">Last Signal</span>
-        </div>
-
-        {sorted.map((row, idx) => {
-          const dir = DIR_STYLES[row.direction as keyof typeof DIR_STYLES]
-          const barPct = ((row.compositeScore + 10) / 20) * 100
-
+      {/* 3-column Kanban */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, alignItems: 'start' }}>
+        {columns.map(({ stage, theses }) => {
+          const cfg = STAGE_CONFIG[stage as keyof typeof STAGE_CONFIG]
+          const isOver = dragOver === stage
           return (
             <div
-              key={row.thesis.id}
-              className="flex items-stretch"
-              style={{
-                background: '#FDFCF9',
-                borderBottom: idx < sorted.length - 1 ? '1px solid rgba(20,12,4,0.05)' : 'none',
+              key={stage}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(stage) }}
+              onDragLeave={() => setDragOver(null)}
+              onDrop={() => {
+                if (dragging && dragging.from !== stage) {
+                  advanceLifecycle(dragging.id, stage, `Moved to ${stage} via pipeline`)
+                }
+                setDragging(null); setDragOver(null)
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#F8F4EF')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#FDFCF9')}
+              style={{
+                borderRadius: 12, overflow: 'hidden',
+                border: `1px solid ${isOver ? cfg.color + '50' : tk.hairline}`,
+                background: tk.surface,
+                transition: 'border-color 150ms ease',
+              }}
             >
-              <button
-                type="button"
-                onClick={() => navigate(`/thesis/${row.thesis.id}`)}
-                className={`flex-1 grid ${gridCols} gap-2 px-4 py-2.5 text-left`}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
-              >
-              {/* Name */}
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  {row.cascadeAlert && (
-                    <span style={{
-                      fontSize: 9, background: 'rgba(154,122,80,0.15)',
-                      border: '1px solid rgba(154,122,80,0.35)', color: '#7A5A38',
-                      borderRadius: 3, padding: '1px 4px', flexShrink: 0,
-                    }}>
-                      CASCADE
-                    </span>
-                  )}
-                  <p className="text-xs text-text-primary font-medium truncate">{row.thesis.name}</p>
-                </div>
-                <p className="text-[10px] text-text-muted">{row.thesis.type}</p>
+              {/* Column header */}
+              <div style={{
+                padding: '13px 16px 12px',
+                borderLeft: `3px solid ${cfg.color}`,
+                background: cfg.bg,
+                borderBottom: `1px solid ${tk.hairline}`,
+                display: 'flex', alignItems: 'center',
+              }}>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, letterSpacing: '0.14em',
+                  color: cfg.color, textTransform: 'uppercase', flex: 1,
+                }}>
+                  {cfg.label}
+                </span>
+                <span style={{
+                  fontFamily: 'GeistMono, monospace', fontSize: 11, fontWeight: 700,
+                  color: cfg.color,
+                  background: cfg.color + '18', border: `1px solid ${cfg.color}30`,
+                  borderRadius: 99, padding: '1px 8px',
+                }}>
+                  {theses.length}
+                </span>
               </div>
 
-              {/* Primary variable */}
-              <span className="text-[11px] text-text-muted self-center truncate">
-                {MISPRICED_VARIABLE_LABELS[row.thesis.primaryMispricedVariable] ?? row.thesis.primaryMispricedVariable}
-              </span>
-
-              {/* Score bar */}
-              <div className="self-center">
-                <div className="relative h-1.5 rounded-full overflow-hidden w-full"
-                  style={{ background: '#D8D0C4' }}>
-                  <div className="absolute top-0 left-1/2 h-full w-px" style={{ background: '#C0B8AC' }} />
-                  <div
-                    className="absolute top-0 h-full rounded-full"
-                    style={{
-                      background: dir.barColor + 'AA',
-                      left: row.compositeScore >= 0 ? '50%' : `${barPct}%`,
-                      width: `${Math.abs(row.compositeScore) / 20 * 100}%`,
-                    }}
-                  />
-                </div>
-                <p className={`text-[10px] font-mono text-right mt-0.5 ${dir.color}`}>
-                  {row.compositeScore > 0 ? '+' : ''}{row.compositeScore.toFixed(1)}
-                </p>
-              </div>
-
-              {/* Prologis overlap */}
-              {showPrologis && (
-                <div className="self-center">
-                  <OverlapPill label={row.prologisOverlap.label} />
-                </div>
-              )}
-
-              {/* Direction */}
-              <div className="self-center flex items-center gap-1.5">
-                <span className={`text-sm ${dir.color}`}>{dir.arrow}</span>
-                <span className={`text-[11px] ${dir.color}`}>{row.direction}</span>
-              </div>
-
-              {/* Status badges */}
-              <div className="self-center flex flex-wrap gap-1">
-                {row.convergenceCount > 0 && (
-                  <span style={{
-                    fontSize: 9, background: 'rgba(46,110,74,0.12)',
-                    border: '1px solid rgba(46,110,74,0.30)', color: '#2E6E4A',
-                    borderRadius: 3, padding: '1px 4px',
+              {/* Cards body */}
+              <div style={{ padding: '14px 12px 4px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {theses.length === 0 ? (
+                  <div style={{
+                    minHeight: 80, border: `1.5px dashed rgba(0,0,0,0.10)`,
+                    borderRadius: 10, display: 'flex', alignItems: 'center',
+                    justifyContent: 'center',
                   }}>
-                    ⚡ {row.convergenceCount}
-                  </span>
+                    <p style={{ fontSize: 12, color: tk.muted2 }}>No theses</p>
+                  </div>
+                ) : (
+                  theses.map((t) => (
+                    <div
+                      key={t.id}
+                      draggable
+                      onDragStart={() => setDragging({ id: t.id, from: stage })}
+                      onDragEnd={() => { setDragging(null); setDragOver(null) }}
+                      style={{ opacity: dragging?.id === t.id ? 0.4 : 1, transition: 'opacity 150ms' }}
+                    >
+                      <PipelineCard thesis={t} onDelete={() => handleDelete(t.id, t.name)} />
+                    </div>
+                  ))
                 )}
-                {row.divergenceCount > 0 && (
-                  <span style={{
-                    fontSize: 9, background: 'rgba(122,74,16,0.12)',
-                    border: '1px solid rgba(122,74,16,0.30)', color: '#7A4A10',
-                    borderRadius: 3, padding: '1px 4px',
-                  }}>
-                    ⚠ {row.divergenceCount}
-                  </span>
-                )}
-                {row.signalCount === 0 && (
-                  <span className="text-[9px] text-text-muted">—</span>
-                )}
-              </div>
 
-              {/* Days since last signal */}
-              <div className="self-center text-right">
-                <p className={`text-[11px] ${
-                  row.daysSinceLast === null ? 'text-text-muted' :
-                  row.daysSinceLast > 30 ? 'text-danger' :
-                  row.daysSinceLast > 14 ? 'text-warning' : 'text-text-secondary'
-                }`}>
-                  {row.daysSinceLast === null ? '—' : `${row.daysSinceLast}d ago`}
-                </p>
-              </div>
-              </button>
-              <div className="flex items-center pr-3">
-                <DeleteThesisButton
-                  onDelete={(e) => onDeleteThesis(row.thesis.id, row.thesis.name, e)}
-                />
+                {/* Column footer CTA */}
+                <button
+                  onClick={() => navigate('/brainstorm')}
+                  style={{
+                    width: '100%', padding: '10px 0',
+                    border: `1.5px dashed rgba(0,0,0,0.10)`, borderRadius: 8,
+                    background: 'transparent', cursor: 'pointer',
+                    fontSize: 12, color: tk.muted2, marginBottom: 12,
+                    transition: 'border-color 150ms, color 150ms',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = cfg.color + '50'
+                    e.currentTarget.style.color = cfg.color
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(0,0,0,0.10)'
+                    e.currentTarget.style.color = tk.muted2
+                  }}
+                >
+                  {stage === 'Developing' ? '+ New hypothesis'
+                    : stage === 'Actionable' ? '+ Promote from Developing'
+                    : '+ Promote from Actionable'}
+                </button>
               </div>
             </div>
           )
         })}
       </div>
-    </div>
-  )
-}
 
-export const InvestmentDesk: React.FC = () => {
-  const navigate = useNavigate()
-  const thesesRecord = useThesisStore((s) => s.theses)
-  const getActiveTheses = useThesisStore((s) => s.getActiveTheses)
-  const getThesisByStage = useThesisStore((s) => s.getThesisByStage)
-  const advanceLifecycle = useThesisStore((s) => s.advanceLifecycle)
-  const lens = usePortfolioStore((s) => s.lens)
+      <AskAIDock
+        context="about your pipeline"
+        starterQuestions={[
+          'Which thesis has the most signal convergence right now?',
+          'What should I promote from Developing to Actionable?',
+          'Are any theses overdue for reassessment?',
+          'Where is the conviction decaying fastest?',
+        ]}
+      />
 
-  const [dragging, setDragging] = useState<{ id: string; fromStage: LifecycleStage } | null>(null)
-  const [dragOverStage, setDragOverStage] = useState<LifecycleStage | null>(null)
-  const [showManage, setShowManage] = useState(false)
-
-  const handleDeleteThesis = (id: string, name: string, e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    e?.preventDefault()
-    deleteThesisFromSystem(id, name)
-  }
-
-  const allTheses = useMemo(
-    () => Object.values(thesesRecord).sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-    ),
-    [thesesRecord],
-  )
-
-  const activeTheses = getActiveTheses()
-  const liveAndActionable = activeTheses.filter(
-    (t) => t.stage === 'Live' || t.stage === 'Actionable',
-  )
-  const totalActive = activeTheses.length
-  const showPrologis = lens !== 'Standalone'
-
-  const isValidDrop = (toStage: LifecycleStage) =>
-    dragging != null && canAdvanceTo(dragging.fromStage, toStage)
-
-  const handleDrop = (toStage: LifecycleStage) => {
-    if (dragging && canAdvanceTo(dragging.fromStage, toStage)) {
-      advanceLifecycle(dragging.id, toStage, `Moved to ${toStage} via pipeline`)
-    }
-    setDragging(null)
-    setDragOverStage(null)
-  }
-
-  return (
-    <div className="p-5 space-y-4 max-w-[1400px]">
-
-      {/* Prologis context banner */}
-      {showPrologis && (
-        <PrologisContextBanner lens={lens as Exclude<ThesisLens, 'Standalone'>} />
-      )}
-
-      {/* Active Theses Rail */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-            Active Theses
-          </h2>
-          <span className="text-xs text-text-muted">
-            {liveAndActionable.length} live / actionable · {totalActive} total active
-          </span>
-        </div>
-        {liveAndActionable.length > 0 ? (
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
-            {liveAndActionable.map((thesis) => {
-              const overlap = showPrologis ? computePrologisOverlap(thesis) : null
-              return (
-                <div key={thesis.id} className="flex-shrink-0 w-[260px] relative">
-                  <div className="absolute top-2 right-2 z-10">
-                    <DeleteThesisButton
-                      onDelete={(e) => handleDeleteThesis(thesis.id, thesis.name, e)}
-                    />
-                  </div>
-                  <ThesisCard thesis={thesis} compact />
-                  {overlap && (
-                    <div style={{ marginTop: 4, paddingLeft: 2 }}>
-                      <OverlapPill label={overlap.label} />
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          <div style={{
-            height: 88, borderRadius: 10,
-            border: '1.5px dashed #D8D0C4',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <p className="text-xs text-text-muted">
-              {Object.keys(thesesRecord).length === 0
-                ? 'No theses yet — start in Brainstorm'
-                : 'No live or actionable theses'}
-            </p>
-          </div>
-        )}
-      </section>
-
-      {/* Evidence Dashboard */}
-      <section>
-        <ErrorBoundary label="Evidence Dashboard">
-          <EvidenceDashboard onDeleteThesis={handleDeleteThesis} />
-        </ErrorBoundary>
-      </section>
-
-      {/* Thesis Pipeline */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-semibold text-text-secondary uppercase tracking-wider">
-            Thesis Pipeline
-          </h2>
-          <button
-            onClick={() => navigate('/brainstorm')}
-            className="text-xs text-accent hover:text-accent/80 transition-colors font-medium"
-          >
-            + New thesis
-          </button>
-        </div>
-        <div className="grid grid-cols-6 gap-2">
-          {PIPELINE_STAGES.map((stage) => {
-            const stageTheses = getThesisByStage(stage)
-            const accentBar = STAGE_ACCENT[stage]
-            const isGradient = accentBar.startsWith('linear')
-            return (
-              <div
-                key={stage}
-                onDragOver={(e) => { e.preventDefault(); setDragOverStage(stage) }}
-                onDragLeave={() => setDragOverStage(null)}
-                onDrop={() => handleDrop(stage)}
-                style={{
-                  borderRadius: 10,
-                  overflow: 'hidden',
-                  background: '#FDFCF9',
-                  boxShadow: dragOverStage === stage && isValidDrop(stage)
-                    ? '0 0 0 2px #9A7A50, 0 4px 16px rgba(154,122,80,0.20)'
-                    : '0 0 0 1px rgba(20,12,4,0.06), 0 1px 3px rgba(20,12,4,0.06), 0 4px 12px rgba(20,12,4,0.07)',
-                  minHeight: 120,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  transition: 'box-shadow 0.12s ease',
-                }}
-              >
-                {/* Stage accent bar */}
-                <div style={{ height: 4, background: accentBar, flexShrink: 0 }} />
-                <div style={{ padding: '10px 10px 12px', flex: 1 }}>
-                  <div className="flex items-center justify-between mb-2">
-                    <LifecycleBadge stage={stage} size="sm" />
-                    <span style={{ fontSize: 10, color: '#A89878', fontWeight: 500 }}>
-                      {stageTheses.length}
-                    </span>
-                  </div>
-                  <div className="space-y-1">
-                    {stageTheses.map((thesis) => {
-                      const overlap = showPrologis ? computePrologisOverlap(thesis) : null
-                      const dotColor = overlap ? OVERLAP_STYLE[overlap.label].dot : null
-                      const isDragging = dragging?.id === thesis.id
-                      return (
-                        <div
-                          key={thesis.id}
-                          draggable
-                          onDragStart={() => setDragging({ id: thesis.id, fromStage: stage })}
-                          onDragEnd={() => { setDragging(null); setDragOverStage(null) }}
-                          className="flex items-center gap-1 rounded-md transition-colors cursor-grab active:cursor-grabbing"
-                          style={{
-                            padding: '3px 4px 3px 8px',
-                            background: 'rgba(20,12,4,0.04)',
-                            opacity: isDragging ? 0.4 : 1,
-                            userSelect: 'none',
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(20,12,4,0.08)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(20,12,4,0.04)')}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/thesis/${thesis.id}`)}
-                            className="flex-1 min-w-0 text-left"
-                            style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer' }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                              {dotColor && (
-                                <span style={{
-                                  width: 5, height: 5, borderRadius: '50%',
-                                  background: dotColor, flexShrink: 0,
-                                }} />
-                              )}
-                              <p style={{ fontSize: 11, color: '#18140E', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {thesis.name}
-                              </p>
-                            </div>
-                          </button>
-                          <DeleteThesisButton
-                            size="sm"
-                            onDelete={(e) => handleDeleteThesis(thesis.id, thesis.name, e)}
-                          />
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </section>
-
-      {/* Manage all theses — includes terminal stages not shown in pipeline */}
-      {allTheses.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <button
-              type="button"
-              onClick={() => setShowManage((v) => !v)}
-              className="text-xs font-semibold text-text-secondary uppercase tracking-wider hover:text-text-primary transition-colors"
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-            >
-              Manage Theses ({allTheses.length}) {showManage ? '▾' : '▸'}
-            </button>
-            {showManage && allTheses.length > 1 && (
-              <button
-                type="button"
-                onClick={() => deleteAllThesesFromSystem(allTheses.map((t) => t.id))}
-                className="text-xs text-danger/80 hover:text-danger transition-colors"
-                style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                Delete all
-              </button>
-            )}
-          </div>
-          {showManage && (
-            <div style={{
-              borderRadius: 10,
-              overflow: 'hidden',
-              background: '#FDFCF9',
-              boxShadow: '0 0 0 1px rgba(20,12,4,0.06), 0 1px 3px rgba(20,12,4,0.06)',
-            }}>
-              {allTheses.map((thesis, idx) => {
-                const tickers = thesis.recommendations?.map((r) => r.ticker).filter(Boolean) ?? []
-                return (
-                  <div
-                    key={thesis.id}
-                    className="flex items-center gap-3 px-4 py-2.5"
-                    style={{
-                      borderBottom: idx < allTheses.length - 1 ? '1px solid rgba(20,12,4,0.05)' : 'none',
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/thesis/${thesis.id}`)}
-                      className="flex-1 min-w-0 text-left"
-                      style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
-                    >
-                      <p className="text-xs text-text-primary font-medium truncate">{thesis.name}</p>
-                      <p className="text-[10px] text-text-muted mt-0.5">
-                        {thesis.stage}
-                        {tickers.length > 0 ? ` · ${tickers.join(', ')}` : ''}
-                      </p>
-                    </button>
-                    <DeleteThesisButton
-                      onDelete={(e) => handleDeleteThesis(thesis.id, thesis.name, e)}
-                    />
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </section>
-      )}
-
+      <style>{`
+        @keyframes toastIn {
+          from { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+          to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+      `}</style>
     </div>
   )
 }

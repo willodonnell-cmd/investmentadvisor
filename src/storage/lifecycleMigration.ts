@@ -12,8 +12,9 @@ const LEGACY_TO_LIFECYCLE: Record<string, LifecycleStage> = {
   Developing: 'Developing',
   Actionable: 'Actionable',
   Live: 'Live',
-  PlayedOut: 'PlayedOut',
-  Broken: 'Broken',
+  PlayedOut: 'Killed',
+  Broken: 'Killed',
+  Killed: 'Killed',
   Archived: 'Archived',
 }
 

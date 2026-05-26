@@ -4,6 +4,8 @@ import { Shell } from './components/layout/Shell'
 import { InvestmentDesk } from './screens/InvestmentDesk'
 import { BrainstormingScreen } from './screens/BrainstormingScreen'
 import { ThesisScreen } from './screens/ThesisScreen'
+import { StockDetailScreen } from './screens/StockDetailScreen'
+import { FundDetailScreen } from './screens/FundDetailScreen'
 import { UnderwritingMemoScreen } from './screens/UnderwritingMemoScreen'
 import { ComparisonScreen } from './screens/ComparisonScreen'
 import { DecisionScreen } from './screens/DecisionScreen'
@@ -21,6 +23,8 @@ const App: React.FC = () => (
         <Route path="/brainstorm" element={<ErrorBoundary label="Brainstorming"><BrainstormingScreen /></ErrorBoundary>} />
         <Route path="/theses" element={<Navigate to="/" replace />} />
         <Route path="/thesis/:id" element={<ErrorBoundary label="Thesis"><ThesisScreen /></ErrorBoundary>} />
+        <Route path="/stock/:ticker" element={<ErrorBoundary label="Stock Detail"><StockDetailScreen /></ErrorBoundary>} />
+        <Route path="/fund/:ticker" element={<ErrorBoundary label="Fund Detail"><FundDetailScreen /></ErrorBoundary>} />
         <Route path="/memo/:id" element={<ErrorBoundary label="Memo"><UnderwritingMemoScreen /></ErrorBoundary>} />
         <Route path="/compare" element={<ErrorBoundary label="Comparison"><ComparisonScreen /></ErrorBoundary>} />
         <Route path="/decision" element={<ErrorBoundary label="Decision"><DecisionScreen /></ErrorBoundary>} />

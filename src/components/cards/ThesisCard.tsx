@@ -12,6 +12,7 @@ const STAGE_ACCENT: Record<LifecycleStage, string> = {
   Developing:   'linear-gradient(to bottom, #683890, #502878)',
   Actionable:   'linear-gradient(to bottom, #A05818, #804010)',
   Live:         'linear-gradient(to bottom, #3A8058, #2A6040)',
+  Killed:       '#9b2c1a',
   PlayedOut:    '#A8A098',
   Broken:       '#A83030',
   Archived:     '#C8C0B4',

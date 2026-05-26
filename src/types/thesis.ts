@@ -21,9 +21,11 @@ export type LifecycleStage =
   | 'Developing'
   | 'Actionable'
   | 'Live'
+  | 'Killed'
+  | 'Archived'
+  // Legacy — kept for migration compat, treated as terminal
   | 'PlayedOut'
   | 'Broken'
-  | 'Archived'
 
 export type MispricedVariable =
   | 'GrowthRate'
@@ -133,6 +135,10 @@ export interface Thesis {
   convictionDrivers?: import('./conviction').ConvictionDriver[]
   convictionInitStatus?: ConvictionInitStatus
   triggerReadinessScore?: number
+
+  promotedAt?: Date
+  lastEditedAt?: Date
+  panelLastRun?: Date
 
   lens: ThesisLens
   changeHistory: ChangeEntry[]

@@ -11,7 +11,7 @@ export const Shell: React.FC = () => (
     <Sidebar />
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
       <TopBar />
-      <main style={{ flex: 1, overflowY: 'auto' }}>
+      <main style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
         <Outlet />
       </main>
     </div>
