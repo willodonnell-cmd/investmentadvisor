@@ -118,9 +118,10 @@ const PerformanceChart: React.FC<{ tracks: PaperTrack[] }> = ({ tracks }) => {
           <ReferenceLine y={0} stroke="rgba(0,0,0,0.18)" strokeDasharray="4 2" />
           <Tooltip
             contentStyle={{ background: 'rgba(248,244,238,0.97)', border: '1px solid rgba(216,208,196,0.8)', borderRadius: 8, fontSize: 11 }}
-            formatter={(v: number, name: string) => {
-              const track = activeTracks.find(t => t.thesisId === name)
-              return [`${v > 0 ? '+' : ''}${v.toFixed(2)}%`, track?.thesisName ?? name]
+            formatter={(v: unknown, name: unknown) => {
+              const num = v as number
+              const track = activeTracks.find(t => t.thesisId === (name as string))
+              return [`${num > 0 ? '+' : ''}${num.toFixed(2)}%`, track?.thesisName ?? (name as string)]
             }}
           />
           {activeTracks.map((track, i) => (

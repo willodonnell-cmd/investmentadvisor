@@ -30,9 +30,9 @@ const STAGE_CONFIG = {
 function regimeVerdict(regime: ReturnType<typeof useMacroStore.getState>['regime']): string {
   const parts: string[] = []
   if (regime.creditCycle === 'LateCycle') parts.push('Late-cycle')
-  else if (regime.creditCycle === 'EarlyCycle') parts.push('Early-cycle')
+  else if (regime.creditCycle === 'Recovery') parts.push('Recovery')
   if (regime.liquidity === 'Tight') parts.push('tight liquidity')
-  else if (regime.liquidity === 'Ample') parts.push('ample liquidity')
+  else if (regime.liquidity === 'Abundant') parts.push('ample liquidity')
   else if (regime.realRates === 'High') parts.push('high real rates')
   if (regime.policy === 'Restrictive') parts.push('restrictive policy')
   return parts.join(' · ') || 'Neutral regime'

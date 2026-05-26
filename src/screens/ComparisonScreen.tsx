@@ -317,7 +317,7 @@ const SlotCard: React.FC<{
         fontFamily: 'GeistMono, monospace', fontSize: 13, fontWeight: 700, color: tk.ink,
         letterSpacing: '0.04em', flexShrink: 0,
       }}>
-        {thesis.companies?.[0]?.ticker ?? '—'}
+        {thesis.ticker ?? '—'}
       </span>
 
       <span style={{
@@ -423,9 +423,7 @@ const ThesisPicker: React.FC<{
 const StatCard: React.FC<{ thesis: Thesis }> = ({ thesis }) => {
   const conviction = thesis.thesisQualityScore != null ? `${thesis.thesisQualityScore * 10}/100` : '—'
   const horizon = formatHorizon(thesis.timeHorizon)
-  const expReturn = thesis.scenarios?.[0]?.returnRange
-    ? `+${thesis.scenarios[0].returnRange[1]}%`
-    : '—'
+  const expReturn = '—'
 
   const metrics = [
     { k: 'Conviction', v: conviction, pos: (thesis.thesisQualityScore ?? 0) >= 7 },
@@ -486,7 +484,7 @@ const ComparisonTable: React.FC<{ theses: [Thesis, Thesis] }> = ({ theses }) => 
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 14, fontWeight: 700, color: tk.ink, letterSpacing: '0.04em' }}>
-                {t.companies?.[0]?.ticker ?? '—'}
+                {t.ticker ?? '—'}
               </span>
               <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 10, color: tk.muted2, letterSpacing: '0.04em' }}>
                 #{String(i + 1).padStart(3, '0')}

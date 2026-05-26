@@ -369,7 +369,7 @@ export const BrainstormingScreen: React.FC = () => {
                 {scenariosForThesis.map((sc) => {
                   const color = sc.type === 'ThesisConfirmed' ? '#2d6a4f' : sc.type === 'ContestedPath' ? '#c4892a' : '#9b2c1a'
                   const label = sc.type === 'ThesisConfirmed' ? 'Bull' : sc.type === 'ContestedPath' ? 'Base' : 'Bear'
-                  const retStr = sc.returnRange ? `+${sc.returnRange[1]}%` : '—'
+                  const retStr = sc.returnRangeMax != null ? `+${sc.returnRangeMax}%` : '—'
                   return <ScenarioCard key={sc.type} name={label} prob={Math.round(sc.probability * 100)} ret={retStr} narrative={sc.coreNarrative} color={color} />
                 })}
               </div>
@@ -430,10 +430,10 @@ export const BrainstormingScreen: React.FC = () => {
             <div style={{ background: '#fbf8f1', border: '1px solid rgba(0,0,0,0.08)', borderRadius: 12, padding: '18px 22px', marginBottom: 24 }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Panel Synthesis</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                {synthesis.panelSummary && (
+                {synthesis.panelSynthesis?.strongestArgumentFor && (
                   <div style={{ gridColumn: 'span 2' }}>
-                    <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#8b8980' }}>Summary</span>
-                    <p style={{ fontSize: 12.5, color: '#3a3a42', marginTop: 4, lineHeight: 1.55 }}>{synthesis.panelSummary}</p>
+                    <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#8b8980' }}>Strongest argument for</span>
+                    <p style={{ fontSize: 12.5, color: '#3a3a42', marginTop: 4, lineHeight: 1.55 }}>{synthesis.panelSynthesis.strongestArgumentFor}</p>
                   </div>
                 )}
               </div>

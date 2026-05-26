@@ -492,9 +492,7 @@ export const HuntScreen: React.FC = () => {
 
   const { regime: volRegime, fetch: fetchVol } = useVolatilityStore()
   useEffect(() => { fetchVol() }, [])
-  const volElevated = volRegime
-    ? (['Elevated', 'Spike', 'Crash'] as const).includes(volRegime.regime)
-    : false
+  const volElevated = volRegime ? volRegime.regime !== 'Calm' : false
 
   const [toast, setToast] = useState<DossierToast | null>(null)
   const [filterAction, setFilterAction] = useState<FilterAction>('all')
@@ -672,13 +670,12 @@ export const HuntScreen: React.FC = () => {
                   key={f}
                   onClick={() => setFilterAction(f)}
                   style={{
-                    padding: '6px 12px', borderRadius: 99, border: 'none', cursor: 'pointer',
+                    padding: '6px 12px', borderRadius: 99, border: `1px solid ${active ? 'transparent' : tk.hairline}`, cursor: 'pointer',
                     fontSize: 11, fontWeight: active ? 700 : 500,
                     background: active ? tk.sun2 : tk.surface,
                     color: active ? '#fff' : tk.muted,
-                    border: `1px solid ${active ? 'transparent' : tk.hairline}`,
                     transition: 'all 120ms',
-                  } as React.CSSProperties}
+                  }}
                 >
                   {labels[f]}
                 </button>

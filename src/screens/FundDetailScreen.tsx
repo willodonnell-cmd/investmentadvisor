@@ -77,14 +77,14 @@ const BulletList: React.FC<{ items: string[]; dotColor?: string }> = ({ items, d
   </ul>
 )
 
-const MetaCell: React.FC<{ label: string; value: string; mono?: boolean; last?: boolean }> = ({ label, value, mono, last }) => (
+const MetaCell: React.FC<{ label: string; value: string; mono?: boolean; last?: boolean; children?: React.ReactNode }> = ({ label, value, mono, last, children }) => (
   <div style={{ padding: '8px 12px', borderRight: last ? 'none' : '1px solid rgba(216,208,196,0.6)' }}>
     <p style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: tk.textMuted, marginBottom: 3 }}>
       {label}
     </p>
-    <p style={{ fontSize: 12, fontWeight: 600, color: tk.text, lineHeight: 1.2, fontFamily: mono ? 'GeistMono, monospace' : 'inherit' }}>
-      {value || '—'}
-    </p>
+    <div style={{ fontSize: 12, fontWeight: 600, color: tk.text, lineHeight: 1.2, fontFamily: mono ? 'GeistMono, monospace' : 'inherit' }}>
+      {children ?? value ?? '—'}
+    </div>
   </div>
 )
 
