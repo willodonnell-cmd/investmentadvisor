@@ -1,7 +1,9 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useHuntStore } from '../store/huntStore'
 import { useThesisStore } from '../store/thesisStore'
+import { useVolatilityStore } from '../store/volatilityStore'
+import type { VolRegime, TermStructure } from '../api/volatilityOverlay'
 import { AskAIDock } from '../components/ui/AskAIDock'
 import { EmptyState } from '../components/ui/EmptyState'
 import { useTopBar } from '../store/topbarStore'
@@ -87,6 +89,95 @@ const MetaCell: React.FC<{ label: string; value: string; mono?: boolean; last?: 
     </div>
   </div>
 )
+
+// ── Vol helpers ───────────────────────────────────────────────────────────────
+
+function volRegimeColor(regime: VolRegime) {
+  return {
+    Calm:     { text: '#2d6a4f', bg: 'rgba(45,106,79,0.10)',  border: 'rgba(45,106,79,0.25)' },
+    Elevated: { text: '#7a4a0c', bg: 'rgba(196,137,42,0.12)', border: 'rgba(196,137,42,0.30)' },
+    Spike:    { text: '#9a3a10', bg: 'rgba(224,81,26,0.12)',  border: 'rgba(224,81,26,0.30)' },
+    Crash:    { text: '#7a1a1a', bg: 'rgba(155,44,26,0.12)',  border: 'rgba(155,44,26,0.30)' },
+  }[regime]
+}
+
+function volEntryGuidance(regime: VolRegime, ts: TermStructure) {
+  if (regime === 'Calm') return {
+    sizing: 'Full target size viable — no vol premium penalty on entry.',
+    timing: 'Systematic entry; no urgency discount or fear premium to exploit.',
+    thesis: 'Low uncertainty priced in. Thesis must stand on fundamentals. Options are cheap if you want a defined-risk structure.',
+  }
+  if (regime === 'Elevated' && ts !== 'backwardation') return {
+    sizing: 'Start at 60–70% of target; reserve remainder for pullbacks.',
+    timing: 'Contango term structure signals no imminent escalation — allow 1–2 weeks to find entry.',
+    thesis: 'Elevated uncertainty but no near-term panic. Scale in over time; selling put spreads at entry targets exploits elevated IV.',
+  }
+  if (regime === 'Elevated') return {
+    sizing: 'Start at 40–50%; backwardation = acute gap risk on entries.',
+    timing: 'Wait for term structure to normalize to contango before adding full size.',
+    thesis: 'Market hedging near-dated fear. If thesis is intact, creates asymmetric entry. Define risk explicitly — smaller initial size, clear invalidation level.',
+  }
+  if (regime === 'Spike') return {
+    sizing: '30–50% initial; leave significant dry powder for follow-on.',
+    timing: 'Best entries historically 3–7 days after VIX peaks — patience creates asymmetry.',
+    thesis: 'Stress may be creating forced-seller dislocations. Confirm transmission path is intact before scaling. This vol regime stress-tests all core assumptions.',
+  }
+  return {
+    sizing: '20–30% only; disciplined tranches, no chasing.',
+    timing: 'Capitulation vol can mark generational entries — but requires proof of floor before scaling.',
+    thesis: 'Crash vol tests every assumption. Only add when macro catalyst is confirmed and transmission path survives the stress scenario.',
+  }
+}
+
+const VolIntelSection: React.FC = () => {
+  const { regime, isLoading, fetch } = useVolatilityStore()
+  useEffect(() => { if (!regime && !isLoading) fetch() }, [])
+  if (!regime) return null
+
+  const c = volRegimeColor(regime.regime)
+  const guidance = volEntryGuidance(regime.regime, regime.termStructure)
+
+  return (
+    <section style={{
+      borderRadius: 10, padding: '14px 16px',
+      background: tk.surface, border: `1px solid ${tk.border}`,
+      boxShadow: '0 1px 4px rgba(60,40,10,0.04)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <p style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: tk.textMuted, margin: 0, flex: 1 }}>
+          Vol Intelligence
+        </p>
+        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', padding: '2px 8px', borderRadius: 99, color: c.text, background: c.bg, border: `1px solid ${c.border}` }}>
+          {regime.regime}
+        </span>
+        <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 11, fontWeight: 700, color: tk.text }}>
+          VIX {regime.level.toFixed(1)}
+        </span>
+        {regime.termStructure !== 'unknown' && (
+          <span style={{ fontSize: 10, color: tk.textMuted, fontFamily: 'GeistMono, monospace' }}>
+            {regime.termStructure}
+          </span>
+        )}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {([
+          ['Entry Sizing', guidance.sizing],
+          ['Timing', guidance.timing],
+          ['Trade Implication', guidance.thesis],
+        ] as [string, string][]).map(([label, text]) => (
+          <div key={label} style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 12 }}>
+            <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: tk.textMuted, paddingTop: 2 }}>
+              {label}
+            </span>
+            <span style={{ fontSize: 12, color: tk.textMid, lineHeight: 1.55 }}>
+              {text}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
 
 export const FundDetailScreen: React.FC = () => {
   const { ticker } = useParams<{ ticker: string }>()
@@ -204,6 +295,8 @@ export const FundDetailScreen: React.FC = () => {
             </div>
           </div>
         </div>
+
+        <VolIntelSection />
 
         {/* ── Regime Fit & Transmission ── */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>

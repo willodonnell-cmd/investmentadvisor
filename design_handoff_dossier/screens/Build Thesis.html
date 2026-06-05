@@ -1,0 +1,1931 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1400" />
+<title>Dossier — Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<style>
+/* ─── Tokens ─────────────────────────────────────────────────────────── */
+:root{
+  --bg:#ede9e0;
+  --surface:#f5f2eb;
+  --surface-2:#e8e4d8;
+  --card:#fbf8f1;
+  --ink:#1a1a1f;
+  --ink-2:#3a3a42;
+  --muted:#6b6960;
+  --muted-2:#8b8980;
+  --hairline:rgba(0,0,0,.08);
+  --hairline-2:rgba(0,0,0,.14);
+
+  --amber:#c4892a;
+  --amber-2:#a06f1d;
+  --amber-soft:rgba(196,137,42,.12);
+
+  /* sunburst stops — watch dial */
+  --sun-1:#ffd87a;
+  --sun-2:#f4922c;
+  --sun-3:#e0511a;
+  --sun-4:#a01a0c;
+
+  --purple:#4a1d6b;
+  --rust:#92400e;
+  --green:#2d6a4f;
+
+  --pos:#2d6a4f;
+  --neg:#9b2c1a;
+
+  --r-card:12px;
+  --r-btn:8px;
+  --r-pill:4px;
+
+  --sans:"Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  --mono:"Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased;
+  font-feature-settings:"ss01","ss02","cv11"}
+body{overflow-x:auto}
+button{font-family:inherit;color:inherit}
+
+/* ─── Sunburst (brand + CTA) ─────────────────────────────────────────── */
+.sunburst{
+  position:relative;border-radius:50%;overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 32%, rgba(255,250,235,.7) 0%, rgba(255,250,235,0) 38%),
+    repeating-conic-gradient(
+      from 0deg,
+      rgba(255,255,255,.12) 0 1.2deg,
+      rgba(0,0,0,.10) 1.2deg 2.4deg
+    ),
+    radial-gradient(circle at 50% 50%, var(--sun-1) 0%, var(--sun-2) 30%, var(--sun-3) 70%, var(--sun-4) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.25),
+    inset 0 -2px 4px rgba(0,0,0,.18),
+    0 0 0 2px rgba(0,0,0,.4),
+    0 1px 2px rgba(0,0,0,.4);
+}
+.sunburst::after{
+  content:"";position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(ellipse at 50% 30%, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 35%);
+  pointer-events:none;
+}
+
+/* ─── Layout shell ───────────────────────────────────────────────────── */
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh;min-width:1180px;
+  zoom:1.06}
+
+/* ─── Sidebar ────────────────────────────────────────────────────────── */
+.side{background:var(--ink);color:#cfcdc4;display:flex;flex-direction:column;
+  border-right:1px solid #000;font-size:12.5px}
+.side .brand{padding:18px 18px 16px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid rgba(255,255,255,.06)}
+.side .brand .mark{width:22px;height:22px;flex:none}
+.side .brand b{font-weight:600;letter-spacing:.16em;font-size:11.5px;color:#f3efe5}
+.side .brand .v{margin-left:auto;font-family:var(--mono);font-size:10px;color:#5a574e}
+
+.side nav{padding:14px 10px;flex:1;display:flex;flex-direction:column;gap:18px}
+.side .gp{display:flex;flex-direction:column;gap:1px}
+
+/* Group header — same font/size as a nav item, distinguished by weight + count chip */
+.side .gp .h{font-family:inherit;font-size:12.5px;letter-spacing:.005em;text-transform:none;
+  font-weight:600;color:#f3efe5;padding:8px 10px;
+  display:flex;justify-content:space-between;align-items:center;
+  position:relative;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:6px}
+.side .gp .h > span:first-child{display:inline-flex;align-items:center;gap:10px;padding-left:0}
+.side .gp .h::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:radial-gradient(circle,var(--sun-1),var(--sun-3) 80%);
+  box-shadow:0 0 4px var(--sun-2);position:absolute;left:10px;top:50%;transform:translateY(-50%)}
+.side .gp .h{padding-left:26px}
+.side .gp .h .ct{font-family:var(--mono);color:#a8a59c;font-weight:500;letter-spacing:.04em;
+  font-size:10.5px;padding:1px 6px;background:rgba(255,255,255,.05);border-radius:99px;
+  text-transform:none}
+
+.side a{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 22px;border-radius:6px;
+  color:#a8a59c;text-decoration:none;font-size:12.5px;cursor:default;font-weight:400;
+  position:relative;transition:background .12s ease, color .12s ease}
+.side a:hover{background:rgba(255,255,255,.04);color:#e6e3d8}
+.side a.on{
+  background:
+    linear-gradient(90deg, rgba(244,146,44,.10) 0%, rgba(244,146,44,0) 80%),
+    rgba(255,255,255,.05);
+  color:#fff5e2;font-weight:600;letter-spacing:.005em;
+  box-shadow:inset 3px 0 0 var(--sun-2)}
+.side a.on .ct{color:#ffd9a8}
+.side a .dot{width:6px;height:6px;border-radius:50%;background:transparent;flex:none;
+  position:absolute;left:10px;top:50%;transform:translateY(-50%)}
+.side a.on .dot{background:radial-gradient(circle, var(--sun-1), var(--sun-3) 80%);
+  width:6px;height:6px;box-shadow:0 0 4px var(--sun-2)}
+.side a .ct{margin-left:auto;font-family:var(--mono);font-size:11px;color:#76736a;font-weight:400}
+
+.side a.stg{font-size:11.9px;font-weight:400;padding-left:22px}
+.side a.stg .sq{width:6px;height:6px;border-radius:50%;flex:none;
+  position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+.side a.dv .sq{background:#9468b8}
+.side a.ac .sq{background:#c08a5c}
+.side a.lv .sq{background:#5fa987}
+
+.side .acct{margin-top:auto;padding:14px 14px;border-top:1px solid rgba(255,255,255,.06);
+  display:flex;align-items:center;gap:10px}
+.side .acct .av{width:30px;height:30px;border-radius:50%;
+  background:linear-gradient(135deg,#3a3a42,#1a1a1f);
+  display:grid;place-items:center;font-size:11px;font-weight:600;color:#dad7cf;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.side .acct .who{font-size:12px;color:#e6e3d8;line-height:1.2;font-weight:500}
+.side .acct .who small{display:block;font-size:10px;color:#76736a;margin-top:2px;font-weight:400}
+
+/* ─── AI section ─────────────────────────────────────────────────────────────── */
+.ai-sec{padding:12px 14px 14px;border-top:1px solid rgba(255,255,255,.06);
+  display:flex;flex-direction:column;gap:10px;background:rgba(0,0,0,.18)}
+.ai-sec .h{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;
+  color:#857f70;display:flex;align-items:center;gap:7px;padding:0 4px}
+.ai-sec .h::before{content:"";display:inline-block;width:4px;height:4px;border-radius:50%;
+  background:radial-gradient(circle,var(--sun-1),var(--sun-3) 80%);
+  box-shadow:0 0 3px var(--sun-2)}
+.ai-field{display:flex;flex-direction:column;gap:5px;position:relative}
+.ai-field > label{font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  font-weight:600;color:#605d54;padding:0 4px}
+
+.ai-picker{display:flex;align-items:center;gap:10px;width:100%;
+  padding:8px 10px;border-radius:7px;cursor:default;
+  background:linear-gradient(180deg, #25232b 0%, #1a1820 100%);
+  border:1px solid rgba(255,255,255,.07);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 1px 2px rgba(0,0,0,.4);
+  font-family:inherit;color:#dad7cf;text-align:left;transition:border-color .15s ease}
+.ai-picker:hover{border-color:rgba(244,146,44,.4)}
+.ai-picker.open{border-color:rgba(244,146,44,.55)}
+.ai-picker .ai-mark{width:7px;height:7px;border-radius:50%;flex:none;
+  background:radial-gradient(circle, var(--sun-1), var(--sun-3) 80%);
+  box-shadow:0 0 4px var(--sun-2)}
+.ai-picker .ai-body{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;
+  line-height:1.15}
+.ai-picker .ai-tier{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--sun-2);font-weight:600}
+.ai-picker .ai-name{font-size:12px;color:#f3efe5;font-weight:600;letter-spacing:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-picker .ai-chev{color:#605d54;font-size:10px;margin-left:auto;flex:none;
+  transition:transform .18s ease}
+.ai-picker.open .ai-chev{transform:rotate(180deg);color:var(--sun-2)}
+
+.ai-menu{display:none;flex-direction:column;gap:1px;
+  margin-top:4px;padding:4px;border-radius:8px;
+  background:#0f0e13;border:1px solid rgba(255,255,255,.08);
+  box-shadow:0 8px 24px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.04)}
+.ai-picker.open + .ai-menu{display:flex}
+.ai-opt{display:flex;align-items:center;gap:9px;width:100%;
+  padding:7px 8px;border:0;background:transparent;border-radius:5px;
+  font-family:inherit;color:#a8a59c;text-align:left;cursor:default}
+.ai-opt:hover{background:rgba(255,255,255,.04);color:#e6e3d8}
+.ai-opt .ai-mark{width:6px;height:6px;border-radius:50%;
+  background:#3a3a42;flex:none}
+.ai-opt.on{background:rgba(244,146,44,.08);color:#f3efe5}
+.ai-opt.on .ai-mark{background:radial-gradient(circle, var(--sun-1), var(--sun-3) 80%);
+  box-shadow:0 0 4px var(--sun-2)}
+.ai-opt .ai-opt-body{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;
+  line-height:1.2}
+.ai-opt-name{font-size:12px;font-weight:600;letter-spacing:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-opt-meta{font-size:10px;color:#605d54;letter-spacing:.01em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-opt.on .ai-opt-meta{color:#7e7969}
+.ai-opt-check{color:var(--sun-2);font-size:11px;opacity:0}
+.ai-opt.on .ai-opt-check{opacity:1}
+
+/* Reasoning segmented control */
+.ai-segments{display:grid;grid-template-columns:repeat(3,1fr);
+  background:#0f0e13;border:1px solid rgba(255,255,255,.07);
+  border-radius:7px;padding:2px;box-shadow:inset 0 1px 2px rgba(0,0,0,.3)}
+.ai-segments button{appearance:none;background:transparent;border:0;
+  font-family:inherit;color:#76736a;font-size:11px;font-weight:500;
+  padding:5px 0;border-radius:5px;cursor:default;letter-spacing:.01em}
+.ai-segments button:hover{color:#dad7cf}
+.ai-segments button.on{background:linear-gradient(180deg,#2c2a35,#1c1b22);
+  color:#f3efe5;font-weight:600;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.07), 0 1px 0 rgba(0,0,0,.3)}
+
+/* ─── Main column ────────────────────────────────────────────────────── */
+.main{display:flex;flex-direction:column;min-width:0}
+
+/* Topbar */
+.topbar{display:grid;grid-template-columns:1fr auto;align-items:center;
+  padding:18px 24px;border-bottom:1px solid var(--hairline);background:var(--bg)}
+.topbar .left{display:flex;align-items:baseline;gap:14px}
+.topbar h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em;line-height:1}
+.topbar .crumb{color:var(--muted);font-size:12px;font-weight:400}
+.topbar .crumb b{color:var(--ink-2);font-weight:500}
+
+/* Prologis overlay toggle */
+.overlay-toggle{display:inline-flex;align-items:center;gap:10px;
+  padding:5px 6px 5px 14px;border:1px solid var(--hairline-2);border-radius:99px;
+  background:var(--surface);font-size:12px;color:var(--ink-2);cursor:default;
+  transition:background .15s ease, border-color .15s ease, color .15s ease}
+.overlay-toggle:hover{border-color:var(--ink-2);background:var(--surface-2)}
+.overlay-toggle .ot-lbl{font-weight:500;letter-spacing:.005em}
+.overlay-toggle .ot-meta{font-family:var(--mono);font-size:10.5px;color:var(--muted);
+  padding-right:2px}
+.overlay-toggle .ot-sw{width:30px;height:18px;border-radius:99px;background:#d4cfc2;
+  position:relative;transition:background .18s ease;flex:none}
+.overlay-toggle .ot-sw i{position:absolute;top:2px;left:2px;width:14px;height:14px;
+  border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.22);
+  transition:left .18s ease}
+.overlay-toggle.on{background:rgba(244,146,44,.10);border-color:rgba(244,146,44,.45);color:var(--ink)}
+.overlay-toggle.on .ot-sw{
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255,245,220,.55) 0%, rgba(255,245,220,0) 60%),
+    linear-gradient(180deg, var(--sun-2), var(--sun-3))}
+.overlay-toggle.on .ot-sw i{left:14px}
+
+.topbar .tabs{display:flex;background:var(--surface);border:1px solid var(--hairline);
+  border-radius:var(--r-btn);padding:3px;gap:2px}
+.topbar .tabs button{appearance:none;border:0;background:transparent;
+  padding:7px 14px;font-size:12px;color:var(--muted);border-radius:6px;cursor:default;font-weight:500}
+.topbar .tabs button.on{
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255,245,220,.18) 0%, rgba(255,245,220,0) 70%),
+    repeating-conic-gradient(from 0deg, rgba(255,255,255,.04) 0 1deg, rgba(0,0,0,.06) 1deg 2deg),
+    linear-gradient(180deg, #2a2024 0%, #1a1316 100%);
+  color:#fff5e2;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10), inset 0 -1px 0 rgba(0,0,0,.4);
+  border:1px solid rgba(0,0,0,.5)}
+
+.topbar .right{display:flex;align-items:center;gap:14px;justify-self:end}
+.stamp{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;line-height:1.4}
+.stamp em{color:var(--ink-2);font-style:normal}
+
+/* Sunburst CTA */
+.cta{appearance:none;border:1px solid rgba(0,0,0,.35);
+  color:#fff8ea;font-size:12.5px;font-weight:600;letter-spacing:.005em;
+  padding:9px 16px 9px 9px;border-radius:var(--r-btn);cursor:default;
+  display:inline-flex;align-items:center;gap:10px;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255,245,220,.45) 0%, rgba(255,245,220,0) 60%),
+    repeating-conic-gradient(from 0deg, rgba(255,255,255,.07) 0 0.8deg, rgba(0,0,0,.08) 0.8deg 1.6deg),
+    radial-gradient(circle at 30% 50%, var(--sun-2) 0%, var(--sun-3) 70%, var(--sun-4) 110%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25),
+              inset 0 -1px 1px rgba(0,0,0,.18),
+              0 1px 2px rgba(0,0,0,.18)}
+.cta .ico{width:18px;height:18px;flex:none}
+.cta .kbd{font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:3px;
+  background:rgba(0,0,0,.22);color:#fff8ea;opacity:.85;margin-left:2px}
+
+/* ─── Environment band ───────────────────────────────────────────────── */
+/* Section eyebrow above macro band */
+.sec-eyebrow{margin:22px 24px 0;display:flex;align-items:baseline;gap:10px;
+  font-family:inherit;font-size:11px;font-weight:600;letter-spacing:-.005em;
+  text-transform:none;color:var(--ink);
+  padding-bottom:8px}
+.sec-eyebrow .sub{font-family:var(--mono);font-size:10px;color:var(--muted);font-weight:400;
+  letter-spacing:.04em;text-transform:none}
+
+.env{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-card);
+  margin:10px 24px 0;display:flex;flex-direction:column;overflow:hidden}
+.env .row{display:flex;align-items:center;gap:0;min-height:34px}
+.env .verdict{display:flex;align-items:center;gap:8px;padding:0 14px;
+  border-right:1px solid var(--hairline);align-self:stretch;flex:none}
+.env .verdict .pulse{width:6px;height:6px;border-radius:50%;background:var(--sun-3);
+  box-shadow:0 0 0 3px rgba(224,81,26,.14)}
+.env .verdict .vtxt{font-size:11.5px;font-weight:600;color:var(--ink);letter-spacing:.005em}
+.env .verdict .stance{font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-left:4px;
+  padding-left:8px;border-left:1px solid var(--hairline)}
+.env .indicators{display:flex;flex:1;align-items:center}
+.env .ind{padding:4px 10px;display:flex;flex-direction:column;gap:0;border-right:1px solid var(--hairline);
+  flex:1;min-width:0;align-self:stretch;justify-content:center}
+.env .ind:last-child{border-right:0}
+.env .ind .k{font-size:8.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted-2);font-weight:600;line-height:1.4}
+.env .ind .v{font-size:11px;color:var(--ink);font-weight:500;display:flex;align-items:center;gap:5px;line-height:1.4;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.env .ind .v .d{font-family:var(--mono);font-size:9.5px;color:var(--muted)}
+.env .ind .v .d.pos{color:var(--pos)}
+.env .ind .v .d.neg{color:var(--neg)}
+.env .ind .v .sig{width:4px;height:4px;border-radius:50%;background:var(--muted-2);flex:none}
+.env .ind.warn .v .sig{background:var(--rust)}
+.env .ind.hot .v .sig{background:var(--sun-3);box-shadow:0 0 0 2px rgba(224,81,26,.16)}
+.env .ind.cool .v .sig{background:#5a8aa8}
+
+.env .toggle{padding:0 12px;border-left:1px solid var(--hairline);
+  font-family:var(--mono);font-size:9.5px;color:var(--muted);
+  display:flex;align-items:center;gap:6px;align-self:stretch;cursor:default;background:transparent;border-top:0;border-right:0;border-bottom:0}
+.env .toggle:hover{color:var(--ink-2);background:var(--surface-2)}
+.env .toggle .chev{display:inline-block;transition:transform .2s ease}
+.env.open .toggle .chev{transform:rotate(180deg)}
+
+/* Expanded detail */
+.env .detail{display:none;border-top:1px solid var(--hairline);background:var(--surface-2);
+  padding:14px 18px;font-size:11.5px;color:var(--ink-2);line-height:1.5}
+.env.open .detail{display:block}
+.env .detail .lead{color:var(--muted);font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;
+  text-transform:uppercase;margin-bottom:6px}
+.env .detail .ipl{display:flex;gap:18px;flex-wrap:wrap}
+.env .detail .ipl span{display:inline-flex;align-items:center;gap:6px}
+.env .detail .ipl b{color:var(--ink);font-weight:600}
+.env .detail .src{margin-top:8px;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+
+/* Summary line (one row, no big numbers) */
+.summary{margin:24px 24px 0;display:flex;align-items:center;gap:0;
+  border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);padding:12px 4px}
+.summary .item{padding:0 14px;border-right:1px solid var(--hairline);display:flex;align-items:baseline;gap:8px}
+.summary .item:last-child{border-right:0}
+.summary .k{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted-2);font-weight:600}
+.summary .v{font-family:var(--mono);font-size:14.5px;color:var(--ink);font-weight:600;letter-spacing:-.005em;font-variant-numeric:tabular-nums}
+.summary .v.pos{color:var(--pos)}
+.summary .v small{color:var(--muted);font-weight:400;margin-left:2px;font-family:var(--mono)}
+.summary .grow{flex:1;border-right:0}
+.summary .next{margin-left:auto;display:flex;align-items:baseline;gap:8px;padding:0 0 0 18px;border-left:1px solid var(--hairline);border-right:0}
+.summary .next .v b{color:var(--sun-3);font-weight:600}
+
+/* ─── Pipeline (hero) ────────────────────────────────────────────────── */
+.pipe-wrap{padding:32px 24px 28px}
+
+/* ─── Status footer ──────────────────────────────────────────────────── */
+.statusbar{display:flex;align-items:center;gap:0;
+  padding:0 24px;height:34px;
+  border-top:1px solid var(--hairline);background:var(--surface);
+  font-family:var(--mono);font-size:11px;color:var(--muted);
+  margin-top:auto}
+.statusbar .sb-item{display:flex;align-items:baseline;gap:8px;
+  padding:0 14px;border-right:1px solid var(--hairline);align-self:stretch;
+  align-items:center}
+.statusbar .sb-item:first-child{padding-left:4px}
+.statusbar .sb-item.right{border-right:0;border-left:1px solid var(--hairline)}
+.statusbar .sb-item.right + .sb-item.right{border-left:0}
+.statusbar .sb-grow{flex:1}
+.statusbar .k{font-family:var(--sans);font-size:9.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--muted-2);font-weight:500}
+.statusbar .v{color:var(--ink-2);font-weight:500;font-variant-numeric:tabular-nums}
+.statusbar .v em{color:var(--muted);font-style:normal}
+.statusbar .v em.hl{color:var(--sun-3);font-weight:600}
+.statusbar .v.hint{color:var(--muted);font-weight:400}
+
+/* ─── Build Thesis specific ──────────────────────────────────────────── */
+.bt-topbar-actions{display:flex;align-items:center;gap:10px}
+.bt-drafts-link{appearance:none;font-family:inherit;font-size:12px;font-weight:500;color:var(--ink-2);
+  background:transparent;border:1px solid var(--hairline-2);padding:7px 12px;border-radius:6px;cursor:default;
+  display:inline-flex;align-items:center;gap:7px}
+.bt-drafts-link:hover{background:var(--surface)}
+.bt-drafts-link .ct{font-family:var(--mono);font-size:10.5px;
+  background:rgba(196,137,42,.14);color:var(--sun-3);font-weight:600;
+  padding:1px 6px;border-radius:99px;letter-spacing:0;line-height:1.3}
+.bt-save{appearance:none;border:1px solid rgba(0,0,0,.4);color:#fff5e2;
+  font-family:inherit;font-size:12px;font-weight:600;padding:7px 14px;border-radius:6px;cursor:default;
+  background:linear-gradient(180deg, #2a2024 0%, #1a1316 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10), inset 0 -1px 0 rgba(0,0,0,.4)}
+.bt-save:hover{background:linear-gradient(180deg,#332830,#1f1820)}
+.bt-save.saved{background:linear-gradient(180deg,#3a4f3a,#243228);border-color:#1a3024;color:#d8e8d8}
+
+/* Phase progress */
+.bt-phases{margin:18px 24px 0;display:flex;align-items:center;gap:0;
+  padding:6px;background:var(--surface);border:1px solid var(--hairline);border-radius:999px;
+  width:fit-content}
+.bt-phase{appearance:none;border:0;background:transparent;font-family:inherit;
+  display:inline-flex;align-items:center;gap:8px;padding:6px 14px 6px 8px;border-radius:99px;
+  font-size:12.5px;font-weight:500;color:var(--muted);cursor:default;letter-spacing:.005em;
+  transition:background .15s ease, color .15s ease}
+.bt-phase:hover{color:var(--ink-2)}
+.bt-phase .bt-num{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;
+  font-family:var(--mono);font-size:10px;font-weight:600;
+  background:var(--surface-2);color:var(--muted);border:1px solid var(--hairline-2)}
+.bt-phase.on{background:var(--ink);color:#fff5e2}
+.bt-phase.on .bt-num{
+  background:radial-gradient(circle at 30% 30%, rgba(255,245,220,.55) 0%, rgba(255,245,220,0) 60%),
+    linear-gradient(180deg, var(--sun-2), var(--sun-3));
+  color:#fff8ea;border-color:rgba(0,0,0,.3);
+  box-shadow:0 0 0 1px rgba(255,255,255,.08), inset 0 1px 0 rgba(255,255,255,.20)}
+.bt-phase.done{color:var(--ink-2)}
+.bt-phase.done .bt-num{background:rgba(45,106,79,.14);color:var(--pos);border-color:rgba(45,106,79,.30)}
+.bt-trail{display:inline-block;width:18px;height:1px;background:var(--hairline-2)}
+
+/* Stage container */
+.bt-stage{display:none;margin:22px 24px 0;flex-direction:column;gap:18px}
+.bt-stage.on{display:flex}
+.bt-stage-hd h2{margin:0 0 4px;font-size:22px;font-weight:600;letter-spacing:-.015em;line-height:1.2;color:var(--ink)}
+.bt-stage-hd p{margin:0;font-size:13px;color:var(--muted);line-height:1.5;max-width:640px}
+
+/* Conversation */
+.bt-convo{display:none;flex-direction:column;gap:18px;
+  background:var(--surface);border:1px solid var(--hairline);border-radius:12px;
+  padding:22px 22px;max-height:520px;overflow-y:auto}
+.bt-convo.has-msgs{display:flex}
+.bt-msg{display:flex;gap:12px;align-items:flex-start}
+.bt-msg.user{flex-direction:row-reverse}
+.bt-msg .bt-av{width:26px;height:26px;border-radius:50%;flex:none;overflow:hidden;position:relative;
+  background:radial-gradient(circle at 30% 30%, var(--sun-1) 0%, var(--sun-2) 35%, var(--sun-3) 75%, var(--sun-4) 100%);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.3), 0 1px 1px rgba(0,0,0,.2)}
+.bt-msg .bt-av::after{content:"";position:absolute;inset:0;border-radius:50%;
+  background:repeating-conic-gradient(from 0deg, rgba(0,0,0,.10) 0 1deg, rgba(255,255,255,.06) 1deg 2deg);
+  mix-blend-mode:overlay}
+.bt-msg.user .bt-av{background:linear-gradient(135deg,#3a3a42,#1a1a1f);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.bt-msg.user .bt-av::after{content:"JM";display:grid;place-items:center;color:#dad7cf;font-size:9px;font-weight:600;background:none;font-family:var(--sans)}
+.bt-msg .bt-body{font-size:13.5px;line-height:1.6;color:var(--ink-2);max-width:80%}
+.bt-msg.user .bt-body{background:var(--card);border:1px solid var(--hairline-2);
+  border-radius:10px;padding:11px 14px;color:var(--ink);font-size:13.5px;max-width:75%}
+.bt-msg .bt-body p{margin:0 0 8px}
+.bt-msg .bt-body p:last-child{margin:0}
+.bt-msg .bt-body ol{margin:6px 0 0;padding-left:18px;display:flex;flex-direction:column;gap:8px}
+.bt-msg .bt-body b{color:var(--ink);font-weight:600}
+
+/* Composer */
+.bt-composer{background:var(--card);border:1px solid var(--hairline-2);border-radius:12px;
+  padding:14px 16px 12px;display:flex;flex-direction:column;gap:10px;
+  box-shadow:0 1px 2px rgba(0,0,0,.02), 0 0 0 4px rgba(196,137,42,0);
+  transition:border-color .15s ease, box-shadow .2s ease}
+.bt-composer:focus-within{border-color:var(--sun-3);
+  box-shadow:0 1px 2px rgba(0,0,0,.02), 0 0 0 4px rgba(244,146,44,.10)}
+.bt-composer textarea{appearance:none;border:0;background:transparent;
+  font-family:inherit;font-size:14px;color:var(--ink);resize:none;width:100%;outline:none;
+  line-height:1.5;padding:2px 0;min-height:44px}
+.bt-composer textarea::placeholder{color:var(--muted-2)}
+.bt-composer-foot{display:flex;align-items:center;gap:10px;padding-top:8px;
+  border-top:1px solid var(--hairline)}
+.bt-grow{flex:1}
+.bt-tip{font-family:var(--mono);font-size:10.5px;color:var(--muted);letter-spacing:.005em}
+.bt-cta{appearance:none;border:1px solid rgba(0,0,0,.4);color:#fff8ea;
+  font-family:inherit;font-size:12.5px;font-weight:600;padding:8px 14px;border-radius:7px;cursor:default;
+  display:inline-flex;align-items:center;gap:8px;letter-spacing:.005em;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255,245,220,.45) 0%, rgba(255,245,220,0) 70%),
+    linear-gradient(180deg, var(--sun-2), var(--sun-3));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 1px 2px rgba(0,0,0,.18);
+  transition:opacity .15s ease, transform .12s ease}
+.bt-cta:hover{transform:translateY(-1px)}
+.bt-cta:disabled,.bt-cta[disabled]{opacity:.4;transform:none}
+.bt-cta .arrow{opacity:.9;font-size:13px}
+
+/* Prompts */
+.bt-prompts-wrap{display:flex;flex-direction:column;gap:12px}
+.bt-prompts-hd{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.bt-prompts-hd .bt-lbl{font-size:11px;font-weight:600;letter-spacing:.005em;color:var(--ink)}
+.bt-prompts-hd .bt-meta{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.bt-prompts-hd .bt-meta em{color:var(--sun-3);font-style:normal;font-weight:600}
+.bt-shuffle{appearance:none;border:1px solid var(--hairline-2);background:var(--card);
+  font-family:inherit;font-size:11px;color:var(--ink-2);font-weight:500;letter-spacing:.005em;
+  padding:5px 10px 5px 12px;border-radius:99px;display:inline-flex;align-items:center;gap:7px;cursor:default;
+  transition:border-color .15s ease, color .15s ease, background .15s ease}
+.bt-shuffle:hover{border-color:var(--ink-2);color:var(--ink);background:var(--surface)}
+.bt-shuffle .bt-icon{font-family:var(--mono);font-size:12px;color:var(--sun-3)}
+
+.bt-prompts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.bt-prompt{padding:12px 14px;background:var(--card);border:1px solid var(--hairline);
+  border-radius:10px;display:flex;flex-direction:column;gap:6px;cursor:default;text-align:left;
+  font-family:inherit;
+  transition:border-color .15s, background .15s, transform .15s, box-shadow .15s}
+.bt-prompt:hover{border-color:rgba(244,146,44,.45);background:linear-gradient(180deg, rgba(244,146,44,.04), transparent 60%);
+  transform:translateY(-1px);box-shadow:0 6px 18px -14px rgba(0,0,0,.20)}
+.bt-prompt .bt-tag{font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:700;color:var(--sun-3)}
+.bt-prompt .bt-txt{font-size:13px;color:var(--ink);line-height:1.45;font-weight:500;letter-spacing:-.005em}
+
+/* Drafts modal */
+.bt-modal{display:none;position:fixed;inset:0;z-index:50;align-items:center;justify-content:center;
+  background:rgba(26,26,31,.40);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);padding:24px}
+.bt-modal.open{display:flex}
+.bt-modal-card{width:100%;max-width:560px;background:var(--bg);border:1px solid var(--hairline-2);
+  border-radius:14px;overflow:hidden;box-shadow:0 24px 48px rgba(0,0,0,.25)}
+.bt-modal-hd{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--hairline)}
+.bt-modal-hd h3{margin:0;font-size:16px;font-weight:600;letter-spacing:-.005em}
+.bt-modal-hd .ct{font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface-2);
+  padding:2px 7px;border-radius:99px}
+.bt-modal-hd .close{margin-left:auto;appearance:none;border:0;background:transparent;color:var(--muted);
+  font-size:18px;width:28px;height:28px;border-radius:6px;cursor:default;display:grid;place-items:center}
+.bt-modal-hd .close:hover{background:var(--surface);color:var(--ink)}
+.bt-drafts-list{display:flex;flex-direction:column;gap:1px;background:var(--hairline);max-height:50vh;overflow-y:auto}
+.bt-draft{background:var(--card);padding:14px 20px;display:grid;
+  grid-template-columns:1fr auto;gap:14px;cursor:default;align-items:center}
+.bt-draft:hover{background:var(--surface)}
+.bt-draft .ttl{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.3;margin:0 0 4px}
+.bt-draft .meta{font-family:var(--mono);font-size:10.5px;color:var(--muted);display:flex;gap:10px}
+.bt-draft .meta b{color:var(--ink-2);font-weight:500}
+.bt-draft .phase{font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:700;
+  padding:3px 8px;border-radius:99px}
+.bt-draft .phase.brainstorm{color:var(--sun-3);background:rgba(244,146,44,.10);border:1px solid rgba(244,146,44,.3)}
+.bt-draft .phase.canvas{color:#1f4a58;background:rgba(58,108,123,.10);border:1px solid rgba(58,108,123,.3)}
+.bt-draft .phase.scenarios{color:#4a2d56;background:rgba(98,60,110,.10);border:1px solid rgba(98,60,110,.3)}
+
+/* ─── Canvas (Phase 2) ───────────────────────────────────────────── */
+.bt-canvas-wrap{display:flex;flex-direction:column;gap:14px}
+.bt-canvas{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.bt-cell{background:var(--card);border:1px solid var(--hairline);border-radius:10px;
+  padding:12px 14px;display:flex;flex-direction:column;gap:6px;min-height:130px}
+.bt-cell:hover{border-color:var(--hairline-2)}
+.bt-cell.span2{grid-column:span 2}
+.bt-cell-h{display:flex;align-items:center;gap:8px}
+.bt-cell-n{font-family:var(--mono);font-size:9.5px;color:var(--muted-2);font-weight:600;letter-spacing:.05em}
+.bt-cell-t{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+.bt-cell p{margin:0;font-size:12px;line-height:1.5;color:var(--ink-2)}
+.bt-cell .num-readout{font-family:var(--mono);font-size:14px;color:var(--ink);font-weight:600;letter-spacing:-.005em}
+
+/* ─── Scenarios (Phase 3) ────────────────────────────────────────── */
+.bt-scn-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.bt-scn{background:var(--card);border:1px solid var(--hairline);border-radius:12px;
+  padding:18px;display:flex;flex-direction:column;gap:10px}
+.bt-scn .scn-hd{display:flex;align-items:baseline;gap:10px}
+.bt-scn .scn-name{font-size:15px;font-weight:700;letter-spacing:-.005em;color:var(--ink)}
+.bt-scn .scn-prob{margin-left:auto;font-family:var(--mono);font-size:13px;color:var(--ink);font-weight:600}
+.bt-scn .scn-ret{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-.01em}
+.bt-scn .scn-ret.pos{color:var(--pos)}
+.bt-scn .scn-ret.neg{color:var(--neg)}
+.bt-scn .scn-ret.neutral{color:var(--ink-2)}
+.bt-scn p{margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.55}
+.bt-scn.bull{border-left:3px solid var(--pos)}
+.bt-scn.base{border-left:3px solid var(--sun-3)}
+.bt-scn.bear{border-left:3px solid var(--neg)}
+
+/* ─── Experts (Phase 4) ──────────────────────────────────────────── */
+.bt-experts{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.bt-expert{background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:16px 18px;
+  display:flex;flex-direction:column;gap:8px}
+.bt-expert-hd{display:flex;align-items:center;gap:10px}
+.bt-expert-av{width:32px;height:32px;border-radius:50%;background:var(--surface-2);
+  display:grid;place-items:center;font-size:11px;font-weight:600;color:var(--ink-2);
+  border:1px solid var(--hairline-2)}
+.bt-expert-name{font-size:13.5px;font-weight:600;color:var(--ink);line-height:1.2}
+.bt-expert-role{font-family:var(--mono);font-size:10.5px;color:var(--muted);display:block;margin-top:1px;letter-spacing:.005em}
+.bt-expert-score{margin-left:auto;font-family:var(--mono);font-size:14px;font-weight:700;letter-spacing:-.005em}
+.bt-expert-score.up{color:var(--pos)}
+.bt-expert-score.neutral{color:var(--ink-2)}
+.bt-expert-score.down{color:var(--neg)}
+.bt-expert p{margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.55}
+
+/* ─── Expert Panel (Phase 4 rebuild) ─────────────────────────────── */
+/* Selection / posture header */
+.bt-panel-meta{display:grid;grid-template-columns:1fr auto;gap:0;
+  background:var(--card);border:1px solid var(--hairline);border-radius:12px;
+  padding:16px 20px}
+.bt-rule-h{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted-2);font-weight:700;margin-bottom:8px}
+.bt-panel-rules ul{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:5px;
+  font-size:12px;color:var(--ink-2);line-height:1.5}
+.bt-panel-rules ul li{display:flex;align-items:baseline;gap:8px}
+.bt-panel-rules ul li::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
+  background:var(--sun-3);flex:none;transform:translateY(-2px)}
+.bt-panel-rules ul li b{color:var(--ink);font-weight:600}
+.bt-panel-posture{display:flex;flex-direction:column;gap:6px;align-items:flex-end;justify-content:center;
+  border-left:1px solid var(--hairline);padding-left:22px;margin-left:22px;min-width:300px}
+.bt-pl{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted-2);font-weight:700}
+.bt-posture-badge{display:inline-block;padding:5px 14px;border-radius:99px;font-size:11.5px;font-weight:700;
+  letter-spacing:.005em;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--hairline-2);line-height:1.2}
+.bt-posture-badge.constructive{color:var(--pos);background:rgba(45,106,79,.10);border-color:rgba(45,106,79,.30)}
+.bt-posture-badge.mixed{color:var(--sun-3);background:rgba(244,146,44,.14);border-color:rgba(244,146,44,.40)}
+.bt-posture-badge.skeptical{color:var(--rust);background:rgba(146,64,14,.10);border-color:rgba(146,64,14,.30)}
+.bt-posture-badge.hostile{color:var(--neg);background:rgba(155,44,26,.10);border-color:rgba(155,44,26,.30)}
+
+.bt-prob-matrix{display:flex;gap:0;background:var(--surface-2);border:1px solid var(--hairline-2);
+  border-radius:8px;overflow:hidden;font-family:var(--mono);font-size:13px;font-weight:600}
+.bt-prob-matrix span{padding:6px 12px;display:flex;flex-direction:column;align-items:center;line-height:1.2;
+  border-right:1px solid var(--hairline-2)}
+.bt-prob-matrix span:last-child{border-right:0}
+.bt-prob-matrix small{font-family:var(--sans);font-size:9px;letter-spacing:.10em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;margin-top:2px;line-height:1}
+.bt-prob-matrix .conf{color:var(--pos)}
+.bt-prob-matrix .brk{color:var(--neg)}
+.bt-prob-matrix .cont{color:var(--ink-2)}
+
+/* Panel synthesis */
+.bt-synthesis{background:var(--card);border:1px solid var(--hairline);border-radius:12px;
+  padding:18px 22px 22px;display:flex;flex-direction:column;gap:16px}
+.bt-syn-hd{display:flex;align-items:center;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--hairline)}
+.bt-syn-hd h3{margin:0;font-size:15px;font-weight:600;letter-spacing:-.005em;color:var(--ink)}
+.bt-verdict-dist{display:flex;align-items:stretch;gap:0;margin-left:auto;
+  border:1px solid var(--hairline-2);border-radius:99px;overflow:hidden;height:28px}
+.bt-verdict-dist .vd{padding:0 12px;display:flex;align-items:center;font-size:11.5px;
+  font-weight:600;letter-spacing:.005em;color:var(--ink-2);font-family:var(--sans);line-height:1}
+.bt-verdict-dist .vd.endorse{background:rgba(45,106,79,.12);color:var(--pos)}
+.bt-verdict-dist .vd.challenge{background:rgba(244,146,44,.14);color:var(--sun-3)}
+.bt-verdict-dist .vd.reject{background:rgba(155,44,26,.10);color:var(--neg)}
+.bt-verdict-dist .vd.reframe{background:rgba(98,60,110,.10);color:#623c6e}
+
+.bt-syn-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px}
+.bt-syn-cell{display:flex;flex-direction:column;gap:6px}
+.bt-syn-cell.span2{grid-column:span 2}
+.bt-syn-l{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted-2);font-weight:700}
+.bt-syn-cell p{margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.55}
+.bt-syn-cell p .attr{color:var(--muted);font-family:var(--mono);font-size:10.5px;letter-spacing:.005em}
+.bt-syn-cell ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:5px;
+  font-size:12.5px;color:var(--ink-2);line-height:1.5}
+
+.bt-mispriced-pill{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);
+  font-size:10.5px;font-weight:600;letter-spacing:.005em;color:var(--ink);
+  padding:3px 9px;background:var(--surface-2);border:1px solid var(--hairline-2);border-radius:99px;
+  width:fit-content;line-height:1.3}
+.bt-mispriced-pill::before{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--sun-3)}
+
+/* Voice cards */
+.bt-voices{display:flex;flex-direction:column;gap:10px}
+.bt-voices-hd{display:flex;align-items:baseline;gap:10px;padding:0 4px}
+.bt-voices-hd h3{margin:0;font-size:15px;font-weight:600;letter-spacing:-.005em;color:var(--ink)}
+.bt-voices-hd .bt-meta{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+.bt-voice{background:var(--card);border:1px solid var(--hairline);border-radius:12px;overflow:hidden;
+  transition:border-color .15s ease}
+.bt-voice:hover{border-color:var(--hairline-2)}
+.bt-voice-h{display:grid;grid-template-columns:1fr auto auto auto;gap:14px;align-items:center;
+  padding:14px 18px;cursor:default}
+.bt-voice-id{display:flex;align-items:center;gap:12px;min-width:0}
+.bt-voice-av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;
+  font-size:12px;font-weight:700;color:#fff;flex:none;letter-spacing:0;
+  background:linear-gradient(135deg,#3a3a42,#1a1a1f);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10), 0 1px 1px rgba(0,0,0,.2)}
+.bt-voice-av.soros{background:linear-gradient(135deg,#7048a0,#3a1e58)}
+.bt-voice-av.druckenmiller{background:linear-gradient(135deg,#3a6680,#1f3d4d)}
+.bt-voice-av.marks{background:linear-gradient(135deg,#8a5a32,#4a3014)}
+.bt-voice-av.munger{background:linear-gradient(135deg,#2a2a32,#0d0d12)}
+.bt-voice-av.zell{background:linear-gradient(135deg,#8a6a3a,#4a3618)}
+.bt-voice-name{font-size:14px;font-weight:600;color:var(--ink);line-height:1.2;min-width:0}
+.bt-voice-name small{display:block;font-family:var(--mono);font-size:10.5px;color:var(--muted);
+  font-weight:400;margin-top:2px;letter-spacing:.005em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.bt-verdict-badge{display:inline-flex;align-items:center;padding:5px 12px;border-radius:99px;
+  font-size:11.5px;font-weight:700;letter-spacing:.005em;line-height:1}
+.bt-verdict-badge.endorse{color:var(--pos);background:rgba(45,106,79,.12);border:1px solid rgba(45,106,79,.30)}
+.bt-verdict-badge.challenge{color:var(--sun-3);background:rgba(244,146,44,.14);border:1px solid rgba(244,146,44,.40)}
+.bt-verdict-badge.reject{color:var(--neg);background:rgba(155,44,26,.10);border:1px solid rgba(155,44,26,.30)}
+.bt-verdict-badge.reframe{color:#623c6e;background:rgba(98,60,110,.10);border:1px solid rgba(98,60,110,.35)}
+
+.bt-conf{font-family:var(--mono);font-size:10.5px;color:var(--muted);font-weight:500;
+  padding:3px 8px;background:var(--surface-2);border-radius:99px;letter-spacing:.005em}
+.bt-conf.high{color:var(--ink-2)}
+
+.bt-voice-toggle{appearance:none;border:0;background:transparent;color:var(--muted);
+  width:26px;height:26px;border-radius:6px;font-size:14px;line-height:1;cursor:default;
+  display:grid;place-items:center;transition:transform .2s ease, background .15s ease}
+.bt-voice-toggle:hover{background:var(--surface)}
+.bt-voice.open .bt-voice-toggle{transform:rotate(180deg)}
+
+.bt-voice-body{display:none;padding:0 22px 20px;flex-direction:column;gap:14px}
+.bt-voice.open .bt-voice-body{display:flex}
+
+.bt-voice-arg{padding-top:14px;border-top:1px solid var(--hairline)}
+.bt-voice-arg p{margin:0;font-size:13.5px;line-height:1.65;color:var(--ink);
+  font-style:italic;border-left:2px solid var(--hairline-2);padding-left:14px}
+
+.bt-voice-meta{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.bt-voice-scenario{font-family:var(--mono);font-size:10.5px;color:var(--muted);display:flex;gap:10px}
+.bt-voice-scenario b{color:var(--ink-2);font-weight:600}
+.bt-voice-scenario .sep{color:var(--hairline-2)}
+
+.bt-voice-question{background:var(--surface);border:1px solid var(--hairline);border-radius:8px;
+  padding:12px 14px;display:flex;flex-direction:column;gap:5px}
+.bt-q-label{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted-2);font-weight:700}
+.bt-voice-question p{margin:0;font-size:13px;line-height:1.55;color:var(--ink);font-weight:500}
+
+.bt-voice-improvement{background:linear-gradient(180deg, rgba(244,146,44,.07), rgba(244,146,44,.02) 60%, var(--card) 100%);
+  border:1px solid rgba(244,146,44,.30);border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.bt-imp-h{display:flex;align-items:center;gap:7px}
+.bt-imp-ic{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;
+  background:radial-gradient(circle at 30% 30%, var(--sun-1) 0%, var(--sun-2) 35%, var(--sun-3) 80%, var(--sun-4) 100%);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.25), 0 1px 1px rgba(0,0,0,.2);flex:none}
+.bt-imp-l{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--sun-3);font-weight:700}
+.bt-voice-improvement p{margin:0;font-size:13px;line-height:1.6;color:var(--ink-2)}
+.bt-voice-improvement b{color:var(--ink);font-weight:600}
+.bt-imp-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:2px}
+.bt-mini-cta{appearance:none;border:1px solid var(--hairline-2);background:var(--card);
+  font-family:inherit;font-size:11.5px;color:var(--ink-2);font-weight:500;
+  padding:6px 12px;border-radius:6px;cursor:default;letter-spacing:.005em}
+.bt-mini-cta:hover{background:var(--surface)}
+.bt-cta-sm{appearance:none;border:1px solid rgba(0,0,0,.4);color:#fff8ea;
+  font-family:inherit;font-size:11.5px;font-weight:600;padding:6px 12px;border-radius:6px;cursor:default;
+  background:radial-gradient(circle at 30% 30%, rgba(255,245,220,.45) 0%, rgba(255,245,220,0) 70%),
+    linear-gradient(180deg, var(--sun-2), var(--sun-3));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 1px 2px rgba(0,0,0,.18);
+  margin-left:auto;display:inline-flex;align-items:center;gap:6px;letter-spacing:.005em}
+.bt-cta-sm.applied{background:linear-gradient(180deg,#3a4f3a,#243228);border-color:#1a3024;color:#d8e8d8}
+
+/* Reconciliation */
+.bt-reconciliation{background:var(--card);border:1px solid var(--hairline);border-radius:12px;
+  padding:18px 22px 22px;display:flex;flex-direction:column;gap:14px}
+.bt-recon-h{padding-bottom:12px;border-bottom:1px solid var(--hairline)}
+.bt-recon-h h3{margin:0;font-size:15px;font-weight:600;letter-spacing:-.005em;color:var(--ink)}
+.bt-recon-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px 22px}
+.bt-recon-cell{display:flex;flex-direction:column;gap:6px}
+.bt-recon-cell p{margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.55}
+.bt-recon-cell ul{margin:0;padding-left:18px;font-size:12.5px;color:var(--ink-2);line-height:1.5;
+  display:flex;flex-direction:column;gap:4px}
+
+/* ─── Promote (Phase 5) ──────────────────────────────────────────── */
+.bt-promote{background:var(--card);border:1px solid var(--hairline);border-radius:14px;
+  padding:24px;display:flex;flex-direction:column;gap:18px;max-width:720px}
+.bt-promote-hd{display:flex;flex-direction:column;gap:4px}
+.bt-promote-hd h3{margin:0;font-size:20px;font-weight:600;letter-spacing:-.01em}
+.bt-promote-hd p{margin:0;font-size:13px;color:var(--muted);line-height:1.5}
+.bt-promote-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:0;
+  background:var(--surface);border:1px solid var(--hairline);border-radius:10px;overflow:hidden}
+.bt-promote-summary .bt-s-cell{padding:12px 14px;border-right:1px solid var(--hairline);
+  display:flex;flex-direction:column;gap:2px}
+.bt-promote-summary .bt-s-cell:last-child{border-right:0}
+.bt-promote-summary .k{font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted-2);font-weight:600}
+.bt-promote-summary .v{font-family:var(--mono);font-size:13px;color:var(--ink);font-weight:500}
+.bt-promote-actions{display:flex;gap:10px;align-items:center}
+.bt-secondary-cta{appearance:none;border:1px solid var(--hairline-2);background:var(--card);
+  font-family:inherit;font-size:12.5px;font-weight:500;color:var(--ink-2);
+  padding:8px 14px;border-radius:7px;cursor:default}
+.bt-secondary-cta:hover{background:var(--surface)}
+.pipe-hd{display:flex;align-items:baseline;gap:14px;margin-bottom:20px}
+.pipe-hd h2{margin:0;font-size:16.5px;font-weight:600;letter-spacing:-.005em;line-height:1;color:var(--ink);text-transform:none}
+.pipe-hd .sub{color:var(--muted);font-size:12px}
+.pipe-hd .grow{flex:1}
+.pipe-hd .filter{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;gap:14px}
+.pipe-hd .filter b{color:var(--ink-2);font-weight:500}
+
+.pipe{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start}
+
+.col{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-card);
+  display:flex;flex-direction:column;overflow:hidden}
+.col .hd{padding:16px 18px 14px;border-bottom:1px solid var(--hairline);
+  display:flex;align-items:center;gap:10px;position:relative}
+.col .hd::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
+.col.dv{--c:var(--purple)}
+.col.ac{--c:var(--rust)}
+.col.lv{--c:var(--green)}
+.col .hd .stg{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--c)}
+.col .hd .ct{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.col .hd .ct b{color:var(--ink);font-weight:600}
+
+.col .body{padding:16px;display:flex;flex-direction:column;gap:18px;flex:1}
+
+/* ─── Thesis card ─────────────────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--hairline);border-radius:12px;
+  display:flex;flex-direction:column;overflow:hidden;position:relative;
+  box-shadow:0 1px 0 rgba(255,255,255,.5) inset, 0 1px 2px rgba(0,0,0,.02);
+  transition:border-color .18s ease, box-shadow .18s ease, transform .18s ease, opacity .2s ease}
+.card:hover{border-color:var(--hairline-2);
+  box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 8px 20px -14px rgba(0,0,0,.18);
+  transform:translateY(-1px)}
+
+/* Delete X + confirm overlay */
+.card-x{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;
+  border:0;background:transparent;color:var(--muted-2);font-size:14px;line-height:1;font-weight:400;
+  display:grid;place-items:center;cursor:default;opacity:0;z-index:4;
+  transition:opacity .15s ease, background .15s ease, color .15s ease;font-family:var(--sans)}
+.card:hover .card-x{opacity:.55}
+.card-x:hover{opacity:1;background:rgba(155,44,26,.10);color:var(--neg)}
+
+.card-confirm{position:absolute;inset:0;background:rgba(251,248,241,.96);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  border-radius:12px;z-index:5;padding:24px;text-align:center}
+.card.confirming .card-confirm{display:flex}
+.card-confirm .msg{font-size:14px;font-weight:600;color:var(--ink);letter-spacing:-.005em}
+.card-confirm .sub{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+.card-confirm .actions{display:flex;gap:8px}
+.card-confirm button{appearance:none;border:1px solid var(--hairline-2);background:var(--card);
+  font-family:inherit;font-size:12px;font-weight:500;padding:7px 16px;border-radius:6px;
+  cursor:default;color:var(--ink);letter-spacing:.005em}
+.card-confirm button:hover{background:var(--surface)}
+.card-confirm button.danger{background:var(--neg);border-color:var(--neg);color:#fff8ea}
+.card-confirm button.danger:hover{background:#7d2415}
+
+/* ─── Card type (Thesis / Stock / Fund) ─────────────────────────── */
+.card.type-thesis{background:linear-gradient(180deg, rgba(196,137,42,.05), rgba(196,137,42,.02) 50%, var(--card) 100%)}
+.card.type-stock {background:linear-gradient(180deg, rgba(58,108,123,.06), rgba(58,108,123,.025) 50%, var(--card) 100%)}
+.card.type-fund  {background:linear-gradient(180deg, rgba(98,60,110,.05), rgba(98,60,110,.02) 50%, var(--card) 100%)}
+
+.type-chip{display:inline-flex;align-items:center;justify-content:center;
+  width:18px;height:18px;border-radius:50%;flex:none;
+  font-family:var(--sans);font-size:9.5px;letter-spacing:0;
+  font-weight:700;line-height:1;text-transform:none;overflow:hidden;
+  color:var(--chip-fg);background:var(--chip-bg);border:1px solid var(--chip-bd)}
+.type-chip::before{content:none}
+.type-chip > span.tc-label{display:none}
+.type-chip.thesis{--chip-fg:#8a5c0e;--chip-bg:rgba(196,137,42,.14);--chip-bd:rgba(196,137,42,.40)}
+.type-chip.stock {--chip-fg:#1f4a58;--chip-bg:rgba(58,108,123,.14);--chip-bd:rgba(58,108,123,.40)}
+.type-chip.fund  {--chip-fg:#4a2d56;--chip-bg:rgba(98,60,110,.14);--chip-bd:rgba(98,60,110,.40)}
+.card-hd{display:flex;align-items:center;gap:10px;padding:11px 14px;
+  background:var(--hd-bg);border-bottom:1px solid var(--hd-bd)}
+.col.dv .card{--hd-bg:rgba(74,29,107,.06);--hd-bd:rgba(74,29,107,.14)}
+.col.ac .card{--hd-bg:rgba(146,64,14,.06);--hd-bd:rgba(146,64,14,.14)}
+.col.lv .card{--hd-bg:rgba(45,106,79,.06);--hd-bd:rgba(45,106,79,.14)}
+
+.card-hd .ticker{display:inline-flex;align-items:baseline;gap:5px;
+  font-family:var(--mono);font-size:11.5px;font-weight:600;
+  letter-spacing:.06em;color:var(--ink)}
+.card-hd .ticker .x{color:var(--muted-2);font-weight:400}
+.card-hd .ticker em{color:var(--muted-2);font-style:normal;font-weight:400;font-size:10.5px;
+  margin-left:2px}
+.card-hd .sector{margin-left:auto;font-family:var(--sans);
+  font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:600;
+  padding:2px 7px;border-radius:3px;color:var(--sec-fg,var(--ink-2));
+  background:var(--sec-bg,var(--surface));border:1px solid var(--sec-bd,var(--hairline-2))}
+.card-hd .id{font-family:var(--mono);font-size:10px;color:var(--muted-2);letter-spacing:.04em}
+
+.sector.energy   {--sec-fg:#1e4d5c;--sec-bg:#dbeaef;--sec-bd:#b9d4dc}
+.sector.materials{--sec-fg:#5a3a1a;--sec-bg:#ece1cc;--sec-bd:#d8c8aa}
+.sector.commodity{--sec-fg:#7a4a0c;--sec-bg:#f0e2c4;--sec-bd:#dcc999}
+.sector.reit     {--sec-fg:#3a3650;--sec-bg:#dedce8;--sec-bd:#c5c2d4}
+.sector.position {--sec-fg:#1a4a36;--sec-bg:#d5e6dc;--sec-bd:#b3ccbe}
+
+.card-body{padding:18px 16px 6px;display:flex;flex-direction:column;gap:14px;flex:1}
+.card .ttl{margin:0;font-size:16px;font-weight:600;line-height:1.25;letter-spacing:-.005em;
+  color:var(--ink);text-wrap:balance}
+.card .snip{margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.55;text-wrap:pretty}
+
+/* Conviction — number-led */
+.card .conv{display:grid;grid-template-columns:1fr auto;align-items:end;column-gap:14px;row-gap:6px;
+  padding-top:6px;margin-top:auto}
+.card .conv .lbl{grid-column:1 / -1;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted-2);font-weight:600}
+.card .conv .bar{grid-column:1;grid-row:2;align-self:center;
+  height:4px;background:var(--surface-2);border-radius:99px;overflow:hidden;position:relative}
+.card .conv .bar i{position:absolute;inset:0;background:var(--c);border-radius:99px}
+.card .conv .v{grid-column:2;grid-row:2;font-family:var(--mono);font-size:20px;font-weight:600;
+  color:var(--ink);font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.01em}
+.card .conv .v small{font-size:11px;color:var(--muted-2);font-weight:400;margin-left:2px}
+
+/* Live position strip */
+.card .live-line{display:grid;grid-template-columns:repeat(3,1fr);
+  background:rgba(45,106,79,.04);border:1px solid rgba(45,106,79,.12);border-radius:8px;
+  overflow:hidden;margin-top:4px}
+.card .live-line .c{padding:7px 10px;border-right:1px solid rgba(45,106,79,.12);
+  display:flex;flex-direction:column;gap:2px}
+.card .live-line .c:last-child{border-right:0}
+.card .live-line .k{font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted-2);font-weight:600}
+.card .live-line .v{font-family:var(--mono);font-size:12.5px;color:var(--ink);font-weight:600;
+  font-variant-numeric:tabular-nums;letter-spacing:-.005em}
+.card .live-line .v.pos{color:var(--pos)}
+.card .live-line .v.neg{color:var(--neg)}
+
+/* Footer */
+.card-ft{display:grid;grid-template-columns:1fr auto;align-items:center;gap:14px;
+  padding:13px 16px;margin-top:14px;
+  border-top:1px solid var(--hairline);background:rgba(0,0,0,.02)}
+.card-ft .cat{display:flex;align-items:center;gap:9px;min-width:0}
+.card-ft .ico{width:14px;height:14px;flex:none;color:var(--c)}
+.card-ft .lblval{display:flex;flex-direction:column;gap:1px;min-width:0}
+.card-ft .lbl{font-size:9px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--muted-2);font-weight:600;line-height:1}
+.card-ft .val{font-family:var(--mono);font-size:11.5px;color:var(--ink);font-weight:500;
+  line-height:1.2;letter-spacing:-.005em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-ft .age{text-align:right}
+.card-ft .age .lbl{text-align:right}
+
+/* Empty / capacity slot */
+.slot{border:1px dashed var(--hairline-2);border-radius:10px;
+  padding:14px 16px;display:flex;flex-direction:column;gap:4px;
+  background:repeating-linear-gradient(45deg,transparent 0,transparent 8px,rgba(0,0,0,.012) 8px,rgba(0,0,0,.012) 16px)}
+.slot .lbl{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted-2);font-weight:500}
+.slot .hint{font-size:12px;color:var(--muted);line-height:1.4}
+.slot .hint b{color:var(--ink-2);font-weight:500}
+
+.col .add{padding:11px 14px;border-top:1px dashed var(--hairline-2);
+  display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;
+  color:var(--muted);cursor:default}
+.col .add:hover{color:var(--ink-2);background:var(--surface-2)}
+.col .add .plus{color:var(--c);font-size:13px}
+
+</style>
+</head>
+<body>
+
+<!-- Inline sunburst SVG icon for sidebar brand -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="sunIco" cx="50%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#ffe8a8" />
+      <stop offset="30%" stop-color="#f4922c" />
+      <stop offset="70%" stop-color="#e0511a" />
+      <stop offset="100%" stop-color="#7a1308" />
+    </radialGradient>
+  </defs>
+</svg>
+
+<div class="app" data-screen-label="Build Thesis">
+
+  <!-- ─── Sidebar ──────────────────────────────────────────────────── -->
+  <aside class="side">
+    <div class="brand">
+      <span class="mark sunburst"></span>
+      <b>DOSSIER</b>
+      <span class="v">v0.9</span>
+    </div>
+
+    <nav>
+      <div class="gp">
+        <div class="h"><span>Workspace</span></div>
+        <a href="Desk.html"><span class="dot"></span>Command Center<span class="ct">⌘1</span></a>
+        <a class="on" href="Build Thesis.html"><span class="dot"></span>Build Thesis</a>
+        <a href="Search Stocks.html"><span class="dot"></span>Search Stocks</a>
+        <a href="Search Funds.html"><span class="dot"></span>Search Funds</a>
+        <a href="Performance.html"><span class="dot"></span>Performance</a>
+        <a href="Compare.html"><span class="dot"></span>Compare<span class="ct">2</span></a>
+      </div>
+
+      <div class="gp">
+        <div class="h"><span>Thesis Pipeline</span><span class="ct">5</span></div>
+        <a class="stg dv" href="#"><span class="sq"></span>Developing<span class="ct">2</span></a>
+        <a class="stg ac" href="#"><span class="sq"></span>Actionable<span class="ct">2</span></a>
+        <a class="stg lv" href="#"><span class="sq"></span>Live<span class="ct">1</span></a>
+      </div>
+    </nav>
+
+    <!-- AI Model Picker -->
+    <section class="ai-sec">
+      <div class="h"><span>AI</span></div>
+
+      <div class="ai-field">
+        <label>Model</label>
+        <button class="ai-picker" id="aiPicker" type="button">
+          <span class="ai-mark"></span>
+          <span class="ai-body">
+            <span class="ai-tier">Frontier</span>
+            <span class="ai-name" id="aiCurrentName">Claude Opus 4.5</span>
+          </span>
+          <span class="ai-chev">▾</span>
+        </button>
+        <div class="ai-menu" id="aiMenu">
+          <button class="ai-opt on" data-name="Claude Opus 4.5" data-tier="Frontier" type="button">
+            <span class="ai-mark"></span>
+            <span class="ai-opt-body">
+              <span class="ai-opt-name">Claude Opus 4.5</span>
+              <span class="ai-opt-meta">Frontier · deep analysis</span>
+            </span>
+            <span class="ai-opt-check">✓</span>
+          </button>
+          <button class="ai-opt" data-name="Claude Sonnet 4.5" data-tier="Balanced" type="button">
+            <span class="ai-mark"></span>
+            <span class="ai-opt-body">
+              <span class="ai-opt-name">Claude Sonnet 4.5</span>
+              <span class="ai-opt-meta">Balanced · fast turnaround</span>
+            </span>
+            <span class="ai-opt-check">✓</span>
+          </button>
+          <button class="ai-opt" data-name="GPT-5.5" data-tier="Frontier" type="button">
+            <span class="ai-mark"></span>
+            <span class="ai-opt-body">
+              <span class="ai-opt-name">GPT-5.5</span>
+              <span class="ai-opt-meta">OpenAI · multimodal</span>
+            </span>
+            <span class="ai-opt-check">✓</span>
+          </button>
+          <button class="ai-opt" data-name="Gemini 3 Pro" data-tier="Long-context" type="button">
+            <span class="ai-mark"></span>
+            <span class="ai-opt-body">
+              <span class="ai-opt-name">Gemini 3 Pro</span>
+              <span class="ai-opt-meta">Google · 2M context</span>
+            </span>
+            <span class="ai-opt-check">✓</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="ai-field">
+        <label>Reasoning</label>
+        <div class="ai-segments" id="aiReason">
+          <button type="button" data-r="low">Low</button>
+          <button type="button" data-r="med" class="on">Medium</button>
+          <button type="button" data-r="high">High</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="acct">
+      <div class="av">JM</div>
+      <div class="who">J. Morrow<small>Principal</small></div>
+    </div>
+  </aside>
+
+
+  <!-- ─── Main ─────────────────────────────────────────────────────── -->
+  <main class="main">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="left">
+        <h1>Build Thesis</h1>
+      </div>
+
+      <div class="right bt-topbar-actions">
+        <button class="bt-drafts-link" id="btDraftsLink">
+          <span>Drafts</span>
+          <span class="ct">3</span>
+        </button>
+        <button class="bt-save" id="btSave">Save Draft</button>
+      </div>
+    </header>
+
+
+    <!-- Phase progress -->
+    <nav class="bt-phases" aria-label="Thesis phase">
+      <button class="bt-phase on" data-phase="brainstorm" type="button">
+        <span class="bt-num">1</span><span class="bt-lbl">Brainstorm</span>
+      </button>
+      <span class="bt-trail"></span>
+      <button class="bt-phase" data-phase="canvas" type="button">
+        <span class="bt-num">2</span><span class="bt-lbl">Canvas</span>
+      </button>
+      <span class="bt-trail"></span>
+      <button class="bt-phase" data-phase="scenarios" type="button">
+        <span class="bt-num">3</span><span class="bt-lbl">Scenarios</span>
+      </button>
+      <span class="bt-trail"></span>
+      <button class="bt-phase" data-phase="experts" type="button">
+        <span class="bt-num">4</span><span class="bt-lbl">Experts</span>
+      </button>
+      <span class="bt-trail"></span>
+      <button class="bt-phase" data-phase="promote" type="button">
+        <span class="bt-num">5</span><span class="bt-lbl">Promote</span>
+      </button>
+    </nav>
+
+    <!-- ─── PHASE 1 · BRAINSTORM ──────────────────────────────────── -->
+    <section class="bt-stage on" data-stage="brainstorm">
+      <div class="bt-stage-hd">
+        <h2>What thesis are you exploring?</h2>
+        <p>Brainstorm with AI to sharpen the idea, then generate a canvas across 13 categories.</p>
+      </div>
+
+      <div class="bt-convo" id="btConvo">
+        <!-- Conversation injected here as user sends messages -->
+      </div>
+
+      <div class="bt-composer">
+        <textarea id="btInput" rows="2" placeholder="Drop a rough idea — e.g. 'AI power buildout repricing transmission opens up opportunities to invest.'"></textarea>
+        <div class="bt-composer-foot">
+          <span class="bt-tip">↵ to send · ⇧↵ for new line</span>
+          <span class="bt-grow"></span>
+          <button class="bt-cta" id="btGenerate" disabled>
+            <span>Generate canvas</span>
+            <span class="arrow">→</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="bt-prompts-wrap">
+        <div class="bt-prompts-hd">
+          <span class="bt-lbl">Suggested prompts</span>
+          <span class="bt-meta">tuned to today's regime · <em>late-cycle · tight liquidity</em></span>
+          <span class="bt-grow"></span>
+          <button class="bt-shuffle" id="btShuffle" type="button">
+            <span>Show more</span>
+            <span class="bt-icon">↻</span>
+          </button>
+        </div>
+        <div class="bt-prompts" id="btPrompts"></div>
+      </div>
+    </section>
+
+    <!-- ─── PHASE 2 · CANVAS ──────────────────────────────────────── -->
+    <section class="bt-stage" data-stage="canvas">
+      <div class="bt-stage-hd">
+        <h2>Thesis Canvas</h2>
+        <p>AI-generated read across 13 categories. Refine with the chat above, then submit to scenarios.</p>
+      </div>
+
+      <div class="bt-canvas">
+        <article class="bt-cell span2"><div class="bt-cell-h"><span class="bt-cell-n">01</span><span class="bt-cell-t">Hypothesis</span></div><p>AI-driven hyperscaler capex is forcing utilities to rebuild transmission &amp; restart nuclear faster than rate-base growth allows — the unsupplied gap reprices the under-owned pure-plays.</p></article>
+        <article class="bt-cell"><div class="bt-cell-h"><span class="bt-cell-n">02</span><span class="bt-cell-t">Consensus</span></div><p>Utilities re-rate slowly at rate-base pace. PJM bottleneck "solves itself" over 5–7 years.</p></article>
+        <article class="bt-cell"><div class="bt-cell-h"><span class="bt-cell-n">03</span><span class="bt-cell-t">Variant view</span></div><p>Hyperscaler PPAs collapse the timeline to 2–3 years; transmission cos under-coverage by a factor of 2.</p></article>
+        <article class="bt-cell"><div class="bt-cell-h"><span class="bt-cell-n">04</span><span class="bt-cell-t">Mechanism</span></div><p>Long-dated PPAs → accelerated rate cases → upward EPS revisions for grid-builders (PWR, MTZ) and nuclear restart names (VST, CEG).</p></article>
+        <article class="bt-cell"><div class="bt-cell-h"><span class="bt-cell-n">05</span><span class="bt-cell-t">Horizon</span></div><p class="num-readout">12–18 months</p></article>
+        <article class="bt-cell"><div class="bt-cell-h"><span class="bt-cell-n">06</span><span class="bt-cell-t">Catalysts</span></div><p>Q3 utility prints · PJM clearing prices · DOE loan announcements · Microsoft / Amazon nuclear PPAs.</p></article>
+        <article class="bt-cell"><div class="bt-cell-h"><span class="bt-cell-n">07</span><span class="bt-cell-t">Vehicles</span></div><p><b>Long</b> PWR, VST, CEG · <b>Short</b> XLU as funding hedge.</p></article>
+        <article class="bt-cell"><div class="bt-cell-h"><span class="bt-cell-n">08</span><span class="bt-cell-t">Sizing</span></div><p class="num-readout">4.5%</p><p>target gross, paired to keep beta neutral</p></article>
+        <article class="bt-cell"><div class="bt-cell-h"><span class="bt-cell-n">09</span><span class="bt-cell-t">Disconfirming</span></div><p>Hyperscaler capex guide-down · DC permitting freeze · IRA rollback.</p></article>
+        <article class="bt-cell"><div class="bt-cell-h"><span class="bt-cell-n">10</span><span class="bt-cell-t">Risks</span></div><p>Crowded trade; multiple compression if rates rise further; permit timelines slip.</p></article>
+        <article class="bt-cell"><div class="bt-cell-h"><span class="bt-cell-n">11</span><span class="bt-cell-t">Invalidation</span></div><p>PWR ‹ $250 on volume · two consecutive utility prints missing on capex.</p></article>
+        <article class="bt-cell"><div class="bt-cell-h"><span class="bt-cell-n">12</span><span class="bt-cell-t">Macro fit</span></div><p>Real-asset / pricing-power tilt aligns with late-cycle defensive posture.</p></article>
+        <article class="bt-cell"><div class="bt-cell-h"><span class="bt-cell-n">13</span><span class="bt-cell-t">Linked</span></div><p>Pairs with <b>TH-019 Uranium</b> (utility off-taker side) — combined sizing 7.5%.</p></article>
+      </div>
+
+      <div class="bt-composer" style="margin-top:6px">
+        <div class="bt-composer-foot" style="border-top:0;padding-top:0">
+          <span class="bt-tip">Canvas drafted. Refine sections above, or submit.</span>
+          <span class="bt-grow"></span>
+          <button class="bt-secondary-cta" type="button">Refine in chat</button>
+          <button class="bt-cta" type="button" data-go="scenarios">
+            <span>Run scenarios</span>
+            <span class="arrow">→</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── PHASE 3 · SCENARIOS ───────────────────────────────────── -->
+    <section class="bt-stage" data-stage="scenarios">
+      <div class="bt-stage-hd">
+        <h2>Scenarios</h2>
+        <p>Bull / Base / Bear paths with probability and expected return. Re-weight if you disagree.</p>
+      </div>
+      <div class="bt-scn-grid">
+        <article class="bt-scn bull">
+          <div class="scn-hd"><span class="scn-name">Bull</span><span class="scn-prob">25%</span></div>
+          <div class="scn-ret pos">+42%</div>
+          <p>Hyperscalers triple PPA volume by Q3; FERC fast-tracks two interconnections. PWR / VST re-rate ~25× forward EPS. Nuclear restart timeline pulls forward.</p>
+        </article>
+        <article class="bt-scn base">
+          <div class="scn-hd"><span class="scn-name">Base</span><span class="scn-prob">55%</span></div>
+          <div class="scn-ret pos">+18%</div>
+          <p>Steady capex announcements; multiple re-rating to mid-cycle average. Some single-name catalysts hit, others slip 1–2 quarters.</p>
+        </article>
+        <article class="bt-scn bear">
+          <div class="scn-hd"><span class="scn-name">Bear</span><span class="scn-prob">20%</span></div>
+          <div class="scn-ret neg">−14%</div>
+          <p>Rates rise 75bp, multiples compress. Two utility prints miss on capex. Crowded long unwinds; XLU short bleeds.</p>
+        </article>
+      </div>
+      <div class="bt-composer" style="margin-top:6px">
+        <div class="bt-composer-foot" style="border-top:0;padding-top:0">
+          <span class="bt-tip">Expected value <b>+18.4%</b> · Sharpe est. <b>1.1</b></span>
+          <span class="bt-grow"></span>
+          <button class="bt-secondary-cta" type="button">Adjust weights</button>
+          <button class="bt-cta" type="button" data-go="experts">
+            <span>Submit to expert panel</span>
+            <span class="arrow">→</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── PHASE 4 · EXPERTS ─────────────────────────────────────── -->
+    <section class="bt-stage" data-stage="experts">
+      <div class="bt-stage-hd">
+        <h2>Expert Panel</h2>
+        <p>Engine selected <b>5 voices</b> from the 18-member bench based on thesis type and panel rules. Synthesis first, then each voice's perspective with AI-drafted improvements.</p>
+      </div>
+
+      <!-- Selection + posture -->
+      <div class="bt-panel-meta">
+        <div class="bt-panel-rules">
+          <div class="bt-rule-h">Selection rules</div>
+          <ul>
+            <li>Cluster selection: <b>Soros · Druckenmiller</b> (Macro &amp; Reflexivity primary) · <b>Marks</b> (Risk &amp; Cycle secondary)</li>
+            <li>Rule A — Mandatory Skeptic: added <b>Munger</b></li>
+            <li>Rule C — Prologis Lens Trigger: added <b>Zell</b> (real-asset exposure + Prologis-aware lens)</li>
+          </ul>
+        </div>
+        <div class="bt-panel-posture">
+          <span class="bt-pl">Panel posture</span>
+          <span class="bt-posture-badge mixed">Mixed</span>
+          <span class="bt-pl" style="margin-top:4px">Probability matrix</span>
+          <div class="bt-prob-matrix">
+            <span class="conf">42%<small>confirmed</small></span>
+            <span class="cont">40%<small>contested</small></span>
+            <span class="brk">18%<small>broken</small></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel synthesis: summary first -->
+      <div class="bt-synthesis">
+        <div class="bt-syn-hd">
+          <h3>Panel Synthesis</h3>
+          <div class="bt-verdict-dist">
+            <span class="vd endorse">2 Endorse</span>
+            <span class="vd challenge">2 Challenge</span>
+            <span class="vd reframe">1 Reframe</span>
+          </div>
+        </div>
+        <div class="bt-syn-grid">
+          <div class="bt-syn-cell">
+            <div class="bt-syn-l">Strongest argument for</div>
+            <p>Earnings revisions and PPA pipeline running ahead of consensus by a margin not yet reflected in mid-cycle multiples. <span class="attr">— Druckenmiller</span></p>
+          </div>
+          <div class="bt-syn-cell">
+            <div class="bt-syn-l">Strongest argument against</div>
+            <p>PWR / CEG already trade at 99th-percentile historical multiples; the market is pricing bull case as base. Where's the asymmetry? <span class="attr">— Marks</span></p>
+          </div>
+          <div class="bt-syn-cell span2">
+            <div class="bt-syn-l">Most contested variable</div>
+            <span class="bt-mispriced-pill">Crowding Expectations</span>
+            <p style="margin-top:4px">Panel splits on whether positioning is already too one-sided for further upside, or whether the underlying earnings story overwhelms positioning concerns.</p>
+          </div>
+          <div class="bt-syn-cell">
+            <div class="bt-syn-l">Convergence</div>
+            <ul>
+              <li>Underlying AI power buildout is real and structurally durable</li>
+              <li>Catalyst pipeline dense over the next 6–9 months (Q3 prints · PJM · DOE)</li>
+            </ul>
+          </div>
+          <div class="bt-syn-cell">
+            <div class="bt-syn-l">Divergence</div>
+            <ul>
+              <li>Whether the trade is already priced in</li>
+              <li>Expression: pure-play grid-builders vs. real-asset / right-of-way owners</li>
+            </ul>
+          </div>
+          <div class="bt-syn-cell span2">
+            <div class="bt-syn-l">What would resolve disagreement</div>
+            <p>Two quarters of further earnings revisions outrunning consensus, <em>or</em> a 15–20% pullback that resets entry levels without breaking the fundamental case.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Individual voices -->
+      <div class="bt-voices">
+        <div class="bt-voices-hd">
+          <h3>Individual perspectives</h3>
+          <span class="bt-meta">5 voices · click to expand · AI improvement under each</span>
+        </div>
+
+        <!-- ─── Soros ─────────────────────────────────────── -->
+        <article class="bt-voice open">
+          <header class="bt-voice-h">
+            <div class="bt-voice-id">
+              <span class="bt-voice-av soros">GS</span>
+              <span class="bt-voice-name">George Soros<small>Reflexivity &amp; macro feedback loops</small></span>
+            </div>
+            <span class="bt-verdict-badge endorse">Endorse</span>
+            <span class="bt-conf high">High conf</span>
+            <button class="bt-voice-toggle" type="button" aria-label="Toggle">▾</button>
+          </header>
+          <div class="bt-voice-body">
+            <div class="bt-voice-arg">
+              <p>"The AI capex narrative is feeding back into physical infrastructure decisions in a self-reinforcing loop. Each PPA signed reinforces the next utility's capex commitment, which validates the hyperscaler's data-center plans. The reflexive cycle is in its accelerating phase — it breaks only when hyperscaler ROI on inference disappoints."</p>
+            </div>
+            <div class="bt-voice-meta">
+              <span class="bt-mispriced-pill">Timing of Inflection</span>
+              <span class="bt-voice-scenario">
+                <span>Confirmed <b>45%</b></span><span class="sep">·</span><span>Contested <b>40%</b></span><span class="sep">·</span><span>Broken <b>15%</b></span>
+              </span>
+            </div>
+            <div class="bt-voice-question">
+              <div class="bt-q-label">What would change Soros's verdict</div>
+              <p>Two consecutive quarterly capex guide-downs from hyperscalers, <em>or</em> clear evidence that AI inference unit economics are deteriorating faster than compute costs are falling.</p>
+            </div>
+            <div class="bt-voice-improvement">
+              <div class="bt-imp-h"><span class="bt-imp-ic"></span><span class="bt-imp-l">AI-drafted improvement</span></div>
+              <p>Add a <b>hyperscaler capex monitor</b> to the canvas. Track MSFT / AMZN / GOOG quarterly capex guidance and AI revenue conversion. Alert: if any hyperscaler guides capex down &gt;10% sequentially, trigger thesis review.</p>
+              <div class="bt-imp-actions">
+                <button class="bt-mini-cta" type="button">Refine</button>
+                <button class="bt-mini-cta" type="button">Dismiss</button>
+                <button class="bt-cta-sm" type="button">Apply to canvas →</button>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- ─── Druckenmiller ─────────────────────────────── -->
+        <article class="bt-voice">
+          <header class="bt-voice-h">
+            <div class="bt-voice-id">
+              <span class="bt-voice-av druckenmiller">SD</span>
+              <span class="bt-voice-name">Stan Druckenmiller<small>Liquidity flows &amp; macro inflection</small></span>
+            </div>
+            <span class="bt-verdict-badge endorse">Endorse</span>
+            <span class="bt-conf high">High conf</span>
+            <button class="bt-voice-toggle" type="button" aria-label="Toggle">▾</button>
+          </header>
+          <div class="bt-voice-body">
+            <div class="bt-voice-arg">
+              <p>"Earnings power is accelerating in transmission and nuclear-restart names ahead of consensus. PWR backlog is up 38% YoY with 70% visibility through 2026. CEG forward EPS revisions run 15% ahead of street. The macro tailwind is unambiguous — onshoring + AI compute + electrification — and the names with operating leverage to grid capex have not yet rerated."</p>
+            </div>
+            <div class="bt-voice-meta">
+              <span class="bt-mispriced-pill">Growth Rate</span>
+              <span class="bt-voice-scenario">
+                <span>Confirmed <b>50%</b></span><span class="sep">·</span><span>Contested <b>35%</b></span><span class="sep">·</span><span>Broken <b>15%</b></span>
+              </span>
+            </div>
+            <div class="bt-voice-question">
+              <div class="bt-q-label">What would change Druckenmiller's verdict</div>
+              <p>A meaningful 10Y move above 5%, <em>or</em> a hyperscaler announcing capex re-prioritization away from data centers.</p>
+            </div>
+            <div class="bt-voice-improvement">
+              <div class="bt-imp-h"><span class="bt-imp-ic"></span><span class="bt-imp-l">AI-drafted improvement</span></div>
+              <p>Add a <b>rates sensitivity test</b> to the sizing section. Model expected drawdown at 4.5% / 5.0% / 5.5% 10Y. Consider pairing with a duration-short to hedge the long-duration utility exposure.</p>
+              <div class="bt-imp-actions">
+                <button class="bt-mini-cta" type="button">Refine</button>
+                <button class="bt-mini-cta" type="button">Dismiss</button>
+                <button class="bt-cta-sm" type="button">Apply to canvas →</button>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- ─── Marks ─────────────────────────────────────── -->
+        <article class="bt-voice">
+          <header class="bt-voice-h">
+            <div class="bt-voice-id">
+              <span class="bt-voice-av marks">HM</span>
+              <span class="bt-voice-name">Howard Marks<small>Market cycles &amp; second-level thinking</small></span>
+            </div>
+            <span class="bt-verdict-badge challenge">Challenge</span>
+            <span class="bt-conf">Med conf</span>
+            <button class="bt-voice-toggle" type="button" aria-label="Toggle">▾</button>
+          </header>
+          <div class="bt-voice-body">
+            <div class="bt-voice-arg">
+              <p>"The right question isn't whether the AI buildout is real — it is. The right question is whether it's already in the price. PWR trades at 28× forward, CEG at 24×, both at 99th-percentile multiples in their history. The market is pricing the bull case as base. Where's the asymmetry?"</p>
+            </div>
+            <div class="bt-voice-meta">
+              <span class="bt-mispriced-pill">Crowding Expectations</span>
+              <span class="bt-voice-scenario">
+                <span>Confirmed <b>30%</b></span><span class="sep">·</span><span>Contested <b>45%</b></span><span class="sep">·</span><span>Broken <b>25%</b></span>
+              </span>
+            </div>
+            <div class="bt-voice-question">
+              <div class="bt-q-label">What would change Marks's verdict</div>
+              <p>A 15–20% pullback that doesn't break the fundamentals, creating margin of safety where none currently exists.</p>
+            </div>
+            <div class="bt-voice-improvement">
+              <div class="bt-imp-h"><span class="bt-imp-ic"></span><span class="bt-imp-l">AI-drafted improvement</span></div>
+              <p>Refine the <b>sizing plan</b> from full-size at current levels to staged entry — 1/3 now, 1/3 on 8% pullback, 1/3 on 15% pullback. Preserves dry powder for the asymmetry Marks is asking for.</p>
+              <div class="bt-imp-actions">
+                <button class="bt-mini-cta" type="button">Refine</button>
+                <button class="bt-mini-cta" type="button">Dismiss</button>
+                <button class="bt-cta-sm" type="button">Apply to canvas →</button>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- ─── Munger ────────────────────────────────────── -->
+        <article class="bt-voice">
+          <header class="bt-voice-h">
+            <div class="bt-voice-id">
+              <span class="bt-voice-av munger">CM</span>
+              <span class="bt-voice-name">Charlie Munger<small>Inversion &amp; incentive analysis</small></span>
+            </div>
+            <span class="bt-verdict-badge challenge">Challenge</span>
+            <span class="bt-conf high">High conf</span>
+            <button class="bt-voice-toggle" type="button" aria-label="Toggle">▾</button>
+          </header>
+          <div class="bt-voice-body">
+            <div class="bt-voice-arg">
+              <p>"Invert: what does it look like if this trade is wrong? A crowded long with elevated multiples, where the marginal buyer is a momentum-driven hedge fund and the fundamental story is well-understood. The historical mortality rate of consensus longs at 99th-percentile multiples is grim. The thesis isn't wrong — the expression and the timing are."</p>
+            </div>
+            <div class="bt-voice-meta">
+              <span class="bt-mispriced-pill">Crowding Expectations</span>
+              <span class="bt-voice-scenario">
+                <span>Confirmed <b>28%</b></span><span class="sep">·</span><span>Contested <b>40%</b></span><span class="sep">·</span><span>Broken <b>32%</b></span>
+              </span>
+            </div>
+            <div class="bt-voice-question">
+              <div class="bt-q-label">What would change Munger's verdict</div>
+              <p>Multiples compress to mid-cycle averages (~17–19× forward) at unchanged earnings, <em>or</em> a clear shift in hedge-fund positioning away from the trade.</p>
+            </div>
+            <div class="bt-voice-improvement">
+              <div class="bt-imp-h"><span class="bt-imp-ic"></span><span class="bt-imp-l">AI-drafted improvement</span></div>
+              <p>Add a <b>positioning monitor</b> to the disconfirming evidence section. Track CFTC / 13F hedge-fund net exposure to grid names quarterly + Goldman PB factor check. Threshold: if gross long exposure rises &gt;20% from current, red flag and reduce size.</p>
+              <div class="bt-imp-actions">
+                <button class="bt-mini-cta" type="button">Refine</button>
+                <button class="bt-mini-cta" type="button">Dismiss</button>
+                <button class="bt-cta-sm" type="button">Apply to canvas →</button>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <!-- ─── Zell ──────────────────────────────────────── -->
+        <article class="bt-voice">
+          <header class="bt-voice-h">
+            <div class="bt-voice-id">
+              <span class="bt-voice-av zell">SZ</span>
+              <span class="bt-voice-name">Sam Zell<small>Real assets &amp; supply-demand fundamentals</small></span>
+            </div>
+            <span class="bt-verdict-badge reframe">Reframe</span>
+            <span class="bt-conf">Med conf</span>
+            <button class="bt-voice-toggle" type="button" aria-label="Toggle">▾</button>
+          </header>
+          <div class="bt-voice-body">
+            <div class="bt-voice-arg">
+              <p>"The trade isn't transmission and nukes — those are crowded. The trade is the land. Industrial sites with grid access and water are the actual scarce asset. The reframe: long industrial REITs with data-center-suitable land (PLD, EQIX, DLR) and the regulated utilities that own transmission rights-of-way (NEE, AEP). Skip the manufacturer beta."</p>
+            </div>
+            <div class="bt-voice-meta">
+              <span class="bt-mispriced-pill">Value Accrual Location</span>
+              <span class="bt-voice-scenario">
+                <span>Confirmed <b>35%</b></span><span class="sep">·</span><span>Contested <b>40%</b></span><span class="sep">·</span><span>Broken <b>25%</b></span>
+              </span>
+            </div>
+            <div class="bt-voice-question">
+              <div class="bt-q-label">What would change Zell's verdict</div>
+              <p>Evidence that hyperscalers will pay the multiple premium for grid-builders directly, rather than via PPAs to utilities that pay grid-builders.</p>
+            </div>
+            <div class="bt-voice-improvement">
+              <div class="bt-imp-h"><span class="bt-imp-ic"></span><span class="bt-imp-l">AI-drafted improvement</span></div>
+              <p>Refine the <b>vehicles section</b>. Add a sleeve of industrial REITs with DC-suitable land (PLD ~2%, EQIX ~1%) and right-of-way utilities (NEE ~1.5%). Reduce direct PWR / VST exposure by 1.5%. Captures Zell's land thesis without abandoning the original setup.</p>
+              <div class="bt-imp-actions">
+                <button class="bt-mini-cta" type="button">Refine</button>
+                <button class="bt-mini-cta" type="button">Dismiss</button>
+                <button class="bt-cta-sm" type="button">Apply to canvas →</button>
+              </div>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <!-- Reconciliation -->
+      <div class="bt-reconciliation">
+        <div class="bt-recon-h">
+          <h3>Reconciliation with Research View</h3>
+        </div>
+        <div class="bt-recon-grid">
+          <div class="bt-recon-cell">
+            <div class="bt-syn-l">Agreements</div>
+            <ul>
+              <li>Earnings power acceleration is real and visible in 13F + sell-side revision data</li>
+              <li>Catalyst density over the next 9 months is high</li>
+            </ul>
+          </div>
+          <div class="bt-recon-cell">
+            <div class="bt-syn-l">Disagreements</div>
+            <ul>
+              <li>Research View weights structural tailwinds higher; panel weights positioning risk higher</li>
+              <li>Research View favors pure-plays; Zell reframes toward real-asset owners</li>
+            </ul>
+          </div>
+          <div class="bt-recon-cell">
+            <div class="bt-syn-l">Stronger evidence base</div>
+            <span class="bt-mispriced-pill">Research View</span>
+            <p>Quantifiable revisions data outweighs panel's subjective positioning concerns at this moment.</p>
+          </div>
+          <div class="bt-recon-cell">
+            <div class="bt-syn-l">Lifecycle implication</div>
+            <p>Hold in Developing. Promote to Actionable on (a) two consecutive earnings beats AND (b) hedge-fund crowding metric below 60th percentile.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bt-composer" style="margin-top:6px">
+        <div class="bt-composer-foot" style="border-top:0;padding-top:0">
+          <span class="bt-tip"><b id="btImpCount">0 of 5</b> improvements applied</span>
+          <span class="bt-grow"></span>
+          <button class="bt-secondary-cta" type="button">Re-run panel</button>
+          <button class="bt-cta" type="button" data-go="promote">
+            <span>Continue</span>
+            <span class="arrow">→</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── PHASE 5 · PROMOTE ─────────────────────────────────────── -->
+    <section class="bt-stage" data-stage="promote">
+      <div class="bt-stage-hd">
+        <h2>Ready to promote</h2>
+        <p>Move this thesis from Build Thesis into the Developing column of your pipeline.</p>
+      </div>
+      <div class="bt-promote">
+        <div class="bt-promote-hd">
+          <h3>AI power buildout repricing transmission &amp; nukes</h3>
+          <p>PWR · VST · CEG · long / XLU short — multi-leg thesis</p>
+        </div>
+        <div class="bt-promote-summary">
+          <div class="bt-s-cell"><span class="k">Type</span><span class="v">Thesis</span></div>
+          <div class="bt-s-cell"><span class="k">Stage on save</span><span class="v">Developing</span></div>
+          <div class="bt-s-cell"><span class="k">Conviction</span><span class="v">62 / 100</span></div>
+          <div class="bt-s-cell"><span class="k">Horizon</span><span class="v">12–18 months</span></div>
+          <div class="bt-s-cell"><span class="k">Sizing target</span><span class="v">4.5% gross</span></div>
+          <div class="bt-s-cell"><span class="k">Expected return</span><span class="v" style="color:var(--pos)">+18.4%</span></div>
+        </div>
+        <div class="bt-promote-actions">
+          <button class="bt-secondary-cta" type="button">Save as draft</button>
+          <span class="bt-grow"></span>
+          <button class="bt-cta" type="button" id="btPromoteCta">
+            <span>Promote to Developing</span>
+            <span class="arrow">→</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Drafts modal -->
+    <div class="bt-modal" id="btDraftsModal">
+      <div class="bt-modal-card">
+        <div class="bt-modal-hd">
+          <h3>Saved drafts</h3>
+          <span class="ct">3</span>
+          <button class="close" id="btDraftsClose" type="button">×</button>
+        </div>
+        <div class="bt-drafts-list">
+          <button class="bt-draft" type="button">
+            <div>
+              <h4 class="ttl">AI power buildout repricing transmission &amp; nukes</h4>
+              <div class="meta"><span>Last edited <b>4m ago</b></span><span>3 prompts · 1 canvas</span></div>
+            </div>
+            <span class="phase canvas">Canvas</span>
+          </button>
+          <button class="bt-draft" type="button">
+            <div>
+              <h4 class="ttl">Pacific shipping route shift — beneficiaries on 12-month horizon</h4>
+              <div class="meta"><span>Last edited <b>2d ago</b></span><span>7 prompts</span></div>
+            </div>
+            <span class="phase brainstorm">Brainstorm</span>
+          </button>
+          <button class="bt-draft" type="button">
+            <div>
+              <h4 class="ttl">HY spread widening — passthrough vs. absorbed sectors</h4>
+              <div class="meta"><span>Last edited <b>5d ago</b></span><span>1 canvas · scenarios run</span></div>
+            </div>
+            <span class="phase scenarios">Scenarios</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status footer -->
+    <footer class="statusbar">
+      <div class="sb-item"><span class="v">Mon 25 May · 09:14 <em>NYC</em></span></div>
+      <div class="sb-item"><span class="v">Next · <em class="hl">CCJ</em> WNA 28 May</span></div>
+      <div class="sb-grow"></div>
+      <div class="sb-item right"><span class="v hint">⌘K command palette</span></div>
+    </footer>
+
+  </main>
+</div>
+
+
+<!-- Env toggle -->
+<script>
+(function(){
+  const env = document.getElementById('env');
+  const btn = document.getElementById('envToggle');
+  if(env && btn) btn.addEventListener('click', () => env.classList.toggle('open'));
+
+  const prol = document.getElementById('prolToggle');
+  if(prol) prol.addEventListener('click', () => prol.classList.toggle('on'));
+
+  // AI Model Picker
+  const picker = document.getElementById('aiPicker');
+  const menu   = document.getElementById('aiMenu');
+  const name   = document.getElementById('aiCurrentName');
+  if(picker && menu){
+    picker.addEventListener('click', (e) => {
+      e.stopPropagation();
+      picker.classList.toggle('open');
+    });
+    menu.querySelectorAll('.ai-opt').forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.querySelectorAll('.ai-opt').forEach(o => o.classList.remove('on'));
+        opt.classList.add('on');
+        if(name) name.textContent = opt.dataset.name;
+        const tierEl = picker.querySelector('.ai-tier');
+        if(tierEl && opt.dataset.tier) tierEl.textContent = opt.dataset.tier;
+        picker.classList.remove('open');
+      });
+    });
+    document.addEventListener('click', () => picker.classList.remove('open'));
+  }
+
+  // Reasoning segments
+  const reason = document.getElementById('aiReason');
+  if(reason){
+    reason.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        reason.querySelectorAll('button').forEach(x => x.classList.remove('on'));
+        b.classList.add('on');
+      });
+    });
+  }
+
+  // Card delete X + confirmation
+  document.querySelectorAll('.card').forEach(card => {
+    if(card.querySelector('.card-x')) return;
+    const x = document.createElement('button');
+    x.className = 'card-x';
+    x.type = 'button';
+    x.setAttribute('aria-label','Delete card');
+    x.textContent = '×';
+    const overlay = document.createElement('div');
+    overlay.className = 'card-confirm';
+    overlay.innerHTML = `
+      <div class="msg">Delete this card?</div>
+      <div class="sub">This action cannot be undone.</div>
+      <div class="actions">
+        <button type="button" class="cancel">Cancel</button>
+        <button type="button" class="danger delete">Delete</button>
+      </div>`;
+    card.appendChild(x);
+    card.appendChild(overlay);
+
+    x.addEventListener('click', e => {
+      e.stopPropagation();
+      card.classList.add('confirming');
+    });
+    overlay.querySelector('.cancel').addEventListener('click', e => {
+      e.stopPropagation();
+      card.classList.remove('confirming');
+    });
+    overlay.querySelector('.delete').addEventListener('click', e => {
+      e.stopPropagation();
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(-4px) scale(.98)';
+      setTimeout(() => card.remove(), 200);
+    });
+  });
+  // ─── Build Thesis ────────────────────────────────────────────────────
+  const phases = ['brainstorm','canvas','scenarios','experts','promote'];
+  const phaseBtns = document.querySelectorAll('.bt-phase');
+  const stages = document.querySelectorAll('.bt-stage');
+  function setPhase(p){
+    const i = phases.indexOf(p);
+    phaseBtns.forEach(b => {
+      const bi = phases.indexOf(b.dataset.phase);
+      b.classList.toggle('on', bi === i);
+      b.classList.toggle('done', bi < i);
+    });
+    stages.forEach(s => s.classList.toggle('on', s.dataset.stage === p));
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+  phaseBtns.forEach(b => b.addEventListener('click', () => setPhase(b.dataset.phase)));
+  document.querySelectorAll('[data-go]').forEach(b =>
+    b.addEventListener('click', () => setPhase(b.dataset.go))
+  );
+
+  // ─── Rotating prompts ─────────────────────────────────────────────
+  const PROMPT_POOL = [
+    {tag:"Late-cycle",      txt:"A late-cycle setup where consensus is wrong about Fed cut timing."},
+    {tag:"Credit",          txt:"HY spreads widening — which sectors pass through pricing, which absorb the hit?"},
+    {tag:"REITs",           txt:"Industrial REITs after a coastal supply shock — is pricing power back?"},
+    {tag:"Uranium",         txt:"Uranium term-spot dislocation — utility re-contracting cycle is early."},
+    {tag:"AI / power",      txt:"AI power buildout repricing transmission and nuclear restart names."},
+    {tag:"Lithium",         txt:"Lithium oversupply reversal — 2026 deficit setup vs. consensus surplus."},
+    {tag:"Strong dollar",   txt:"Persistent DXY strength — EM debt and dollar-earner multinationals."},
+    {tag:"Rates vol",       txt:"MOVE › VIX dislocation — what does a rates-vol-led tape favor?"},
+    {tag:"Contrarian",      txt:"A consensus short with sticky cash flows — overplayed?"},
+    {tag:"Capex peak",      txt:"Hyperscaler capex peak — beneficiaries past the chip layer."},
+    {tag:"Demographics",    txt:"Retiring boomers exit cyclicals — who buys at the margin?"},
+    {tag:"Tariffs",         txt:"Tariff regime change — domestic manufacturing winners and losers."},
+    {tag:"Earnings",        txt:"Pre-earnings revision dispersion — set-ups vs. consensus prints."},
+    {tag:"Mean-revert",     txt:"5-yr low FCF yields in a defensive subsector — value trap or setup?"},
+    {tag:"Structural",      txt:"Software-as-utility — re-pricing as buyers consolidate."},
+    {tag:"Geopolitics",     txt:"Pacific shipping route shift — beneficiaries on a 12-month horizon."},
+    {tag:"Long/short pair", txt:"A long/short pair within the same supply chain."},
+    {tag:"Carry",           txt:"Income-yielding setup that survives a ±100bp rate move."},
+    {tag:"Reflexivity",     txt:"A momentum name where weak hands are about to be forced out."},
+    {tag:"Quality",         txt:"High-quality compounders trading below long-term multiple."},
+    {tag:"Commodity cycle", txt:"A commodity name where capex is rolling over — supply low ahead?"},
+    {tag:"Re-rate",         txt:"A regulated business with hidden growth at fair-value multiple."},
+    {tag:"Pricing power",   txt:"A defensive with pricing power not in this year's numbers."},
+    {tag:"Inventory",       txt:"Inventory destock turning — which channels pop first?"},
+    {tag:"M&A",             txt:"Forced-seller M&A setup — strategic buyer pool intact."}
+  ];
+  const PROMPTS_PER_BATCH = 6;
+  let unused = [];
+  function refillPool(){
+    unused = PROMPT_POOL.slice();
+    // Shuffle
+    for (let i = unused.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [unused[i], unused[j]] = [unused[j], unused[i]];
+    }
+  }
+  refillPool();
+  const promptsEl = document.getElementById('btPrompts');
+  function renderPrompts(){
+    if(!promptsEl) return;
+    if(unused.length < PROMPTS_PER_BATCH) refillPool();
+    const batch = unused.splice(0, PROMPTS_PER_BATCH);
+    promptsEl.innerHTML = '';
+    batch.forEach(p => {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'bt-prompt';
+      card.innerHTML = `<span class="bt-tag">${p.tag}</span><span class="bt-txt">${p.txt}</span>`;
+      card.addEventListener('click', () => {
+        const ta = document.getElementById('btInput');
+        if(ta){ ta.value = p.txt; ta.focus(); ta.dispatchEvent(new Event('input',{bubbles:true})); }
+      });
+      promptsEl.appendChild(card);
+    });
+  }
+  renderPrompts();
+  const shuffleBtn = document.getElementById('btShuffle');
+  if(shuffleBtn) shuffleBtn.addEventListener('click', renderPrompts);
+
+  // ─── Composer ─────────────────────────────────────────────────────
+  const input = document.getElementById('btInput');
+  const generateBtn = document.getElementById('btGenerate');
+  const convo = document.getElementById('btConvo');
+
+  function addMsg(role, html){
+    if(!convo) return;
+    convo.classList.add('has-msgs');
+    const wrap = document.createElement('div');
+    wrap.className = 'bt-msg ' + role;
+    wrap.innerHTML = `<span class="bt-av"></span><div class="bt-body">${html}</div>`;
+    convo.appendChild(wrap);
+    convo.scrollTop = convo.scrollHeight;
+  }
+
+  if(input){
+    input.addEventListener('input', () => {
+      const has = input.value.trim().length > 0;
+      if(generateBtn) generateBtn.disabled = !has;
+    });
+    input.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' && !e.shiftKey){
+        e.preventDefault();
+        const txt = input.value.trim();
+        if(!txt) return;
+        addMsg('user', `<p>${escapeHtml(txt)}</p>`);
+        input.value = '';
+        if(generateBtn) generateBtn.disabled = false;
+        setTimeout(() => respond(txt), 600);
+      }
+    });
+  }
+
+  function escapeHtml(s){return s.replace(/[&<>"]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+
+  function respond(userTxt){
+    // Pick a generic-but-useful follow-up
+    const responses = [
+      `<p>Strong starting point. Three questions to sharpen this into a canvas-ready thesis:</p>
+       <ol>
+         <li><b>Where does consensus get it wrong?</b> What's the specific assumption you think the street is mispricing?</li>
+         <li><b>How do you express it?</b> Single stock, multi-leg long/short, ETF basket — which vehicle?</li>
+         <li><b>What kills it?</b> A 6–9 month invalidation — data print, policy move, price level.</li>
+       </ol>`,
+      `<p>I can work with this. Let's get specific on three dimensions:</p>
+       <ol>
+         <li><b>Timeline.</b> Is this a quarter-by-quarter catalyst story or a 12-18 month thematic re-rate?</li>
+         <li><b>Conviction sources.</b> What's the strongest piece of evidence you have right now — and what would change your mind?</li>
+         <li><b>Sizing.</b> Pilot tranche (1–2%) or full conviction (4–5%)?</li>
+       </ol>`
+    ];
+    addMsg('ai', responses[Math.floor(Math.random()*responses.length)]);
+  }
+
+  // ─── Drafts modal ─────────────────────────────────────────────────
+  const draftsModal = document.getElementById('btDraftsModal');
+  const draftsLink  = document.getElementById('btDraftsLink');
+  const draftsClose = document.getElementById('btDraftsClose');
+  if(draftsLink && draftsModal){
+    draftsLink.addEventListener('click', () => draftsModal.classList.add('open'));
+  }
+  if(draftsClose) draftsClose.addEventListener('click', () => draftsModal.classList.remove('open'));
+  if(draftsModal) draftsModal.addEventListener('click', (e) => {
+    if(e.target === draftsModal) draftsModal.classList.remove('open');
+  });
+
+  // ─── Save Draft ───────────────────────────────────────────────────
+  const saveBtn = document.getElementById('btSave');
+  if(saveBtn){
+    saveBtn.addEventListener('click', () => {
+      const original = saveBtn.textContent;
+      saveBtn.classList.add('saved');
+      saveBtn.textContent = '✓ Saved';
+      setTimeout(() => {
+        saveBtn.classList.remove('saved');
+        saveBtn.textContent = original;
+      }, 1600);
+    });
+  }
+
+  // ─── Voice expand/collapse ───────────────────────────────────────
+  document.querySelectorAll('.bt-voice .bt-voice-h').forEach(h => {
+    h.addEventListener('click', (e) => {
+      // Don't toggle when clicking buttons inside the header
+      if(e.target.closest('button') && !e.target.classList.contains('bt-voice-toggle')) return;
+      const card = h.closest('.bt-voice');
+      card.classList.toggle('open');
+    });
+  });
+
+  // ─── Apply to canvas counter ─────────────────────────────────────
+  const impCount = document.getElementById('btImpCount');
+  let applied = 0;
+  const totalImp = document.querySelectorAll('.bt-cta-sm').length;
+  document.querySelectorAll('.bt-cta-sm').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if(btn.classList.contains('applied')) return;
+      btn.classList.add('applied');
+      btn.innerHTML = '✓ Applied';
+      applied++;
+      if(impCount) impCount.textContent = `${applied} of ${totalImp}`;
+    });
+  });
+  if(impCount && totalImp) impCount.textContent = `0 of ${totalImp}`;
+
+  // ─── Promote to Desk ─────────────────────────────────────────────
+  const promoteCta = document.getElementById('btPromoteCta');
+  if(promoteCta){
+    promoteCta.addEventListener('click', () => {
+      // Pass the freshly-promoted thesis to Desk so it can show a toast + highlight a new card
+      const payload = {
+        ticker: 'PWR · VST · CEG',
+        title: 'AI power buildout repricing transmission & nukes',
+        snippet: 'Hyperscaler PPAs forcing utilities to rebuild grid faster than rate-base growth assumes.',
+        sector: 'energy',
+        sectorLabel: 'Energy',
+        conviction: 62,
+        catalyst: 'Q3 prints',
+        catalystDate: '10 / 24',
+        age: 'now',
+        id: '#024'
+      };
+      try { sessionStorage.setItem('dossier:justPromoted', JSON.stringify(payload)); } catch(e){}
+      window.location.href = 'Desk.html?promoted=1';
+    });
+  }
+})();
+</script>
+
+
+<!-- Tweaks panel -->
+<script src="https://cdn.jsdelivr.net/npm/prop-types@15.8.1/prop-types.min.js"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accent": "#c4892a",
+  "density": "comfortable",
+  "envExpanded": false,
+  "showSidebar": true,
+  "ctaStyle": "sunburst"
+}/*EDITMODE-END*/;
+
+function TweaksApp(){
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  React.useEffect(()=>{
+    document.documentElement.style.setProperty('--amber', t.accent);
+    document.documentElement.style.setProperty('--amber-2', shade(t.accent,-.18));
+    document.documentElement.style.setProperty('--amber-soft', hexA(t.accent,.12));
+  }, [t.accent]);
+
+  React.useEffect(()=>{
+    const app = document.querySelector('.app');
+    if(!app) return;
+    app.style.gridTemplateColumns = t.showSidebar ? '228px 1fr' : '0 1fr';
+    document.querySelector('.side').style.display = t.showSidebar ? 'flex' : 'none';
+  }, [t.showSidebar]);
+
+  React.useEffect(()=>{
+    const env = document.getElementById('env');
+    if(!env) return;
+    env.classList.toggle('open', !!t.envExpanded);
+  }, [t.envExpanded]);
+
+  React.useEffect(()=>{
+    const css = {
+      compact:     { pad:'14px 20px', pipePad:'16px 20px 24px', card:'12px 14px', gap:'12px' },
+      comfortable: { pad:'18px 24px', pipePad:'20px 24px 24px', card:'14px 14px', gap:'14px' },
+      airy:        { pad:'22px 32px', pipePad:'26px 32px 32px', card:'18px 18px', gap:'18px' },
+    }[t.density] || {};
+    const tb = document.querySelector('.topbar'); if(tb) tb.style.padding = css.pad;
+    const env = document.querySelector('.env'); if(env) env.style.margin = `6px ${css.pad?.split(' ')[1]||'24px'} 0`;
+    document.querySelectorAll('.sec-eyebrow').forEach(e=>e.style.margin = `14px ${css.pad?.split(' ')[1]||'24px'} 0`);
+    const su = document.querySelector('.summary'); if(su) su.style.margin = `14px ${css.pad?.split(' ')[1]||'24px'} 0`;
+    const pw = document.querySelector('.pipe-wrap'); if(pw) pw.style.padding = css.pipePad;
+    // .card no longer takes outer padding (header/body/footer self-pad)
+    const p = document.querySelector('.pipe'); if(p) p.style.gap = css.gap;
+  }, [t.density]);
+
+  React.useEffect(()=>{
+    const cta = document.querySelector('.cta');
+    const ico = cta && cta.querySelector('.ico');
+    if(!cta) return;
+    if(t.ctaStyle === 'flat'){
+      cta.style.background = t.accent;
+      cta.style.borderColor = shade(t.accent,-.18);
+      if(ico) ico.style.display = 'none';
+    } else if(t.ctaStyle === 'ink'){
+      cta.style.background = '#1a1a1f';
+      cta.style.borderColor = '#000';
+      if(ico) ico.style.display = '';
+    } else { // sunburst
+      cta.style.background = '';
+      cta.style.borderColor = '';
+      if(ico) ico.style.display = '';
+    }
+  }, [t.ctaStyle, t.accent]);
+
+  return (
+    <TweaksPanel title="Tweaks">
+      <TweakSection label="Accent" />
+      <TweakColor label="Color" value={t.accent}
+        options={['#c4892a','#e0511a','#2d6a4f','#4a1d6b','#1a1a1f']}
+        onChange={(v)=>setTweak('accent', v)} />
+
+      <TweakSection label="Primary action" />
+      <TweakRadio label="CTA style" value={t.ctaStyle}
+        options={['sunburst','flat','ink']}
+        onChange={(v)=>setTweak('ctaStyle', v)} />
+
+      <TweakSection label="Density" />
+      <TweakRadio label="Layout" value={t.density}
+        options={['compact','comfortable','airy']}
+        onChange={(v)=>setTweak('density', v)} />
+
+      <TweakSection label="Environment band" />
+      <TweakToggle label="Expanded by default" value={t.envExpanded}
+        onChange={(v)=>setTweak('envExpanded', v)} />
+
+      <TweakSection label="Layout" />
+      <TweakToggle label="Show sidebar" value={t.showSidebar}
+        onChange={(v)=>setTweak('showSidebar', v)} />
+    </TweaksPanel>
+  );
+}
+
+function hexA(hex,a){const h=hex.replace('#','');return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`}
+function shade(hex,amt){const h=hex.replace('#','');let r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);const f=c=>amt<0?Math.round(c*(1+amt)):Math.round(c+(255-c)*amt);return '#'+[f(r),f(g),f(b)].map(c=>c.toString(16).padStart(2,'0')).join('')}
+
+const root = document.createElement('div');
+document.body.appendChild(root);
+ReactDOM.createRoot(root).render(<TweaksApp />);
+</script>
+
+</body>
+</html>

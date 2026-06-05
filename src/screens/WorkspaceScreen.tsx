@@ -36,7 +36,7 @@ export const WorkspaceScreen: React.FC = () => {
     setMessage(null)
     try {
       downloadWorkspaceBackup()
-      setMessage('Download started. Keep this file private; it contains your thesis data.')
+      setMessage('Download started.')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Export failed')
     }
@@ -94,7 +94,7 @@ export const WorkspaceScreen: React.FC = () => {
     <div className="min-h-full p-5 max-w-[800px]">
       <h1 className="text-xl font-bold text-text-primary">Workspace</h1>
       <p className="text-xs text-text-muted mt-1 italic">
-        Data lives in this browser for this URL only — not synced to Vercel or other machines.
+        Data is local to this browser — not synced across devices.
       </p>
 
       <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -113,24 +113,17 @@ export const WorkspaceScreen: React.FC = () => {
       <div className="mt-8 space-y-6">
         <section>
           <h2 className="text-sm font-semibold text-text-primary mb-2">Backup</h2>
-          <p className="text-xs text-text-secondary leading-relaxed mb-3">
-            Download a JSON snapshot of persisted workspace state (theses, scenarios, signals, portfolio, macro, etc.).
-            Store it somewhere safe; do not commit it to git.
-          </p>
           <button
             type="button"
             onClick={onExport}
             className="px-4 py-2 text-xs font-semibold rounded-lg border border-border hover:border-accent/40 transition-colors text-text-primary"
           >
-            Export workspace JSON
+            Export JSON
           </button>
         </section>
 
         <section>
           <h2 className="text-sm font-semibold text-text-primary mb-2">Restore</h2>
-          <p className="text-xs text-text-secondary leading-relaxed mb-3">
-            Import a backup file created by this app. Your current data for this site will be replaced, then the page reloads.
-          </p>
           <input
             ref={fileRef}
             type="file"
@@ -143,15 +136,12 @@ export const WorkspaceScreen: React.FC = () => {
             onClick={onPickFile}
             className="px-4 py-2 text-xs font-semibold rounded-lg border border-border hover:border-accent/40 transition-colors text-text-primary"
           >
-            Import workspace JSON…
+            Import JSON…
           </button>
         </section>
 
         <section>
           <h2 className="text-sm font-semibold text-text-primary mb-2">Reset</h2>
-          <p className="text-xs text-text-secondary leading-relaxed mb-3">
-            Remove all Dossier persisted keys for this origin. Use after a bad migration or to start clean on this URL.
-          </p>
           <button
             type="button"
             onClick={onClear}
@@ -169,8 +159,7 @@ export const WorkspaceScreen: React.FC = () => {
         <section>
           <h2 className="text-sm font-semibold text-text-primary mb-2">API keys</h2>
           <p className="text-xs text-text-secondary leading-relaxed">
-            Local: use <span className="font-mono">.env</span> (never commit). Production: set the same{' '}
-            <span className="font-mono">VITE_*</span> variables in the Vercel project settings. Rotate any key that may have leaked.
+            Local: <span className="font-mono">.env</span> · Production: <span className="font-mono">VITE_*</span> vars in Vercel project settings.
           </p>
         </section>
       </div>

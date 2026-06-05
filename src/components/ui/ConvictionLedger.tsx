@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useConvictionStore } from '../../store/convictionStore'
 import { initializeThesis } from '../../api/thesisInitializer'
 import { useThesisStore } from '../../store/thesisStore'
@@ -385,13 +385,17 @@ export const ConvictionLedger: React.FC<ConvictionLedgerProps> = ({
   convictionRunning = false,
 }) => {
   const storedScore = useConvictionStore((s) => s.convictionScores[thesisId])
-  const drafts = useConvictionStore((s) =>
-    Object.values(s.drafts).filter((d) => d.thesisId === thesisId)
+  const allDrafts = useConvictionStore((s) => s.drafts)
+  const allLedger = useConvictionStore((s) => s.ledger)
+  const drafts = useMemo(
+    () => Object.values(allDrafts).filter((d) => d.thesisId === thesisId),
+    [allDrafts, thesisId]
   )
-  const entries = useConvictionStore((s) =>
-    Object.values(s.ledger)
+  const entries = useMemo(
+    () => Object.values(allLedger)
       .filter((e) => e.thesisId === thesisId)
-      .sort((a, b) => new Date(b.confirmedAt).getTime() - new Date(a.confirmedAt).getTime())
+      .sort((a, b) => new Date(b.confirmedAt).getTime() - new Date(a.confirmedAt).getTime()),
+    [allLedger, thesisId]
   )
   const thesis = useThesisStore((s) => s.theses[thesisId])
 

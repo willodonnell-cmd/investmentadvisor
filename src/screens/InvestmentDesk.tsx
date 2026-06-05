@@ -134,7 +134,7 @@ function MacroBand() {
             Regime last updated · <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 11 }}>
               {regime.lastUpdated ? new Date(regime.lastUpdated).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'never'}
             </span>
-            &nbsp;· Click <strong>Macro</strong> in the topbar to update.
+            &nbsp;· Update via <strong>Macro</strong> in the topbar.
           </p>
         </div>
       )}
@@ -316,30 +316,21 @@ function PipelineCard({ thesis, onDelete }: { thesis: Thesis; onDelete: () => vo
         background: 'rgba(196,137,42,0.05)',
         borderBottom: `1px solid ${tk.hairline}`,
       }}>
-        <span style={{
-          width: 18, height: 18, borderRadius: '50%',
-          background: 'rgba(196,137,42,0.14)', border: '1px solid rgba(196,137,42,0.35)',
-          color: '#7a4a0c', fontSize: 9, fontWeight: 700,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-        }}>
-          {chip}
-        </span>
         {thesis.ticker && (
           <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 11.5, fontWeight: 700, color: tk.ink, letterSpacing: '0.04em' }}>
             {thesis.ticker}
           </span>
         )}
-        <span style={{
-          marginLeft: 'auto',
-          fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em',
-          padding: '1px 6px', borderRadius: 3,
-          color: sector.color, background: sector.bg,
-        }}>
-          {sector.label}
-        </span>
-        <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 9.5, color: tk.muted2 }}>
-          #{thesis.id.slice(-3).toUpperCase()}
-        </span>
+        {sector.label !== 'THESIS' && (
+          <span style={{
+            marginLeft: 'auto',
+            fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em',
+            padding: '1px 6px', borderRadius: 3,
+            color: sector.color, background: sector.bg,
+          }}>
+            {sector.label}
+          </span>
+        )}
       </div>
 
       {/* Card body */}
@@ -362,9 +353,6 @@ function PipelineCard({ thesis, onDelete }: { thesis: Thesis; onDelete: () => vo
 
         {/* Conviction */}
         <div style={{ marginBottom: 4 }}>
-          <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: tk.muted2 }}>
-            Conviction
-          </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
             <div style={{ flex: 1, height: 4, borderRadius: 99, background: tk.surface2, overflow: 'hidden', position: 'relative' }}>
               <div style={{
@@ -462,7 +450,7 @@ export const InvestmentDesk: React.FC = () => {
 
   useTopBar({
     title: 'Command Center',
-    crumb: lens !== 'Standalone' ? 'Prologis-aware lens active' : undefined,
+    crumb: lens !== 'Standalone' ? 'Prologis-aware' : undefined,
   })
 
   const handleDelete = (id: string, name: string) => deleteThesisFromSystem(id, name)
@@ -485,7 +473,7 @@ export const InvestmentDesk: React.FC = () => {
           fontSize: 11, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase',
           color: tk.muted2,
         }}>
-          Thesis Pipeline
+          Pipeline
         </span>
         <span style={{
           fontFamily: 'GeistMono, monospace', fontSize: 10.5, color: tk.muted2,
@@ -586,9 +574,7 @@ export const InvestmentDesk: React.FC = () => {
                     e.currentTarget.style.color = tk.muted2
                   }}
                 >
-                  {stage === 'Developing' ? '+ New hypothesis'
-                    : stage === 'Actionable' ? '+ Promote from Developing'
-                    : '+ Promote from Actionable'}
+                  + New
                 </button>
               </div>
             </div>
@@ -599,10 +585,10 @@ export const InvestmentDesk: React.FC = () => {
       <AskAIDock
         context="about your pipeline"
         starterQuestions={[
-          'Which thesis has the most signal convergence right now?',
-          'What should I promote from Developing to Actionable?',
-          'Are any theses overdue for reassessment?',
-          'Where is the conviction decaying fastest?',
+          'Which thesis has the most signal convergence?',
+          'What should I promote to Actionable?',
+          'Any theses overdue for reassessment?',
+          'Where is conviction decaying fastest?',
         ]}
       />
 

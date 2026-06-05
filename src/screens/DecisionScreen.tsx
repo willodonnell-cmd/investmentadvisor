@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { v4 as uuid } from 'uuid'
 import { useThesisStore, usePortfolioStore, useScenarioStore, useMacroStore, useSignalStore } from '../store'
+import { JournalPromptBanner } from '../components/ui/JournalPromptBanner'
 import { ProgressRing } from '../components/ui/ProgressRing'
 import { LifecycleBadge, Badge } from '../components/ui/Badge'
 import { computeSizing } from '../api/sizing'
@@ -137,6 +138,7 @@ export const DecisionScreen: React.FC = () => {
   const [commitType, setCommitType] = useState<PositionType>('Long')
   const [commitAccount, setCommitAccount] = useState<AccountType>('Taxable')
   const [commitSizePct, setCommitSizePct] = useState<number>(0)
+  const [journalPrompt, setJournalPrompt] = useState<{ thesisId: string; thesisName: string; ticker?: string } | null>(null)
 
   const thesis = useMemo(
     () => (selectedId ? thesesRecord[selectedId] : null),
@@ -187,14 +189,12 @@ export const DecisionScreen: React.FC = () => {
     return (
       <div className="p-5 max-w-[860px]">
         <div className="mb-6">
-          <h1 className="text-xl font-bold text-text-primary">Capital Allocation Decision</h1>
-          <p className="text-xs text-text-muted mt-1 italic">Select a thesis to compute sizing and review decision context</p>
+          <h1 className="text-xl font-bold text-text-primary">Capital Allocation</h1>
         </div>
 
         {activeTheses.length === 0 ? (
           <div className="rounded-xl p-8 text-center" style={{ border: '1.5px dashed #D8D0C4' }}>
             <p className="text-sm text-text-secondary mb-2">No active theses</p>
-            <p className="text-xs text-text-muted">Create a thesis first from the Investment Desk.</p>
           </div>
         ) : (
           <div className="grid gap-2">
@@ -233,6 +233,16 @@ export const DecisionScreen: React.FC = () => {
 
   return (
     <div className="p-5 max-w-[860px] space-y-4">
+
+      {journalPrompt && (
+        <JournalPromptBanner
+          decisionType="entry"
+          thesisId={journalPrompt.thesisId}
+          thesisName={journalPrompt.thesisName}
+          ticker={journalPrompt.ticker}
+          onDismiss={() => setJournalPrompt(null)}
+        />
+      )}
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
@@ -284,7 +294,7 @@ export const DecisionScreen: React.FC = () => {
           <div className="rounded-xl p-5 space-y-4" style={rungCfg.style}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-text-muted mb-1">Sizing Recommendation</p>
+                <p className="text-[10px] uppercase tracking-widest text-text-muted mb-1">Sizing</p>
                 <p className={`text-2xl font-bold ${rungCfg.color}`}>{rungCfg.label}</p>
                 <p className="text-sm text-text-primary font-semibold mt-0.5">
                   Target {pct(sizing.targetSizePct)}
@@ -315,7 +325,7 @@ export const DecisionScreen: React.FC = () => {
 
             {/* Layer 1: Kelly anchor */}
             <div style={cardStyle} className="space-y-2">
-              <p className="text-[10px] uppercase tracking-widest text-text-muted">Layer 1 — Quarter-Kelly Anchor</p>
+              <p className="text-[10px] uppercase tracking-widest text-text-muted">Layer 1 · Kelly</p>
               <p className="text-xl font-bold font-mono text-text-primary">{pct(sizing.anchorSize)}</p>
               {scenarios.length >= 3 ? (
                 <div className="space-y-1 pt-1">
@@ -329,14 +339,14 @@ export const DecisionScreen: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-[11px] text-text-muted">Generate scenarios to compute anchor.</p>
+                <p className="text-[11px] text-text-muted">No scenarios yet.</p>
               )}
             </div>
 
             {/* Layer 2: Modifiers */}
             <div style={cardStyle} className="space-y-2">
               <div className="flex items-center justify-between mb-1">
-                <p className="text-[10px] uppercase tracking-widest text-text-muted">Layer 2 — Conviction Modifiers</p>
+                <p className="text-[10px] uppercase tracking-widest text-text-muted">Layer 2 · Modifiers</p>
                 <span className="text-[11px] font-mono font-bold text-text-primary">
                   {sizing.boundedModifier.toFixed(2)}×
                 </span>
@@ -354,7 +364,7 @@ export const DecisionScreen: React.FC = () => {
 
           {/* Layer 3: Portfolio constraints */}
           <div style={cardStyle} className="space-y-2">
-            <p className="text-[10px] uppercase tracking-widest text-text-muted">Layer 3 — Portfolio Constraints</p>
+            <p className="text-[10px] uppercase tracking-widest text-text-muted">Layer 3 · Constraints</p>
             <div className="grid grid-cols-4 gap-3 pt-1">
               {[
                 { label: 'Overlap penalty', value: sizing.portfolioConstraints.overlapPenalty },
@@ -395,7 +405,7 @@ export const DecisionScreen: React.FC = () => {
           {/* ── Decision triggers ── */}
           <div className="grid grid-cols-3 gap-3">
             <div style={cardStyle}>
-              <p className="text-[10px] uppercase tracking-widest text-success/80 mb-2">What Would Increase Size</p>
+              <p className="text-[10px] uppercase tracking-widest text-success/80 mb-2">Increase size if</p>
               <ul className="space-y-1.5">
                 {sizing.whatWouldIncreaseSize.map((s, i) => (
                   <li key={i} className="flex gap-2 text-[11px] text-text-secondary">
@@ -405,7 +415,7 @@ export const DecisionScreen: React.FC = () => {
               </ul>
             </div>
             <div style={cardStyle}>
-              <p className="text-[10px] uppercase tracking-widest text-warning/80 mb-2">What Would Decrease Size</p>
+              <p className="text-[10px] uppercase tracking-widest text-warning/80 mb-2">Decrease size if</p>
               <ul className="space-y-1.5">
                 {sizing.whatWouldDecreaseSize.map((s, i) => (
                   <li key={i} className="flex gap-2 text-[11px] text-text-secondary">
@@ -570,6 +580,7 @@ export const DecisionScreen: React.FC = () => {
                             openedAt: new Date(),
                             updatedAt: new Date(),
                           })
+                          setJournalPrompt({ thesisId: thesis.id, thesisName: thesis.name, ticker: thesis.ticker })
                         }
                         setShowCommitForm(false)
                       }}

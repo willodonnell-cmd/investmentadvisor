@@ -574,8 +574,8 @@ export const ComparisonScreen: React.FC = () => {
   useTopBar({
     title: `Compare${selectedCount > 0 ? ` (${selectedCount})` : ''}`,
     crumb: selectedCount === 2
-      ? 'Side-by-side · 2 theses · highlights differences and overlaps'
-      : 'Select two theses to compare',
+      ? '2 theses'
+      : 'Select two theses',
   })
 
   const LABEL = 240
@@ -595,10 +595,10 @@ export const ComparisonScreen: React.FC = () => {
             Comparing
           </span>
           <span style={{ fontSize: 13, color: tk.ink, fontWeight: 600, letterSpacing: '-0.005em', lineHeight: 1.3 }}>
-            {selectedCount === 2 ? 'Two active theses' : selectedCount === 1 ? 'Add a second thesis' : 'Select two theses'}
+            {selectedCount === 2 ? 'Ready' : selectedCount === 1 ? 'Add second' : 'Select two'}
           </span>
           <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 10.5, color: tk.muted, letterSpacing: '0.005em' }}>
-            cells colored by similarity
+            color = similarity
           </span>
         </div>
 
@@ -668,8 +668,7 @@ export const ComparisonScreen: React.FC = () => {
           border: `1.5px dashed ${tk.hairline2}`,
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}>
-          <p style={{ fontSize: 14, color: tk.muted2, margin: 0 }}>No theses selected</p>
-          <p style={{ fontSize: 12, color: '#c8c0b4', margin: 0 }}>Click the A and B slots above to add theses and compare them side-by-side</p>
+          <p style={{ fontSize: 14, color: tk.muted2, margin: 0 }}>No theses selected.</p>
         </div>
       )}
 
@@ -679,7 +678,7 @@ export const ComparisonScreen: React.FC = () => {
           border: `1.5px dashed ${tk.hairline2}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
-          <p style={{ fontSize: 13, color: tk.muted2, margin: 0 }}>Add a second thesis to slot B to compare</p>
+          <p style={{ fontSize: 13, color: tk.muted2, margin: 0 }}>Add a second thesis to compare.</p>
         </div>
       )}
 

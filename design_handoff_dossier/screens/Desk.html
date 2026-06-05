@@ -1,0 +1,1270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1400" />
+<title>Dossier — Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<style>
+/* ─── Tokens ─────────────────────────────────────────────────────────── */
+:root{
+  --bg:#ede9e0;
+  --surface:#f5f2eb;
+  --surface-2:#e8e4d8;
+  --card:#fbf8f1;
+  --ink:#1a1a1f;
+  --ink-2:#3a3a42;
+  --muted:#6b6960;
+  --muted-2:#8b8980;
+  --hairline:rgba(0,0,0,.08);
+  --hairline-2:rgba(0,0,0,.14);
+
+  --amber:#c4892a;
+  --amber-2:#a06f1d;
+  --amber-soft:rgba(196,137,42,.12);
+
+  /* sunburst stops — watch dial */
+  --sun-1:#ffd87a;
+  --sun-2:#f4922c;
+  --sun-3:#e0511a;
+  --sun-4:#a01a0c;
+
+  --purple:#4a1d6b;
+  --rust:#92400e;
+  --green:#2d6a4f;
+
+  --pos:#2d6a4f;
+  --neg:#9b2c1a;
+
+  --r-card:12px;
+  --r-btn:8px;
+  --r-pill:4px;
+
+  --sans:"Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  --mono:"Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:13px;line-height:1.45;-webkit-font-smoothing:antialiased;
+  font-feature-settings:"ss01","ss02","cv11"}
+body{overflow-x:auto}
+button{font-family:inherit;color:inherit}
+
+/* ─── Sunburst (brand + CTA) ─────────────────────────────────────────── */
+.sunburst{
+  position:relative;border-radius:50%;overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 32%, rgba(255,250,235,.7) 0%, rgba(255,250,235,0) 38%),
+    repeating-conic-gradient(
+      from 0deg,
+      rgba(255,255,255,.12) 0 1.2deg,
+      rgba(0,0,0,.10) 1.2deg 2.4deg
+    ),
+    radial-gradient(circle at 50% 50%, var(--sun-1) 0%, var(--sun-2) 30%, var(--sun-3) 70%, var(--sun-4) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(0,0,0,.25),
+    inset 0 -2px 4px rgba(0,0,0,.18),
+    0 0 0 2px rgba(0,0,0,.4),
+    0 1px 2px rgba(0,0,0,.4);
+}
+.sunburst::after{
+  content:"";position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(ellipse at 50% 30%, rgba(255,255,255,.45) 0%, rgba(255,255,255,0) 35%);
+  pointer-events:none;
+}
+
+/* ─── Layout shell ───────────────────────────────────────────────────── */
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh;min-width:1180px;
+  zoom:1.06}
+
+/* ─── Sidebar ────────────────────────────────────────────────────────── */
+.side{background:var(--ink);color:#cfcdc4;display:flex;flex-direction:column;
+  border-right:1px solid #000;font-size:12.5px}
+.side .brand{padding:18px 18px 16px;display:flex;align-items:center;gap:10px;
+  border-bottom:1px solid rgba(255,255,255,.06)}
+.side .brand .mark{width:22px;height:22px;flex:none}
+.side .brand b{font-weight:600;letter-spacing:.16em;font-size:11.5px;color:#f3efe5}
+.side .brand .v{margin-left:auto;font-family:var(--mono);font-size:10px;color:#5a574e}
+
+.side nav{padding:14px 10px;flex:1;display:flex;flex-direction:column;gap:18px}
+.side .gp{display:flex;flex-direction:column;gap:1px}
+
+/* Group header — same font/size as a nav item, distinguished by weight + count chip */
+.side .gp .h{font-family:inherit;font-size:12.5px;letter-spacing:.005em;text-transform:none;
+  font-weight:600;color:#f3efe5;padding:8px 10px;
+  display:flex;justify-content:space-between;align-items:center;
+  position:relative;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:6px}
+.side .gp .h > span:first-child{display:inline-flex;align-items:center;gap:10px;padding-left:0}
+.side .gp .h::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;
+  background:radial-gradient(circle,var(--sun-1),var(--sun-3) 80%);
+  box-shadow:0 0 4px var(--sun-2);position:absolute;left:10px;top:50%;transform:translateY(-50%)}
+.side .gp .h{padding-left:26px}
+.side .gp .h .ct{font-family:var(--mono);color:#a8a59c;font-weight:500;letter-spacing:.04em;
+  font-size:10.5px;padding:1px 6px;background:rgba(255,255,255,.05);border-radius:99px;
+  text-transform:none}
+
+.side a{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 22px;border-radius:6px;
+  color:#a8a59c;text-decoration:none;font-size:12.5px;cursor:default;font-weight:400;
+  position:relative;transition:background .12s ease, color .12s ease}
+.side a:hover{background:rgba(255,255,255,.04);color:#e6e3d8}
+.side a.on{
+  background:
+    linear-gradient(90deg, rgba(244,146,44,.10) 0%, rgba(244,146,44,0) 80%),
+    rgba(255,255,255,.05);
+  color:#fff5e2;font-weight:600;letter-spacing:.005em;
+  box-shadow:inset 3px 0 0 var(--sun-2)}
+.side a.on .ct{color:#ffd9a8}
+.side a .dot{width:6px;height:6px;border-radius:50%;background:transparent;flex:none;
+  position:absolute;left:10px;top:50%;transform:translateY(-50%)}
+.side a.on .dot{background:radial-gradient(circle, var(--sun-1), var(--sun-3) 80%);
+  width:6px;height:6px;box-shadow:0 0 4px var(--sun-2)}
+.side a .ct{margin-left:auto;font-family:var(--mono);font-size:11px;color:#76736a;font-weight:400}
+
+.side a.stg{font-size:11.9px;font-weight:400;padding-left:22px}
+.side a.stg .sq{width:6px;height:6px;border-radius:50%;flex:none;
+  position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+.side a.dv .sq{background:#9468b8}
+.side a.ac .sq{background:#c08a5c}
+.side a.lv .sq{background:#5fa987}
+
+.side .acct{margin-top:auto;padding:14px 14px;border-top:1px solid rgba(255,255,255,.06);
+  display:flex;align-items:center;gap:10px}
+.side .acct .av{width:30px;height:30px;border-radius:50%;
+  background:linear-gradient(135deg,#3a3a42,#1a1a1f);
+  display:grid;place-items:center;font-size:11px;font-weight:600;color:#dad7cf;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.08)}
+.side .acct .who{font-size:12px;color:#e6e3d8;line-height:1.2;font-weight:500}
+.side .acct .who small{display:block;font-size:10px;color:#76736a;margin-top:2px;font-weight:400}
+
+/* ─── AI section ─────────────────────────────────────────────────────────────── */
+.ai-sec{padding:12px 14px 14px;border-top:1px solid rgba(255,255,255,.06);
+  display:flex;flex-direction:column;gap:10px;background:rgba(0,0,0,.18)}
+.ai-sec .h{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;
+  color:#857f70;display:flex;align-items:center;gap:7px;padding:0 4px}
+.ai-sec .h::before{content:"";display:inline-block;width:4px;height:4px;border-radius:50%;
+  background:radial-gradient(circle,var(--sun-1),var(--sun-3) 80%);
+  box-shadow:0 0 3px var(--sun-2)}
+.ai-field{display:flex;flex-direction:column;gap:5px;position:relative}
+.ai-field > label{font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  font-weight:600;color:#605d54;padding:0 4px}
+
+.ai-picker{display:flex;align-items:center;gap:10px;width:100%;
+  padding:8px 10px;border-radius:7px;cursor:default;
+  background:linear-gradient(180deg, #25232b 0%, #1a1820 100%);
+  border:1px solid rgba(255,255,255,.07);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04), 0 1px 2px rgba(0,0,0,.4);
+  font-family:inherit;color:#dad7cf;text-align:left;transition:border-color .15s ease}
+.ai-picker:hover{border-color:rgba(244,146,44,.4)}
+.ai-picker.open{border-color:rgba(244,146,44,.55)}
+.ai-picker .ai-mark{width:7px;height:7px;border-radius:50%;flex:none;
+  background:radial-gradient(circle, var(--sun-1), var(--sun-3) 80%);
+  box-shadow:0 0 4px var(--sun-2)}
+.ai-picker .ai-body{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;
+  line-height:1.15}
+.ai-picker .ai-tier{font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--sun-2);font-weight:600}
+.ai-picker .ai-name{font-size:12px;color:#f3efe5;font-weight:600;letter-spacing:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-picker .ai-chev{color:#605d54;font-size:10px;margin-left:auto;flex:none;
+  transition:transform .18s ease}
+.ai-picker.open .ai-chev{transform:rotate(180deg);color:var(--sun-2)}
+
+.ai-menu{display:none;flex-direction:column;gap:1px;
+  margin-top:4px;padding:4px;border-radius:8px;
+  background:#0f0e13;border:1px solid rgba(255,255,255,.08);
+  box-shadow:0 8px 24px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.04)}
+.ai-picker.open + .ai-menu{display:flex}
+.ai-opt{display:flex;align-items:center;gap:9px;width:100%;
+  padding:7px 8px;border:0;background:transparent;border-radius:5px;
+  font-family:inherit;color:#a8a59c;text-align:left;cursor:default}
+.ai-opt:hover{background:rgba(255,255,255,.04);color:#e6e3d8}
+.ai-opt .ai-mark{width:6px;height:6px;border-radius:50%;
+  background:#3a3a42;flex:none}
+.ai-opt.on{background:rgba(244,146,44,.08);color:#f3efe5}
+.ai-opt.on .ai-mark{background:radial-gradient(circle, var(--sun-1), var(--sun-3) 80%);
+  box-shadow:0 0 4px var(--sun-2)}
+.ai-opt .ai-opt-body{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;
+  line-height:1.2}
+.ai-opt-name{font-size:12px;font-weight:600;letter-spacing:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-opt-meta{font-size:10px;color:#605d54;letter-spacing:.01em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ai-opt.on .ai-opt-meta{color:#7e7969}
+.ai-opt-check{color:var(--sun-2);font-size:11px;opacity:0}
+.ai-opt.on .ai-opt-check{opacity:1}
+
+/* Reasoning segmented control */
+.ai-segments{display:grid;grid-template-columns:repeat(3,1fr);
+  background:#0f0e13;border:1px solid rgba(255,255,255,.07);
+  border-radius:7px;padding:2px;box-shadow:inset 0 1px 2px rgba(0,0,0,.3)}
+.ai-segments button{appearance:none;background:transparent;border:0;
+  font-family:inherit;color:#76736a;font-size:11px;font-weight:500;
+  padding:5px 0;border-radius:5px;cursor:default;letter-spacing:.01em}
+.ai-segments button:hover{color:#dad7cf}
+.ai-segments button.on{background:linear-gradient(180deg,#2c2a35,#1c1b22);
+  color:#f3efe5;font-weight:600;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.07), 0 1px 0 rgba(0,0,0,.3)}
+
+/* ─── Main column ────────────────────────────────────────────────────── */
+.main{display:flex;flex-direction:column;min-width:0}
+
+/* Topbar */
+.topbar{display:grid;grid-template-columns:1fr auto;align-items:center;
+  padding:18px 24px;border-bottom:1px solid var(--hairline);background:var(--bg)}
+.topbar .left{display:flex;align-items:baseline;gap:14px}
+.topbar h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em;line-height:1}
+.topbar .crumb{color:var(--muted);font-size:12px;font-weight:400}
+.topbar .crumb b{color:var(--ink-2);font-weight:500}
+
+/* Prologis overlay toggle */
+.overlay-toggle{display:inline-flex;align-items:center;gap:10px;
+  padding:5px 6px 5px 14px;border:1px solid var(--hairline-2);border-radius:99px;
+  background:var(--surface);font-size:12px;color:var(--ink-2);cursor:default;
+  transition:background .15s ease, border-color .15s ease, color .15s ease}
+.overlay-toggle:hover{border-color:var(--ink-2);background:var(--surface-2)}
+.overlay-toggle .ot-lbl{font-weight:500;letter-spacing:.005em}
+.overlay-toggle .ot-meta{font-family:var(--mono);font-size:10.5px;color:var(--muted);
+  padding-right:2px}
+.overlay-toggle .ot-sw{width:30px;height:18px;border-radius:99px;background:#d4cfc2;
+  position:relative;transition:background .18s ease;flex:none}
+.overlay-toggle .ot-sw i{position:absolute;top:2px;left:2px;width:14px;height:14px;
+  border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.22);
+  transition:left .18s ease}
+.overlay-toggle.on{background:rgba(244,146,44,.10);border-color:rgba(244,146,44,.45);color:var(--ink)}
+.overlay-toggle.on .ot-sw{
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255,245,220,.55) 0%, rgba(255,245,220,0) 60%),
+    linear-gradient(180deg, var(--sun-2), var(--sun-3))}
+.overlay-toggle.on .ot-sw i{left:14px}
+
+.topbar .tabs{display:flex;background:var(--surface);border:1px solid var(--hairline);
+  border-radius:var(--r-btn);padding:3px;gap:2px}
+.topbar .tabs button{appearance:none;border:0;background:transparent;
+  padding:7px 14px;font-size:12px;color:var(--muted);border-radius:6px;cursor:default;font-weight:500}
+.topbar .tabs button.on{
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255,245,220,.18) 0%, rgba(255,245,220,0) 70%),
+    repeating-conic-gradient(from 0deg, rgba(255,255,255,.04) 0 1deg, rgba(0,0,0,.06) 1deg 2deg),
+    linear-gradient(180deg, #2a2024 0%, #1a1316 100%);
+  color:#fff5e2;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10), inset 0 -1px 0 rgba(0,0,0,.4);
+  border:1px solid rgba(0,0,0,.5)}
+
+.topbar .right{display:flex;align-items:center;gap:14px;justify-self:end}
+.stamp{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right;line-height:1.4}
+.stamp em{color:var(--ink-2);font-style:normal}
+
+/* Sunburst CTA */
+.cta{appearance:none;border:1px solid rgba(0,0,0,.35);
+  color:#fff8ea;font-size:12.5px;font-weight:600;letter-spacing:.005em;
+  padding:9px 16px 9px 9px;border-radius:var(--r-btn);cursor:default;
+  display:inline-flex;align-items:center;gap:10px;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(255,245,220,.45) 0%, rgba(255,245,220,0) 60%),
+    repeating-conic-gradient(from 0deg, rgba(255,255,255,.07) 0 0.8deg, rgba(0,0,0,.08) 0.8deg 1.6deg),
+    radial-gradient(circle at 30% 50%, var(--sun-2) 0%, var(--sun-3) 70%, var(--sun-4) 110%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25),
+              inset 0 -1px 1px rgba(0,0,0,.18),
+              0 1px 2px rgba(0,0,0,.18)}
+.cta .ico{width:18px;height:18px;flex:none}
+.cta .kbd{font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:3px;
+  background:rgba(0,0,0,.22);color:#fff8ea;opacity:.85;margin-left:2px}
+
+/* ─── Environment band ───────────────────────────────────────────────── */
+/* Section eyebrow above macro band */
+.sec-eyebrow{margin:22px 24px 0;display:flex;align-items:baseline;gap:10px;
+  font-family:inherit;font-size:11px;font-weight:600;letter-spacing:-.005em;
+  text-transform:none;color:var(--ink);
+  padding-bottom:8px}
+.sec-eyebrow .sub{font-family:var(--mono);font-size:10px;color:var(--muted);font-weight:400;
+  letter-spacing:.04em;text-transform:none}
+
+.env{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-card);
+  margin:10px 24px 0;display:flex;flex-direction:column;overflow:hidden}
+.env .row{display:flex;align-items:center;gap:0;min-height:34px}
+.env .verdict{display:flex;align-items:center;gap:8px;padding:0 14px;
+  border-right:1px solid var(--hairline);align-self:stretch;flex:none}
+.env .verdict .pulse{width:6px;height:6px;border-radius:50%;background:var(--sun-3);
+  box-shadow:0 0 0 3px rgba(224,81,26,.14)}
+.env .verdict .vtxt{font-size:11.5px;font-weight:600;color:var(--ink);letter-spacing:.005em}
+.env .verdict .stance{font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-left:4px;
+  padding-left:8px;border-left:1px solid var(--hairline)}
+.env .indicators{display:flex;flex:1;align-items:center}
+.env .ind{padding:4px 10px;display:flex;flex-direction:column;gap:0;border-right:1px solid var(--hairline);
+  flex:1;min-width:0;align-self:stretch;justify-content:center}
+.env .ind:last-child{border-right:0}
+.env .ind .k{font-size:8.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted-2);font-weight:600;line-height:1.4}
+.env .ind .v{font-size:11px;color:var(--ink);font-weight:500;display:flex;align-items:center;gap:5px;line-height:1.4;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.env .ind .v .d{font-family:var(--mono);font-size:9.5px;color:var(--muted)}
+.env .ind .v .d.pos{color:var(--pos)}
+.env .ind .v .d.neg{color:var(--neg)}
+.env .ind .v .sig{width:4px;height:4px;border-radius:50%;background:var(--muted-2);flex:none}
+.env .ind.warn .v .sig{background:var(--rust)}
+.env .ind.hot .v .sig{background:var(--sun-3);box-shadow:0 0 0 2px rgba(224,81,26,.16)}
+.env .ind.cool .v .sig{background:#5a8aa8}
+
+.env .toggle{padding:0 12px;border-left:1px solid var(--hairline);
+  font-family:var(--mono);font-size:9.5px;color:var(--muted);
+  display:flex;align-items:center;gap:6px;align-self:stretch;cursor:default;background:transparent;border-top:0;border-right:0;border-bottom:0}
+.env .toggle:hover{color:var(--ink-2);background:var(--surface-2)}
+.env .toggle .chev{display:inline-block;transition:transform .2s ease}
+.env.open .toggle .chev{transform:rotate(180deg)}
+
+/* Expanded detail */
+.env .detail{display:none;border-top:1px solid var(--hairline);background:var(--surface-2);
+  padding:14px 18px;font-size:11.5px;color:var(--ink-2);line-height:1.5}
+.env.open .detail{display:block}
+.env .detail .lead{color:var(--muted);font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;
+  text-transform:uppercase;margin-bottom:6px}
+.env .detail .ipl{display:flex;gap:18px;flex-wrap:wrap}
+.env .detail .ipl span{display:inline-flex;align-items:center;gap:6px}
+.env .detail .ipl b{color:var(--ink);font-weight:600}
+.env .detail .src{margin-top:8px;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+
+/* Summary line (one row, no big numbers) */
+.summary{margin:24px 24px 0;display:flex;align-items:center;gap:0;
+  border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);padding:12px 4px}
+.summary .item{padding:0 14px;border-right:1px solid var(--hairline);display:flex;align-items:baseline;gap:8px}
+.summary .item:last-child{border-right:0}
+.summary .k{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted-2);font-weight:600}
+.summary .v{font-family:var(--mono);font-size:14.5px;color:var(--ink);font-weight:600;letter-spacing:-.005em;font-variant-numeric:tabular-nums}
+.summary .v.pos{color:var(--pos)}
+.summary .v small{color:var(--muted);font-weight:400;margin-left:2px;font-family:var(--mono)}
+.summary .grow{flex:1;border-right:0}
+.summary .next{margin-left:auto;display:flex;align-items:baseline;gap:8px;padding:0 0 0 18px;border-left:1px solid var(--hairline);border-right:0}
+.summary .next .v b{color:var(--sun-3);font-weight:600}
+
+/* ─── Pipeline (hero) ────────────────────────────────────────────────── */
+.pipe-wrap{padding:32px 24px 28px}
+
+/* ─── Status footer ──────────────────────────────────────────────────── */
+.statusbar{display:flex;align-items:center;gap:0;
+  padding:0 24px;height:34px;
+  border-top:1px solid var(--hairline);background:var(--surface);
+  font-family:var(--mono);font-size:11px;color:var(--muted);
+  margin-top:auto}
+.statusbar .sb-item{display:flex;align-items:baseline;gap:8px;
+  padding:0 14px;border-right:1px solid var(--hairline);align-self:stretch;
+  align-items:center}
+.statusbar .sb-item:first-child{padding-left:4px}
+.statusbar .sb-item.right{border-right:0;border-left:1px solid var(--hairline)}
+.statusbar .sb-item.right + .sb-item.right{border-left:0}
+.statusbar .sb-grow{flex:1}
+.statusbar .k{font-family:var(--sans);font-size:9.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--muted-2);font-weight:500}
+.statusbar .v{color:var(--ink-2);font-weight:500;font-variant-numeric:tabular-nums}
+.statusbar .v em{color:var(--muted);font-style:normal}
+.statusbar .v em.hl{color:var(--sun-3);font-weight:600}
+.statusbar .v.hint{color:var(--muted);font-weight:400}
+.pipe-hd{display:flex;align-items:baseline;gap:14px;margin-bottom:20px}
+.pipe-hd h2{margin:0;font-size:16.5px;font-weight:600;letter-spacing:-.005em;line-height:1;color:var(--ink);text-transform:none}
+.pipe-hd .sub{color:var(--muted);font-size:12px}
+.pipe-hd .grow{flex:1}
+.pipe-hd .filter{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;gap:14px}
+.pipe-hd .filter b{color:var(--ink-2);font-weight:500}
+
+.pipe{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;align-items:start}
+
+.col{background:var(--surface);border:1px solid var(--hairline);border-radius:var(--r-card);
+  display:flex;flex-direction:column;overflow:hidden}
+.col .hd{padding:16px 18px 14px;border-bottom:1px solid var(--hairline);
+  display:flex;align-items:center;gap:10px;position:relative}
+.col .hd::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
+.col.dv{--c:var(--purple)}
+.col.ac{--c:var(--rust)}
+.col.lv{--c:var(--green)}
+.col .hd .stg{font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:600;color:var(--c)}
+.col .hd .ct{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.col .hd .ct b{color:var(--ink);font-weight:600}
+
+.col .body{padding:16px;display:flex;flex-direction:column;gap:18px;flex:1}
+
+/* ─── Thesis card ─────────────────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--hairline);border-radius:12px;
+  display:flex;flex-direction:column;overflow:hidden;position:relative;
+  box-shadow:0 1px 0 rgba(255,255,255,.5) inset, 0 1px 2px rgba(0,0,0,.02);
+  transition:border-color .18s ease, box-shadow .18s ease, transform .18s ease, opacity .2s ease}
+.card:hover{border-color:var(--hairline-2);
+  box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 8px 20px -14px rgba(0,0,0,.18);
+  transform:translateY(-1px)}
+
+/* Delete X + confirm overlay */
+.card-x{position:absolute;top:8px;right:8px;width:22px;height:22px;border-radius:50%;
+  border:0;background:transparent;color:var(--muted-2);font-size:14px;line-height:1;font-weight:400;
+  display:grid;place-items:center;cursor:default;opacity:0;z-index:4;
+  transition:opacity .15s ease, background .15s ease, color .15s ease;font-family:var(--sans)}
+.card:hover .card-x{opacity:.55}
+.card-x:hover{opacity:1;background:rgba(155,44,26,.10);color:var(--neg)}
+
+.card-confirm{position:absolute;inset:0;background:rgba(251,248,241,.96);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  border-radius:12px;z-index:5;padding:24px;text-align:center}
+.card.confirming .card-confirm{display:flex}
+.card-confirm .msg{font-size:14px;font-weight:600;color:var(--ink);letter-spacing:-.005em}
+.card-confirm .sub{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+.card-confirm .actions{display:flex;gap:8px}
+.card-confirm button{appearance:none;border:1px solid var(--hairline-2);background:var(--card);
+  font-family:inherit;font-size:12px;font-weight:500;padding:7px 16px;border-radius:6px;
+  cursor:default;color:var(--ink);letter-spacing:.005em}
+.card-confirm button:hover{background:var(--surface)}
+.card-confirm button.danger{background:var(--neg);border-color:var(--neg);color:#fff8ea}
+.card-confirm button.danger:hover{background:#7d2415}
+
+/* ─── Card type (Thesis / Stock / Fund) ─────────────────────────── */
+.card.type-thesis{background:linear-gradient(180deg, rgba(196,137,42,.05), rgba(196,137,42,.02) 50%, var(--card) 100%)}
+.card.type-stock {background:linear-gradient(180deg, rgba(58,108,123,.06), rgba(58,108,123,.025) 50%, var(--card) 100%)}
+.card.type-fund  {background:linear-gradient(180deg, rgba(98,60,110,.05), rgba(98,60,110,.02) 50%, var(--card) 100%)}
+
+.type-chip{display:inline-flex;align-items:center;justify-content:center;
+  width:18px;height:18px;border-radius:50%;flex:none;
+  font-family:var(--sans);font-size:9.5px;letter-spacing:0;
+  font-weight:700;line-height:1;text-transform:none;overflow:hidden;
+  color:var(--chip-fg);background:var(--chip-bg);border:1px solid var(--chip-bd)}
+.type-chip::before{content:none}
+.type-chip > span.tc-label{display:none}
+.type-chip.thesis{--chip-fg:#8a5c0e;--chip-bg:rgba(196,137,42,.14);--chip-bd:rgba(196,137,42,.40)}
+.type-chip.stock {--chip-fg:#1f4a58;--chip-bg:rgba(58,108,123,.14);--chip-bd:rgba(58,108,123,.40)}
+.type-chip.fund  {--chip-fg:#4a2d56;--chip-bg:rgba(98,60,110,.14);--chip-bd:rgba(98,60,110,.40)}
+.card-hd{display:flex;align-items:center;gap:10px;padding:11px 14px;
+  background:var(--hd-bg);border-bottom:1px solid var(--hd-bd)}
+.col.dv .card{--hd-bg:rgba(74,29,107,.06);--hd-bd:rgba(74,29,107,.14)}
+.col.ac .card{--hd-bg:rgba(146,64,14,.06);--hd-bd:rgba(146,64,14,.14)}
+.col.lv .card{--hd-bg:rgba(45,106,79,.06);--hd-bd:rgba(45,106,79,.14)}
+
+.card-hd .ticker{display:inline-flex;align-items:baseline;gap:5px;
+  font-family:var(--mono);font-size:11.5px;font-weight:600;
+  letter-spacing:.06em;color:var(--ink)}
+.card-hd .ticker .x{color:var(--muted-2);font-weight:400}
+.card-hd .ticker em{color:var(--muted-2);font-style:normal;font-weight:400;font-size:10.5px;
+  margin-left:2px}
+.card-hd .sector{margin-left:auto;font-family:var(--sans);
+  font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:600;
+  padding:2px 7px;border-radius:3px;color:var(--sec-fg,var(--ink-2));
+  background:var(--sec-bg,var(--surface));border:1px solid var(--sec-bd,var(--hairline-2))}
+.card-hd .id{font-family:var(--mono);font-size:10px;color:var(--muted-2);letter-spacing:.04em}
+
+.sector.energy   {--sec-fg:#1e4d5c;--sec-bg:#dbeaef;--sec-bd:#b9d4dc}
+.sector.materials{--sec-fg:#5a3a1a;--sec-bg:#ece1cc;--sec-bd:#d8c8aa}
+.sector.commodity{--sec-fg:#7a4a0c;--sec-bg:#f0e2c4;--sec-bd:#dcc999}
+.sector.reit     {--sec-fg:#3a3650;--sec-bg:#dedce8;--sec-bd:#c5c2d4}
+.sector.position {--sec-fg:#1a4a36;--sec-bg:#d5e6dc;--sec-bd:#b3ccbe}
+
+.card-body{padding:18px 16px 6px;display:flex;flex-direction:column;gap:14px;flex:1}
+.card .ttl{margin:0;font-size:16px;font-weight:600;line-height:1.25;letter-spacing:-.005em;
+  color:var(--ink);text-wrap:balance}
+.card .snip{margin:0;font-size:12.5px;color:var(--ink-2);line-height:1.55;text-wrap:pretty}
+
+/* Conviction — number-led */
+.card .conv{display:grid;grid-template-columns:1fr auto;align-items:end;column-gap:14px;row-gap:6px;
+  padding-top:6px;margin-top:auto}
+.card .conv .lbl{grid-column:1 / -1;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted-2);font-weight:600}
+.card .conv .bar{grid-column:1;grid-row:2;align-self:center;
+  height:4px;background:var(--surface-2);border-radius:99px;overflow:hidden;position:relative}
+.card .conv .bar i{position:absolute;inset:0;background:var(--c);border-radius:99px}
+.card .conv .v{grid-column:2;grid-row:2;font-family:var(--mono);font-size:20px;font-weight:600;
+  color:var(--ink);font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.01em}
+.card .conv .v small{font-size:11px;color:var(--muted-2);font-weight:400;margin-left:2px}
+
+/* Live position strip */
+.card .live-line{display:grid;grid-template-columns:repeat(3,1fr);
+  background:rgba(45,106,79,.04);border:1px solid rgba(45,106,79,.12);border-radius:8px;
+  overflow:hidden;margin-top:4px}
+.card .live-line .c{padding:7px 10px;border-right:1px solid rgba(45,106,79,.12);
+  display:flex;flex-direction:column;gap:2px}
+.card .live-line .c:last-child{border-right:0}
+.card .live-line .k{font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted-2);font-weight:600}
+.card .live-line .v{font-family:var(--mono);font-size:12.5px;color:var(--ink);font-weight:600;
+  font-variant-numeric:tabular-nums;letter-spacing:-.005em}
+.card .live-line .v.pos{color:var(--pos)}
+.card .live-line .v.neg{color:var(--neg)}
+
+/* Footer */
+.card-ft{display:grid;grid-template-columns:1fr auto;align-items:center;gap:14px;
+  padding:13px 16px;margin-top:14px;
+  border-top:1px solid var(--hairline);background:rgba(0,0,0,.02)}
+.card-ft .cat{display:flex;align-items:center;gap:9px;min-width:0}
+.card-ft .ico{width:14px;height:14px;flex:none;color:var(--c)}
+.card-ft .lblval{display:flex;flex-direction:column;gap:1px;min-width:0}
+.card-ft .lbl{font-size:9px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--muted-2);font-weight:600;line-height:1}
+.card-ft .val{font-family:var(--mono);font-size:11.5px;color:var(--ink);font-weight:500;
+  line-height:1.2;letter-spacing:-.005em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.card-ft .age{text-align:right}
+.card-ft .age .lbl{text-align:right}
+
+/* Empty / capacity slot */
+.slot{border:1px dashed var(--hairline-2);border-radius:10px;
+  padding:14px 16px;display:flex;flex-direction:column;gap:4px;
+  background:repeating-linear-gradient(45deg,transparent 0,transparent 8px,rgba(0,0,0,.012) 8px,rgba(0,0,0,.012) 16px)}
+.slot .lbl{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted-2);font-weight:500}
+.slot .hint{font-size:12px;color:var(--muted);line-height:1.4}
+.slot .hint b{color:var(--ink-2);font-weight:500}
+
+.col .add{padding:11px 14px;border-top:1px dashed var(--hairline-2);
+  display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;
+  color:var(--muted);cursor:default}
+.col .add:hover{color:var(--ink-2);background:var(--surface-2)}
+.col .add .plus{color:var(--c);font-size:13px}
+
+/* ─── Promote toast + new-card flash ─────────────────────────────── */
+.promo-toast{position:fixed;top:18px;left:50%;transform:translate(-50%, -16px);
+  background:var(--card);border:1px solid var(--hairline-2);border-radius:99px;
+  padding:8px 8px 8px 14px;display:flex;align-items:center;gap:10px;z-index:60;
+  box-shadow:0 10px 28px -16px rgba(0,0,0,.30), 0 2px 6px rgba(0,0,0,.06);
+  opacity:0;pointer-events:none;transition:opacity .25s ease, transform .25s ease}
+.promo-toast.on{opacity:1;transform:translate(-50%, 0);pointer-events:auto}
+.promo-toast .pt-mark{width:14px;height:14px;border-radius:50%;
+  background:radial-gradient(circle at 30% 30%, var(--sun-1) 0%, var(--sun-2) 40%, var(--sun-3) 90%);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,.25), 0 1px 1px rgba(0,0,0,.2);flex:none}
+.promo-toast .pt-msg{font-size:12.5px;color:var(--ink);font-weight:500;letter-spacing:.005em}
+.promo-toast .pt-msg b{color:var(--ink);font-weight:600}
+.promo-toast .pt-link{appearance:none;border:0;background:transparent;
+  font-family:var(--mono);font-size:11px;color:var(--sun-3);font-weight:600;
+  padding:6px 10px;border-radius:99px;cursor:default;letter-spacing:.01em}
+.promo-toast .pt-link:hover{background:rgba(244,146,44,.10)}
+.promo-toast .pt-close{appearance:none;border:0;background:transparent;color:var(--muted);
+  width:24px;height:24px;border-radius:50%;font-size:14px;cursor:default;
+  display:grid;place-items:center}
+.promo-toast .pt-close:hover{background:var(--surface);color:var(--ink)}
+
+@keyframes newCardIn{
+  0%{opacity:0;transform:translateY(-8px) scale(.98);box-shadow:0 0 0 4px rgba(244,146,44,.18)}
+  100%{opacity:1;transform:translateY(0) scale(1);box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 8px 20px -14px rgba(0,0,0,.18)}
+}
+.card.just-promoted{animation:newCardIn .55s ease-out both;
+  border-color:rgba(244,146,44,.55) !important;
+  box-shadow:0 0 0 3px rgba(244,146,44,.14), 0 8px 20px -14px rgba(0,0,0,.18)}
+.card.just-promoted .promo-chip{display:inline-flex;align-items:center;gap:5px;
+  font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:700;
+  color:var(--sun-3);padding:3px 8px;border-radius:99px;
+  background:rgba(244,146,44,.14);border:1px solid rgba(244,146,44,.40);line-height:1;margin-left:auto}
+
+</style>
+</head>
+<body>
+
+<!-- Inline sunburst SVG icon for sidebar brand -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="sunIco" cx="50%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#ffe8a8" />
+      <stop offset="30%" stop-color="#f4922c" />
+      <stop offset="70%" stop-color="#e0511a" />
+      <stop offset="100%" stop-color="#7a1308" />
+    </radialGradient>
+  </defs>
+</svg>
+
+<div class="app" data-screen-label="Desk — v2 clean">
+
+  <!-- ─── Sidebar ──────────────────────────────────────────────────── -->
+  <aside class="side">
+    <div class="brand">
+      <span class="mark sunburst"></span>
+      <b>DOSSIER</b>
+      <span class="v">v0.9</span>
+    </div>
+
+    <nav>
+      <div class="gp">
+        <div class="h"><span>Workspace</span></div>
+        <a class="on" href="Desk.html"><span class="dot"></span>Command Center<span class="ct">⌘1</span></a>
+        <a href="Build Thesis.html"><span class="dot"></span>Build Thesis</a>
+        <a href="Search Stocks.html"><span class="dot"></span>Search Stocks</a>
+        <a href="Search Funds.html"><span class="dot"></span>Search Funds</a>
+        <a href="Performance.html"><span class="dot"></span>Performance</a>
+        <a href="Compare.html"><span class="dot"></span>Compare<span class="ct">2</span></a>
+      </div>
+
+      <div class="gp">
+        <div class="h"><span>Thesis Pipeline</span><span class="ct">5</span></div>
+        <a class="stg dv" href="#"><span class="sq"></span>Developing<span class="ct">2</span></a>
+        <a class="stg ac" href="#"><span class="sq"></span>Actionable<span class="ct">2</span></a>
+        <a class="stg lv" href="#"><span class="sq"></span>Live<span class="ct">1</span></a>
+      </div>
+    </nav>
+
+    <!-- AI Model Picker -->
+    <section class="ai-sec">
+      <div class="h"><span>AI</span></div>
+
+      <div class="ai-field">
+        <label>Model</label>
+        <button class="ai-picker" id="aiPicker" type="button">
+          <span class="ai-mark"></span>
+          <span class="ai-body">
+            <span class="ai-tier">Frontier</span>
+            <span class="ai-name" id="aiCurrentName">Claude Opus 4.5</span>
+          </span>
+          <span class="ai-chev">▾</span>
+        </button>
+        <div class="ai-menu" id="aiMenu">
+          <button class="ai-opt on" data-name="Claude Opus 4.5" data-tier="Frontier" type="button">
+            <span class="ai-mark"></span>
+            <span class="ai-opt-body">
+              <span class="ai-opt-name">Claude Opus 4.5</span>
+              <span class="ai-opt-meta">Frontier · deep analysis</span>
+            </span>
+            <span class="ai-opt-check">✓</span>
+          </button>
+          <button class="ai-opt" data-name="Claude Sonnet 4.5" data-tier="Balanced" type="button">
+            <span class="ai-mark"></span>
+            <span class="ai-opt-body">
+              <span class="ai-opt-name">Claude Sonnet 4.5</span>
+              <span class="ai-opt-meta">Balanced · fast turnaround</span>
+            </span>
+            <span class="ai-opt-check">✓</span>
+          </button>
+          <button class="ai-opt" data-name="GPT-5.5" data-tier="Frontier" type="button">
+            <span class="ai-mark"></span>
+            <span class="ai-opt-body">
+              <span class="ai-opt-name">GPT-5.5</span>
+              <span class="ai-opt-meta">OpenAI · multimodal</span>
+            </span>
+            <span class="ai-opt-check">✓</span>
+          </button>
+          <button class="ai-opt" data-name="Gemini 3 Pro" data-tier="Long-context" type="button">
+            <span class="ai-mark"></span>
+            <span class="ai-opt-body">
+              <span class="ai-opt-name">Gemini 3 Pro</span>
+              <span class="ai-opt-meta">Google · 2M context</span>
+            </span>
+            <span class="ai-opt-check">✓</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="ai-field">
+        <label>Reasoning</label>
+        <div class="ai-segments" id="aiReason">
+          <button type="button" data-r="low">Low</button>
+          <button type="button" data-r="med" class="on">Medium</button>
+          <button type="button" data-r="high">High</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="acct">
+      <div class="av">JM</div>
+      <div class="who">J. Morrow<small>Principal</small></div>
+    </div>
+  </aside>
+
+
+  <!-- ─── Main ─────────────────────────────────────────────────────── -->
+  <main class="main">
+
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="left">
+        <h1>Command Center</h1>
+      </div>
+
+      <div class="right">
+        <button class="overlay-toggle" id="prolToggle">
+          <span class="ot-lbl">Prologis-aware</span>
+          <span class="ot-sw"><i></i></span>
+        </button>
+      </div>
+    </header>
+
+
+    <!-- Environment eyebrow -->
+    <div class="sec-eyebrow">
+      <span>Macro Regime</span>
+    </div>
+
+    <!-- Environment band — collapsed by default -->
+    <section class="env" id="env">
+      <div class="row">
+        <div class="verdict">
+          <span class="pulse"></span>
+          <span class="vtxt">Late-cycle · tight liquidity</span>
+          <span class="stance">DEFENSIVE · SELECTIVE</span>
+        </div>
+
+        <div class="indicators">
+          <div class="ind warn"><span class="k">Rates</span><span class="v"><span class="sig"></span>High <span class="d">4.43%</span></span></div>
+          <div class="ind warn"><span class="k">Cycle</span><span class="v"><span class="sig"></span>Late <span class="d neg">▾</span></span></div>
+          <div class="ind hot"><span class="k">Credit</span><span class="v"><span class="sig"></span>Tightening <span class="d">+22bp</span></span></div>
+          <div class="ind"><span class="k">Liquidity</span><span class="v"><span class="sig"></span>Neutral</span></div>
+          <div class="ind warn"><span class="k">Vol</span><span class="v"><span class="sig"></span>Elevated <span class="d">MOVE 112</span></span></div>
+          <div class="ind cool"><span class="k">Dollar</span><span class="v"><span class="sig"></span>Strong <span class="d">DXY 104.8</span></span></div>
+        </div>
+
+        <button class="toggle" id="envToggle">
+          <span>Detail</span>
+          <span class="chev">▾</span>
+        </button>
+      </div>
+
+      <div class="detail">
+        <div class="ipl">
+          <span><b>Favor</b> real assets</span>
+          <span><b>Short</b> duration credit</span>
+          <span><b>Trim</b> cyclicals</span>
+          <span><b>Watch</b> HY OAS 360bp</span>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- One-line summary -->
+    <div class="summary">
+      <div class="item"><span class="k">Active</span><span class="v">5<small>/12</small></span></div>
+      <div class="item"><span class="k">At risk</span><span class="v">3.1%<small> NAV</small></span></div>
+      <div class="item"><span class="k">MTD</span><span class="v pos">+47bp</span></div>
+      <div class="item"><span class="k">YTD</span><span class="v pos">+312bp</span></div>
+      <div class="item"><span class="k">Avg conv.</span><span class="v">62<small>/100</small></span></div>
+      <div class="grow"></div>
+      <div class="next"><span class="k">Next</span><span class="v"><b>CCJ</b> · WNA 28 May</span></div>
+    </div>
+
+
+    <!-- ─── PIPELINE (hero) ────────────────────────────────────── -->
+    <div class="pipe-wrap">
+
+      <div class="pipe-hd">
+        <h2>Thesis Pipeline</h2>
+        <span class="grow"></span>
+        <span class="filter">Conviction ↓</span>
+      </div>
+
+      <div class="pipe">
+
+        <!-- ─── Developing ─────────────────────────────────── -->
+        <section class="col dv">
+          <div class="hd">
+            <span class="stg">Developing</span>
+            <span class="ct"><b>2</b></span>
+          </div>
+
+          <div class="body">
+
+            <article class="card type-thesis">
+              <div class="card-hd">
+                <span class="type-chip thesis" title="Thesis">T</span>
+                <span class="ticker">PWR <span class="x">·</span> VST</span>
+                <span class="sector energy">Energy</span>
+                <span class="id">#024</span>
+              </div>
+              <div class="card-body">
+                <h3 class="ttl">AI power buildout repricing transmission &amp; nukes</h3>
+                <p class="snip">Hyperscaler PPAs forcing utilities to rebuild grid faster than rate-base growth assumes. Transmission cos under-owned vs. the story.</p>
+                <div class="conv">
+                  <span class="lbl">Conviction</span>
+                  <span class="bar"><i style="width:35%"></i></span>
+                  <span class="v">35<small>/100</small></span>
+                </div>
+              </div>
+              <div class="card-ft">
+                <div class="cat">
+                  <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><rect x="2.2" y="3.2" width="11.6" height="10.6" rx="1.5"/><path d="M2.2 6.6 H13.8"/><path d="M5 1.8 V4.4 M11 1.8 V4.4"/></svg>
+                  <div class="lblval"><span class="lbl">Catalyst</span><span class="val">10/24 · Q3 prints</span></div>
+                </div>
+                <div class="age lblval"><span class="val">14d</span></div>
+              </div>
+            </article>
+
+            <article class="card type-thesis">
+              <div class="card-hd">
+                <span class="type-chip thesis" title="Thesis">T</span>
+                <span class="ticker">ALB <span class="x">·</span> SQM</span>
+                <span class="sector materials">Materials</span>
+                <span class="id">#023</span>
+              </div>
+              <div class="card-body">
+                <h3 class="ttl">Lithium oversupply reversal — 2026 deficit setup</h3>
+                <p class="snip">Marginal cost ≈ $14k/t spodumene; spot below. Capex deferrals in WA + Africa pulling the cycle low forward.</p>
+                <div class="conv">
+                  <span class="lbl">Conviction</span>
+                  <span class="bar"><i style="width:45%"></i></span>
+                  <span class="v">45<small>/100</small></span>
+                </div>
+              </div>
+              <div class="card-ft">
+                <div class="cat">
+                  <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><rect x="2.2" y="3.2" width="11.6" height="10.6" rx="1.5"/><path d="M2.2 6.6 H13.8"/><path d="M5 1.8 V4.4 M11 1.8 V4.4"/></svg>
+                  <div class="lblval"><span class="lbl">Catalyst</span><span class="val">BNEF mid-year</span></div>
+                </div>
+                <div class="age lblval"><span class="val">22d</span></div>
+              </div>
+            </article>
+
+            <div class="slot">
+              <span class="lbl">Open slot</span>
+              <span class="hint">2 candidates in queue.</span>
+            </div>
+
+          </div>
+
+          <div class="add"><span class="plus">+</span>New hypothesis</div>
+        </section>
+
+
+        <!-- ─── Actionable ─────────────────────────────────── -->
+        <section class="col ac">
+          <div class="hd">
+            <span class="stg">Actionable</span>
+            <span class="ct"><b>2</b></span>
+          </div>
+
+          <div class="body">
+
+            <article class="card type-thesis">
+              <div class="card-hd">
+                <span class="type-chip thesis" title="Thesis">T</span>
+                <span class="ticker">CCJ <span class="x">·</span> URA</span>
+                <span class="sector commodity">Commodity</span>
+                <span class="id">#019</span>
+              </div>
+              <div class="card-body">
+                <h3 class="ttl">Uranium spot dislocation vs. long-term contract</h3>
+                <p class="snip">Term $79 vs. spot $89. Utility contracting cycle still early; Kazatomprom guidance miss tightens the 2025 balance.</p>
+                <div class="conv">
+                  <span class="lbl">Conviction</span>
+                  <span class="bar"><i style="width:72%"></i></span>
+                  <span class="v">72<small>/100</small></span>
+                </div>
+              </div>
+              <div class="card-ft">
+                <div class="cat">
+                  <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2.3"/><path d="M8 1.2 V3 M8 13 V14.8 M1.2 8 H3 M13 8 H14.8"/></svg>
+                  <div class="lblval"><span class="lbl">Trigger</span><span class="val">WNA Symposium 5/28</span></div>
+                </div>
+                <div class="age lblval"><span class="lbl">Sized</span><span class="val">4.2% target</span></div>
+              </div>
+            </article>
+
+            <article class="card type-fund">
+              <div class="card-hd">
+                <span class="type-chip fund" title="Fund">F</span>
+                <span class="ticker">XLRE</span>
+                <span class="sector reit">REIT ETF</span>
+                <span class="id">#018</span>
+              </div>
+              <div class="card-body">
+                <h3 class="ttl">Industrial REIT mispricing — ETF vehicle</h3>
+                <p class="snip">Coastal supply growth peaked Q1; market rents bottoming. XLRE trading 14× AFFO vs. 10-yr median 17×. Cleaner basket exposure than single-name PLD.</p>
+                <div class="conv">
+                  <span class="lbl">Conviction</span>
+                  <span class="bar"><i style="width:68%"></i></span>
+                  <span class="v">68<small>/100</small></span>
+                </div>
+              </div>
+              <div class="card-ft">
+                <div class="cat">
+                  <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2.3"/><path d="M8 1.2 V3 M8 13 V14.8 M1.2 8 H3 M13 8 H14.8"/></svg>
+                  <div class="lblval"><span class="lbl">Trigger</span><span class="val">XLRE rebalance · 10/22</span></div>
+                </div>
+                <div class="age lblval"><span class="lbl">Sized</span><span class="val">3.8% target</span></div>
+              </div>
+            </article>
+
+          </div>
+
+          <div class="add"><span class="plus">+</span>Promote from developing</div>
+        </section>
+
+
+        <!-- ─── Live ───────────────────────────────────────── -->
+        <section class="col lv">
+          <div class="hd">
+            <span class="stg">Live</span>
+            <span class="ct"><b>1</b></span>
+          </div>
+
+          <div class="body">
+
+            <article class="card type-stock">
+              <div class="card-hd">
+                <span class="type-chip stock" title="Stock">S</span>
+                <span class="ticker">CCJ <em>long</em></span>
+                <span class="id">#014</span>
+              </div>
+              <div class="card-body">
+                <h3 class="ttl">Cameco — first tranche on uranium thesis</h3>
+                <p class="snip">Pilot sizing ahead of WNA. Reload to target on confirmation of contracting cycle re-acceleration.</p>
+
+                <div class="live-line">
+                  <div class="c"><span class="k">Size</span><span class="v">3.1%</span></div>
+                  <div class="c"><span class="k">MTD</span><span class="v pos">+47bp</span></div>
+                  <div class="c"><span class="k">Invalidation</span><span class="v">$42.50</span></div>
+                </div>
+
+                <div class="conv">
+                  <span class="lbl">Conviction</span>
+                  <span class="bar"><i style="width:78%"></i></span>
+                  <span class="v">78<small>/100</small></span>
+                </div>
+              </div>
+              <div class="card-ft">
+                <div class="cat">
+                  <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 4.5 V8 L10.4 9.6"/></svg>
+                  <div class="lblval"><span class="lbl">Review</span><span class="val">Fri weekly</span></div>
+                </div>
+                <div class="age lblval"><span class="lbl">Opened</span><span class="val">04 May · 21d</span></div>
+              </div>
+            </article>
+
+            <div class="slot">
+              <span class="lbl">Capacity</span>
+              <span class="hint">Room for <b>4 more</b>.</span>
+            </div>
+
+          </div>
+
+          <div class="add"><span class="plus">+</span>Open position</div>
+        </section>
+
+      </div>
+
+    </div>
+
+    <!-- Status footer -->
+    <footer class="statusbar">
+      <div class="sb-item"><span class="v">Mon 25 May · 09:14 <em>NYC</em></span></div>
+      <div class="sb-item"><span class="v">Next · <em class="hl">CCJ</em> WNA 28 May</span></div>
+      <div class="sb-grow"></div>
+      <div class="sb-item right"><span class="v hint">⌘K command palette</span></div>
+    </footer>
+
+  </main>
+
+  <!-- Promote toast (revealed when arriving from Build Thesis) -->
+  <div class="promo-toast" id="promoToast" role="status" aria-live="polite">
+    <span class="pt-mark"></span>
+    <span class="pt-msg" id="promoToastMsg">Thesis promoted to <b>Developing</b></span>
+    <button class="pt-link" type="button" id="promoToastOpen">Open →</button>
+    <button class="pt-close" type="button" id="promoToastClose" aria-label="Dismiss">×</button>
+  </div>
+</div>
+
+
+<!-- Env toggle -->
+<script>
+(function(){
+  const env = document.getElementById('env');
+  const btn = document.getElementById('envToggle');
+  if(env && btn) btn.addEventListener('click', () => env.classList.toggle('open'));
+
+  const prol = document.getElementById('prolToggle');
+  if(prol) prol.addEventListener('click', () => prol.classList.toggle('on'));
+
+  // AI Model Picker
+  const picker = document.getElementById('aiPicker');
+  const menu   = document.getElementById('aiMenu');
+  const name   = document.getElementById('aiCurrentName');
+  if(picker && menu){
+    picker.addEventListener('click', (e) => {
+      e.stopPropagation();
+      picker.classList.toggle('open');
+    });
+    menu.querySelectorAll('.ai-opt').forEach(opt => {
+      opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.querySelectorAll('.ai-opt').forEach(o => o.classList.remove('on'));
+        opt.classList.add('on');
+        if(name) name.textContent = opt.dataset.name;
+        const tierEl = picker.querySelector('.ai-tier');
+        if(tierEl && opt.dataset.tier) tierEl.textContent = opt.dataset.tier;
+        picker.classList.remove('open');
+      });
+    });
+    document.addEventListener('click', () => picker.classList.remove('open'));
+  }
+
+  // Reasoning segments
+  const reason = document.getElementById('aiReason');
+  if(reason){
+    reason.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        reason.querySelectorAll('button').forEach(x => x.classList.remove('on'));
+        b.classList.add('on');
+      });
+    });
+  }
+
+  // Card delete X + confirmation
+  document.querySelectorAll('.card').forEach(card => {
+    if(card.querySelector('.card-x')) return;
+
+    // Route cards by type
+    const route = card.classList.contains('type-thesis') ? 'Thesis Detail.html'
+                : card.classList.contains('type-stock')  ? 'Stock Detail.html'
+                : card.classList.contains('type-fund')   ? 'Fund Detail.html'
+                : null;
+    if(route){
+      card.style.cursor = 'pointer';
+      card.setAttribute('title','Open detail');
+      card.addEventListener('click', (e) => {
+        if(e.target.closest('.card-x, .card-confirm, button, a')) return;
+        window.location.href = route;
+      });
+    }
+
+    const x = document.createElement('button');
+    x.className = 'card-x';
+    x.type = 'button';
+    x.setAttribute('aria-label','Delete card');
+    x.textContent = '×';
+    const overlay = document.createElement('div');
+    overlay.className = 'card-confirm';
+    overlay.innerHTML = `
+      <div class="msg">Delete this card?</div>
+      <div class="sub">This action cannot be undone.</div>
+      <div class="actions">
+        <button type="button" class="cancel">Cancel</button>
+        <button type="button" class="danger delete">Delete</button>
+      </div>`;
+    card.appendChild(x);
+    card.appendChild(overlay);
+
+    x.addEventListener('click', e => {
+      e.stopPropagation();
+      card.classList.add('confirming');
+    });
+    overlay.querySelector('.cancel').addEventListener('click', e => {
+      e.stopPropagation();
+      card.classList.remove('confirming');
+    });
+    overlay.querySelector('.delete').addEventListener('click', e => {
+      e.stopPropagation();
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(-4px) scale(.98)';
+      setTimeout(() => card.remove(), 200);
+    });
+  });
+
+  // ─── Promote handoff from Build Thesis ──────────────────────────
+  function buildPromotedCard(p){
+    const card = document.createElement('article');
+    card.className = 'card type-thesis just-promoted';
+    card.innerHTML = `
+      <div class="card-hd">
+        <span class="type-chip thesis" title="Thesis">T</span>
+        <span class="ticker">${p.ticker || 'NEW'}</span>
+        <span class="sector ${p.sector || 'energy'}">${p.sectorLabel || 'New'}</span>
+        <span class="promo-chip">Just promoted</span>
+      </div>
+      <div class="card-body">
+        <h3 class="ttl">${p.title || 'New thesis'}</h3>
+        <p class="snip">${p.snippet || ''}</p>
+        <div class="conv">
+          <span class="lbl">Conviction</span>
+          <span class="bar"><i style="width:${p.conviction || 50}%"></i></span>
+          <span class="v">${p.conviction || 50}<small>/100</small></span>
+        </div>
+      </div>
+      <div class="card-ft">
+        <div class="cat">
+          <svg class="ico" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><rect x="2.2" y="3.2" width="11.6" height="10.6" rx="1.5"/><path d="M2.2 6.6 H13.8"/><path d="M5 1.8 V4.4 M11 1.8 V4.4"/></svg>
+          <div class="lblval"><span class="lbl">Catalyst</span><span class="val">${p.catalystDate || ''} · ${p.catalyst || ''}</span></div>
+        </div>
+        <div class="age lblval"><span class="val">${p.age || 'now'}</span></div>
+      </div>`;
+    return card;
+  }
+
+  function attachCardBehavior(card){
+    const route = card.classList.contains('type-thesis') ? 'Thesis Detail.html'
+                : card.classList.contains('type-stock')  ? 'Stock Detail.html'
+                : card.classList.contains('type-fund')   ? 'Fund Detail.html'
+                : null;
+    if(route){
+      card.style.cursor = 'pointer';
+      card.setAttribute('title','Open detail');
+      card.addEventListener('click', (e) => {
+        if(e.target.closest('.card-x, .card-confirm, button, a')) return;
+        window.location.href = route;
+      });
+    }
+    if(card.querySelector('.card-x')) return;
+    const xb = document.createElement('button');
+    xb.className = 'card-x'; xb.type = 'button';
+    xb.setAttribute('aria-label','Delete card'); xb.textContent = '×';
+    const ov = document.createElement('div');
+    ov.className = 'card-confirm';
+    ov.innerHTML = `
+      <div class="msg">Delete this card?</div>
+      <div class="sub">This action cannot be undone.</div>
+      <div class="actions">
+        <button type="button" class="cancel">Cancel</button>
+        <button type="button" class="danger delete">Delete</button>
+      </div>`;
+    card.appendChild(xb); card.appendChild(ov);
+    xb.addEventListener('click', e => { e.stopPropagation(); card.classList.add('confirming'); });
+    ov.querySelector('.cancel').addEventListener('click', e => { e.stopPropagation(); card.classList.remove('confirming'); });
+    ov.querySelector('.delete').addEventListener('click', e => {
+      e.stopPropagation();
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(-4px) scale(.98)';
+      setTimeout(() => card.remove(), 200);
+    });
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const toast = document.getElementById('promoToast');
+  const toastMsg = document.getElementById('promoToastMsg');
+  const toastOpen = document.getElementById('promoToastOpen');
+  const toastClose = document.getElementById('promoToastClose');
+
+  function showToast(){
+    if(!toast) return;
+    toast.classList.add('on');
+    setTimeout(() => toast.classList.remove('on'), 7000);
+  }
+  function hideToast(){ if(toast) toast.classList.remove('on'); }
+  if(toastClose) toastClose.addEventListener('click', hideToast);
+  if(toastOpen) toastOpen.addEventListener('click', () => { window.location.href = 'Thesis Detail.html'; });
+
+  if(params.get('promoted') === '1'){
+    let payload = null;
+    try { payload = JSON.parse(sessionStorage.getItem('dossier:justPromoted') || 'null'); } catch(e){}
+    if(payload){
+      const dvBody = document.querySelector('.col.dv .body');
+      if(dvBody){
+        const newCard = buildPromotedCard(payload);
+        dvBody.insertBefore(newCard, dvBody.firstChild);
+        attachCardBehavior(newCard);
+      }
+      if(toastMsg) toastMsg.innerHTML = `<b>${payload.ticker || 'Thesis'}</b> promoted to <b>Developing</b>`;
+      // Update Developing count chip
+      const dvCt = document.querySelector('.col.dv .hd .ct b');
+      if(dvCt) dvCt.textContent = String((parseInt(dvCt.textContent,10) || 0) + 1);
+      const sideDvCt = document.querySelector('.side .gp .stg.dv .ct');
+      if(sideDvCt) sideDvCt.textContent = String((parseInt(sideDvCt.textContent,10) || 0) + 1);
+      try { sessionStorage.removeItem('dossier:justPromoted'); } catch(e){}
+    } else {
+      if(toastMsg) toastMsg.innerHTML = `Thesis promoted to <b>Developing</b>`;
+    }
+    setTimeout(showToast, 250);
+    // Clean URL so refresh doesn't reuse
+    const url = new URL(window.location.href);
+    url.searchParams.delete('promoted');
+    history.replaceState({}, '', url.toString());
+  }
+})();
+</script>
+
+
+<!-- Tweaks panel -->
+<script src="https://cdn.jsdelivr.net/npm/prop-types@15.8.1/prop-types.min.js"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accent": "#c4892a",
+  "density": "comfortable",
+  "envExpanded": false,
+  "showSidebar": true,
+  "ctaStyle": "sunburst"
+}/*EDITMODE-END*/;
+
+function TweaksApp(){
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  React.useEffect(()=>{
+    document.documentElement.style.setProperty('--amber', t.accent);
+    document.documentElement.style.setProperty('--amber-2', shade(t.accent,-.18));
+    document.documentElement.style.setProperty('--amber-soft', hexA(t.accent,.12));
+  }, [t.accent]);
+
+  React.useEffect(()=>{
+    const app = document.querySelector('.app');
+    if(!app) return;
+    app.style.gridTemplateColumns = t.showSidebar ? '228px 1fr' : '0 1fr';
+    document.querySelector('.side').style.display = t.showSidebar ? 'flex' : 'none';
+  }, [t.showSidebar]);
+
+  React.useEffect(()=>{
+    const env = document.getElementById('env');
+    if(!env) return;
+    env.classList.toggle('open', !!t.envExpanded);
+  }, [t.envExpanded]);
+
+  React.useEffect(()=>{
+    const css = {
+      compact:     { pad:'14px 20px', pipePad:'16px 20px 24px', card:'12px 14px', gap:'12px' },
+      comfortable: { pad:'18px 24px', pipePad:'20px 24px 24px', card:'14px 14px', gap:'14px' },
+      airy:        { pad:'22px 32px', pipePad:'26px 32px 32px', card:'18px 18px', gap:'18px' },
+    }[t.density] || {};
+    const tb = document.querySelector('.topbar'); if(tb) tb.style.padding = css.pad;
+    const env = document.querySelector('.env'); if(env) env.style.margin = `6px ${css.pad?.split(' ')[1]||'24px'} 0`;
+    document.querySelectorAll('.sec-eyebrow').forEach(e=>e.style.margin = `14px ${css.pad?.split(' ')[1]||'24px'} 0`);
+    const su = document.querySelector('.summary'); if(su) su.style.margin = `14px ${css.pad?.split(' ')[1]||'24px'} 0`;
+    const pw = document.querySelector('.pipe-wrap'); if(pw) pw.style.padding = css.pipePad;
+    // .card no longer takes outer padding (header/body/footer self-pad)
+    const p = document.querySelector('.pipe'); if(p) p.style.gap = css.gap;
+  }, [t.density]);
+
+  React.useEffect(()=>{
+    const cta = document.querySelector('.cta');
+    const ico = cta && cta.querySelector('.ico');
+    if(!cta) return;
+    if(t.ctaStyle === 'flat'){
+      cta.style.background = t.accent;
+      cta.style.borderColor = shade(t.accent,-.18);
+      if(ico) ico.style.display = 'none';
+    } else if(t.ctaStyle === 'ink'){
+      cta.style.background = '#1a1a1f';
+      cta.style.borderColor = '#000';
+      if(ico) ico.style.display = '';
+    } else { // sunburst
+      cta.style.background = '';
+      cta.style.borderColor = '';
+      if(ico) ico.style.display = '';
+    }
+  }, [t.ctaStyle, t.accent]);
+
+  return (
+    <TweaksPanel title="Tweaks">
+      <TweakSection label="Accent" />
+      <TweakColor label="Color" value={t.accent}
+        options={['#c4892a','#e0511a','#2d6a4f','#4a1d6b','#1a1a1f']}
+        onChange={(v)=>setTweak('accent', v)} />
+
+      <TweakSection label="Primary action" />
+      <TweakRadio label="CTA style" value={t.ctaStyle}
+        options={['sunburst','flat','ink']}
+        onChange={(v)=>setTweak('ctaStyle', v)} />
+
+      <TweakSection label="Density" />
+      <TweakRadio label="Layout" value={t.density}
+        options={['compact','comfortable','airy']}
+        onChange={(v)=>setTweak('density', v)} />
+
+      <TweakSection label="Environment band" />
+      <TweakToggle label="Expanded by default" value={t.envExpanded}
+        onChange={(v)=>setTweak('envExpanded', v)} />
+
+      <TweakSection label="Layout" />
+      <TweakToggle label="Show sidebar" value={t.showSidebar}
+        onChange={(v)=>setTweak('showSidebar', v)} />
+    </TweaksPanel>
+  );
+}
+
+function hexA(hex,a){const h=hex.replace('#','');return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`}
+function shade(hex,amt){const h=hex.replace('#','');let r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);const f=c=>amt<0?Math.round(c*(1+amt)):Math.round(c+(255-c)*amt);return '#'+[f(r),f(g),f(b)].map(c=>c.toString(16).padStart(2,'0')).join('')}
+
+const root = document.createElement('div');
+document.body.appendChild(root);
+ReactDOM.createRoot(root).render(<TweaksApp />);
+</script>
+
+</body>
+</html>

@@ -302,10 +302,7 @@ export const PortfolioScreen: React.FC = () => {
           <h2 className="text-[10px] uppercase tracking-widest text-text-muted mb-3">Active Positions</h2>
           {Object.keys(positionsRecord).length === 0 ? (
             <div className="rounded-xl px-4 py-6 text-center" style={{ border: '1.5px dashed #D8D0C4' }}>
-              <p className="text-xs text-text-muted">No positions committed yet.</p>
-              <p className="text-[11px] text-text-muted mt-1">
-                Use the <Link to="/decision" className="text-accent hover:underline">Capital Allocation</Link> screen to commit a position from a thesis.
-              </p>
+              <p className="text-xs text-text-muted">No positions.</p>
             </div>
           ) : (
             <div className="rounded-xl overflow-hidden" style={cardStyle}>

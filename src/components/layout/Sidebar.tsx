@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { OpenAIModelSelect } from '../ui/OpenAIModelSelect'
 import { Sunburst } from '../ui/Sunburst'
@@ -8,8 +8,6 @@ import { useCompareStore } from '../../store/compareStore'
 import { useHuntStore } from '../../store/huntStore'
 import { useBrainstormStore, isBrainstormCanvasRunning, brainstormPhaseLabel } from '../../store/brainstormStore'
 
-const REASONING_LEVELS = ['Low', 'Med', 'High'] as const
-type ReasoningLevel = typeof REASONING_LEVELS[number]
 
 const STAGE_COLORS = {
   Developing: '#4a1d6b',
@@ -54,16 +52,15 @@ export const Sidebar: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const env = getEnvLabel()
-  const [reasoning, setReasoning] = useState<ReasoningLevel>('Med')
-
-  const theses = useThesisStore((s) => s.theses)
+const theses = useThesisStore((s) => s.theses)
   const developing = Object.values(theses).filter((t) => t.stage === 'Developing').length
   const actionable = Object.values(theses).filter((t) => t.stage === 'Actionable').length
   const live = Object.values(theses).filter((t) => t.stage === 'Live').length
   const totalActive = developing + actionable + live
   const compareSlots = useCompareStore((s) => s.slots.length)
 
-  const huntRunning = useHuntStore((s) => s.isRunning)
+  const stockRunning = useHuntStore((s) => s.stockRunning)
+  const fundRunning = useHuntStore((s) => s.fundRunning)
   const isStreaming = useBrainstormStore((s) => s.isStreaming)
   const canvasPhase = useBrainstormStore((s) => s.phase)
   const canvasRunning = isBrainstormCanvasRunning(canvasPhase)
@@ -71,8 +68,6 @@ export const Sidebar: React.FC = () => {
 
   const isActive = (path: string) =>
     path === '/' ? location.pathname === '/' : location.pathname.startsWith(path)
-
-  const isHuntActive = location.pathname === '/hunt'
 
   function NavItem({ label, path, count, running }: {
     label: string; path: string; count?: number; running?: boolean
@@ -168,9 +163,11 @@ export const Sidebar: React.FC = () => {
 
       <NavItem label="Command Center" path="/" />
       <NavItem label="Build Thesis" path="/brainstorm" running={brainstormRunning} />
-      <NavItem label="Search Stocks" path="/hunt?mode=stocks" count={undefined} running={huntRunning && useHuntStore.getState().mode === 'stocks'} />
-      <NavItem label="Search Funds" path="/hunt?mode=funds" running={huntRunning && useHuntStore.getState().mode === 'funds'} />
+      <NavItem label="Search Stocks" path="/hunt/stocks" running={stockRunning} />
+      <NavItem label="Search Funds" path="/hunt/funds" running={fundRunning} />
       <NavItem label="Performance" path="/paper" />
+      <NavItem label="Attribution" path="/attribution" />
+      <NavItem label="Journal" path="/journal" />
       <NavItem label="Compare" path="/compare" count={compareSlots} />
 
       {/* Thesis Pipeline group */}
@@ -180,7 +177,7 @@ export const Sidebar: React.FC = () => {
       }}>
         <Sunburst size={8} />
         <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#6b6960' }}>
-          Thesis Pipeline
+          Pipeline
         </span>
         <CountChip n={totalActive} />
       </div>
@@ -223,34 +220,6 @@ export const Sidebar: React.FC = () => {
         </div>
         <div style={{ padding: '0 12px 10px' }}>
           <OpenAIModelSelect />
-        </div>
-        {/* Reasoning segmented control */}
-        <div style={{ padding: '0 12px' }}>
-          <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: '0.10em', textTransform: 'uppercase', color: '#6b6960', marginBottom: 5 }}>
-            Reasoning
-          </div>
-          <div style={{
-            display: 'flex', background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.10)',
-            borderRadius: 7, padding: 2, gap: 2,
-          }}>
-            {REASONING_LEVELS.map((level) => (
-              <button
-                key={level}
-                onClick={() => setReasoning(level)}
-                style={{
-                  flex: 1, padding: '4px 0',
-                  borderRadius: 5, border: 'none', cursor: 'pointer',
-                  fontSize: 11, fontWeight: 600,
-                  background: reasoning === level ? 'rgba(244,146,44,0.20)' : 'transparent',
-                  color: reasoning === level ? '#f4922c' : 'rgba(232,230,224,0.40)',
-                  transition: 'all 120ms ease',
-                }}
-              >
-                {level}
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 

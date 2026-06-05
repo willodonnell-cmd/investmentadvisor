@@ -4,6 +4,17 @@ import { MacroRegimeModal } from '../ui/MacroRegimeModal'
 import { ConvictionReviewModal } from '../ui/ConvictionReviewModal'
 import { useTopBarStore } from '../../store/topbarStore'
 import { useConvictionStore } from '../../store'
+import { useFredStore } from '../../store/fredStore'
+
+function fredAge(iso: string | null): string {
+  if (!iso) return '—'
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
 
 export const TopBar: React.FC = () => {
   const config = useTopBarStore((s) => s.config)
@@ -11,6 +22,9 @@ export const TopBar: React.FC = () => {
   const navigate = useNavigate()
   const [macroOpen, setMacroOpen] = useState(false)
   const [convictionOpen, setConvictionOpen] = useState(false)
+  const fredLastFetched = useFredStore((s) => s.lastFetched)
+  const fredDQ = useFredStore((s) => s.classification?.dataQuality ?? null)
+  const fredDotColor = fredDQ === 'Complete' ? '#2d6a4f' : fredDQ === 'Partial' ? '#92400e' : '#a8a5a0'
 
   return (
     <>
@@ -79,6 +93,20 @@ export const TopBar: React.FC = () => {
               </span>
             </button>
           )}
+
+          <button
+            onClick={() => setMacroOpen(true)}
+            title={fredLastFetched ? `FRED data · ${fredDQ ?? 'No data'} · ${fredAge(fredLastFetched)}` : 'FRED data — not fetched yet'}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              fontSize: 11, fontWeight: 500, color: '#8b8980',
+              background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px',
+              borderRadius: 6,
+            }}
+          >
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: fredDotColor, flexShrink: 0 }} />
+            <span>FRED {fredLastFetched ? fredAge(fredLastFetched) : '—'}</span>
+          </button>
 
           <button
             onClick={() => setMacroOpen(true)}

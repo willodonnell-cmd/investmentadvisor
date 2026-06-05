@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useVolatilityStore } from '../store/volatilityStore'
 import type { VolRegime } from '../api/volatilityOverlay'
 import { type HuntContext, type OpportunityBrief } from '../api/opportunityAgent'
@@ -471,24 +471,15 @@ const VolBanner: React.FC = () => {
 
 interface DossierToast { ticker: string; thesisId: string; kind: 'success' | 'duplicate' }
 
-export const HuntScreen: React.FC = () => {
-  const [searchParams] = useSearchParams()
-  const mode = useHuntStore((s) => s.mode)
-  const setMode = useHuntStore((s) => s.setMode)
-
-  useEffect(() => {
-    const urlMode = searchParams.get('mode')
-    if (urlMode === 'stocks' || urlMode === 'funds') setMode(urlMode)
-  }, [searchParams])
+export const HuntScreen: React.FC<{ mode: 'stocks' | 'funds' }> = ({ mode }) => {
   const stockResult = useHuntStore((s) => s.stockResult)
   const fundResult = useHuntStore((s) => s.fundResult)
-  const isRunning = useHuntStore((s) => s.isRunning)
-  const phase = useHuntStore((s) => s.phase)
-  const progress = useHuntStore((s) => s.progress)
-  const focusAreas = useHuntStore((s) => s.focusAreas)
-  const setFocusAreas = useHuntStore((s) => s.setFocusAreas)
+  const isRunning = useHuntStore((s) => mode === 'stocks' ? s.stockRunning : s.fundRunning)
+  const phase = useHuntStore((s) => mode === 'stocks' ? s.stockPhase : s.fundPhase)
+  const progress = useHuntStore((s) => mode === 'stocks' ? s.stockProgress : s.fundProgress)
   const startHunt = useHuntStore((s) => s.startHunt)
   const startFundHunt = useHuntStore((s) => s.startFundHunt)
+  const clearResult = useHuntStore((s) => mode === 'stocks' ? s.clearStockResult : s.clearFundResult)
 
   const { regime: volRegime, fetch: fetchVol } = useVolatilityStore()
   useEffect(() => { fetchVol() }, [])
@@ -504,7 +495,7 @@ export const HuntScreen: React.FC = () => {
   useTopBar({
     title,
     crumb: result
-      ? `Opportunity feed · ${result.opportunities.length} candidates from today's hunt`
+      ? `${result.opportunities.length} candidates`
       : undefined,
   })
 
@@ -530,8 +521,7 @@ export const HuntScreen: React.FC = () => {
     killRecordSummaries: theses.filter((th) => th.stage === 'Broken').slice(0, 5).map((th) => `${th.ticker ?? th.name}: killed`),
     portfolioExposures: ['Industrial REIT (Prologis / PLD) — very heavy concentration', 'US large-cap equities (general)'],
     targetThesisCount: 3,
-    focusAreas: focusAreas.trim() || undefined,
-  }), [theses, macroRegime, focusAreas])
+  }), [theses, macroRegime])
 
   const isDuplicate = useCallback((ticker: string) => isDuplicateInDossier(thesesMap, ticker), [thesesMap])
 
@@ -544,7 +534,7 @@ export const HuntScreen: React.FC = () => {
   }
 
   const handleHunt = async () => {
-    const context = buildContext()
+    const context = { ...buildContext(), focusAreas: search.trim() || undefined }
     if (mode === 'stocks') await startHunt(context)
     else await startFundHunt(context)
   }
@@ -612,31 +602,6 @@ export const HuntScreen: React.FC = () => {
 
       <VolBanner />
 
-      {/* Mode tabs */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 18 }}>
-        <div style={{
-          display: 'inline-flex', background: tk.surface,
-          border: `1px solid ${tk.hairline2}`, borderRadius: 8, padding: 3, gap: 2,
-        }}>
-          {(['stocks', 'funds'] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => { setMode(m); setFilterAction('all'); setSearch('') }}
-              style={{
-                padding: '6px 16px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                fontSize: 13, fontWeight: mode === m ? 600 : 400,
-                color: mode === m ? tk.ink : tk.muted,
-                background: mode === m ? tk.surface2 : 'transparent',
-                textTransform: 'capitalize',
-                transition: 'all 120ms',
-              }}
-            >
-              {m === 'stocks' ? 'Stocks' : 'Funds'}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Search bar + filter chips */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
         <div style={{
@@ -648,7 +613,7 @@ export const HuntScreen: React.FC = () => {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder={`Search by ticker, company, or thesis keyword…`}
+            placeholder="Ticker, company, or keyword…"
             style={{
               flex: 1, border: 'none', outline: 'none', background: 'transparent',
               fontSize: 13, color: tk.ink, fontFamily: 'inherit',
@@ -690,22 +655,10 @@ export const HuntScreen: React.FC = () => {
         background: tk.surface, border: `1px solid ${tk.hairline}`,
         borderRadius: 12, marginBottom: 20, overflow: 'hidden',
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 0 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 0 }}>
           <div style={{ padding: '12px 16px', borderRight: `1px solid ${tk.hairline}` }}>
             <p style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: tk.muted2, marginBottom: 4 }}>REGIME</p>
             <p style={{ fontSize: 12.5, color: tk.ink2, fontWeight: 500, margin: 0, lineHeight: 1.4 }}>{regimeLabel}</p>
-          </div>
-          <div style={{ padding: '12px 16px', borderRight: `1px solid ${tk.hairline}` }}>
-            <p style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.13em', textTransform: 'uppercase', color: tk.muted2, marginBottom: 4 }}>FOCUS AREAS</p>
-            <input
-              value={focusAreas}
-              onChange={e => setFocusAreas(e.target.value)}
-              placeholder={mode === 'stocks' ? 'e.g. energy transition, uranium, grid infr…' : 'e.g. low-ER bond funds, EM ex-China…'}
-              style={{
-                width: '100%', border: 'none', outline: 'none', background: 'transparent',
-                fontSize: 12.5, color: tk.ink, fontFamily: 'inherit', padding: 0,
-              }}
-            />
           </div>
           <div style={{ padding: '10px 16px', display: 'flex', alignItems: 'center' }}>
             {!isRunning ? (
@@ -718,7 +671,7 @@ export const HuntScreen: React.FC = () => {
                   boxShadow: 'inset 0 1px 0 rgba(255,255,255,.25), 0 1px 2px rgba(0,0,0,.18)',
                 }}
               >
-                Hunt for me →
+                Hunt →
               </button>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 140 }}>
@@ -744,11 +697,11 @@ export const HuntScreen: React.FC = () => {
             Opportunities
           </span>
           <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 12, color: tk.ink2 }}>
-            {totalOpps} shown
+            {totalOpps}
           </span>
           {advanceCount > 0 && (
             <span style={{ fontFamily: 'GeistMono, monospace', fontSize: 12, color: tk.green }}>
-              · {advanceCount} advance-ready
+              · {advanceCount} advance
             </span>
           )}
           {watchCount > 0 && (
@@ -761,11 +714,26 @@ export const HuntScreen: React.FC = () => {
               · {passCount} pass
             </span>
           )}
-          {result.agentNotes && (
-            <span style={{ marginLeft: 'auto', fontSize: 11, color: tk.muted, maxWidth: 400, textAlign: 'right' }}>
-              {result.agentNotes.slice(0, 80)}
-            </span>
-          )}
+          <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+            {result.agentNotes && (
+              <span style={{ fontSize: 11, color: tk.muted, maxWidth: 360, textAlign: 'right' }}>
+                {result.agentNotes.slice(0, 80)}
+              </span>
+            )}
+            <button
+              onClick={() => { clearResult(); setSearch(''); setFilterAction('all') }}
+              style={{
+                padding: '5px 14px', borderRadius: 99, border: `1px solid ${tk.hairline2}`,
+                background: tk.surface, color: tk.muted, fontSize: 11, fontWeight: 600,
+                cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                transition: 'all 120ms',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = tk.sun2; e.currentTarget.style.color = tk.sun2 }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = tk.hairline2; e.currentTarget.style.color = tk.muted }}
+            >
+              New hunt ↺
+            </button>
+          </span>
         </div>
       )}
 
@@ -779,18 +747,15 @@ export const HuntScreen: React.FC = () => {
       {result && activeOpps.length === 0 && (
         <div style={{ padding: '40px 24px', textAlign: 'center', border: `1.5px dashed ${tk.hairline2}`, borderRadius: 12 }}>
           <p style={{ fontSize: 13, color: tk.muted2, margin: 0 }}>
-            {search || filterAction !== 'all' ? 'No results match your filter.' : 'No opportunities yet. Run a hunt first.'}
+            {search || filterAction !== 'all' ? 'No results match filter.' : 'No opportunities yet.'}
           </p>
         </div>
       )}
 
       {!result && !isRunning && (
         <div style={{ padding: '60px 24px', textAlign: 'center', border: `1.5px dashed ${tk.hairline2}`, borderRadius: 12 }}>
-          <p style={{ fontSize: 14, color: tk.muted2, marginBottom: 8 }}>
-            No hunt results yet.
-          </p>
-          <p style={{ fontSize: 12, color: tk.muted2, margin: 0 }}>
-            Set your focus areas and click <strong>Hunt for me →</strong> above to surface opportunities.
+          <p style={{ fontSize: 13, color: tk.muted2, margin: 0 }}>
+            No results yet.
           </p>
         </div>
       )}

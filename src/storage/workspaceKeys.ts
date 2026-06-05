@@ -13,6 +13,7 @@ export const DOSSIER_ZUSTAND_STORAGE_KEYS = [
   'synthesis-store',
   'conviction-store',
   'macro-store',
+  'fred-store',
 ] as const
 
 export type DossierStorageKey = (typeof DOSSIER_ZUSTAND_STORAGE_KEYS)[number]

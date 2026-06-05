@@ -14,6 +14,7 @@ import { SignalEntryForm } from '../components/ui/SignalEntryForm'
 import { SignalCompositeCard } from '../components/ui/SignalCompositeCard'
 import { ReassessmentModal } from '../components/ui/ReassessmentModal'
 import { KillModal } from '../components/ui/KillModal'
+import { JournalPromptBanner } from '../components/ui/JournalPromptBanner'
 import { ConvictionLedger } from '../components/ui/ConvictionLedger'
 import { ThesisResearchPanel } from '../components/ui/ThesisResearchPanel'
 import { AskAIDock } from '../components/ui/AskAIDock'
@@ -367,6 +368,7 @@ export const ThesisScreen: React.FC = () => {
   const [convertingSignalId, setConvertingSignalId] = useState<string | null>(null)
   const [showReassessment, setShowReassessment] = useState(false)
   const [showKill, setShowKill] = useState(false)
+  const [killJournalPrompt, setKillJournalPrompt] = useState<{ thesisId: string; thesisName: string; ticker?: string } | null>(null)
 
   const thesis = useThesisStore((s) => (id ? s.theses[id] : undefined))
   const { convictionRunning, scenariosRunning, expertRunning, jobError } = useThesisBackgroundJobs(thesis)
@@ -561,7 +563,7 @@ export const ThesisScreen: React.FC = () => {
     addKillRecord(record)
     advanceLifecycle(thesis.id, 'Killed', `Kill type ${record.killType}: ${record.killReason}`)
     setShowKill(false)
-    navigate('/')
+    setKillJournalPrompt({ thesisId: thesis.id, thesisName: thesis.name, ticker: thesis.ticker })
   }
 
   const handleGenerateScenarios = async () => {
@@ -601,6 +603,16 @@ export const ThesisScreen: React.FC = () => {
   return (
     <>
       <div className="p-5 max-w-[900px] space-y-4">
+
+        {killJournalPrompt && (
+          <JournalPromptBanner
+            decisionType="exit"
+            thesisId={killJournalPrompt.thesisId}
+            thesisName={killJournalPrompt.thesisName}
+            ticker={killJournalPrompt.ticker}
+            onDismiss={() => { setKillJournalPrompt(null); navigate('/') }}
+          />
+        )}
 
         {/* ── Hero Card ── */}
         <div style={{

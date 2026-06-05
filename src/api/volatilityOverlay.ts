@@ -1,6 +1,6 @@
 // ── Volatility Overlay ────────────────────────────────────────────────────────
-// Fetches VIX + VIX3M, classifies the current vol regime, and returns a
-// plain-English signal. Used by the Hunt screen's vol banner.
+// Fetches VIX + VIX3M from CBOE's official CDN (via Vite proxy to avoid CORS).
+// Classifies the current vol regime and returns a plain-English signal.
 
 export type VolRegime = 'Calm' | 'Elevated' | 'Spike' | 'Crash'
 export type TermStructure = 'contango' | 'backwardation' | 'unknown'
@@ -12,49 +12,28 @@ export interface VolRegimeResult {
   signal: string
 }
 
-// ── HTTP helper (mirrors apiFetch in finnhub.ts) ──────────────────────────────
+// ── CBOE CSV fetch ────────────────────────────────────────────────────────────
+// CBOE publishes daily VIX/VIX3M history at cdn.cboe.com.
+// CSV format: DATE,OPEN,HIGH,LOW,CLOSE — last row is the most recent close.
+// Routed through /api/cboe Vite proxy to bypass browser CORS restrictions.
 
-async function apiFetch<T>(url: string, timeoutMs = 10_000): Promise<T | null> {
+async function fetchCboe(symbol: 'VIX' | 'VIX3M', timeoutMs = 10_000): Promise<number | null> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
   try {
+    const url = `/api/cboe/api/global/us_indices/daily_prices/${symbol}_History.csv`
     const res = await fetch(url, { signal: controller.signal })
     clearTimeout(timer)
     if (!res.ok) return null
-    return res.json() as Promise<T>
+    const text = await res.text()
+    const lines = text.trim().split('\n').filter(Boolean)
+    const last = lines[lines.length - 1]
+    const close = parseFloat(last.split(',')[4])
+    return isNaN(close) || close <= 0 ? null : close
   } catch {
     clearTimeout(timer)
     return null
   }
-}
-
-// ── Finnhub ───────────────────────────────────────────────────────────────────
-
-const FH_KEY = import.meta.env.VITE_FINNHUB_API_KEY as string
-const FH_BASE = 'https://finnhub.io/api/v1'
-
-interface FinnhubQuote { c: number; pc: number }
-
-async function fetchVixFinnhub(): Promise<number | null> {
-  const data = await apiFetch<FinnhubQuote>(
-    `${FH_BASE}/quote?symbol=CBOE:VIX&token=${FH_KEY}`,
-  )
-  if (!data?.c || data.c === 0) return null
-  return data.c
-}
-
-// ── Yahoo Finance fallback ────────────────────────────────────────────────────
-
-interface YahooChart {
-  chart: { result?: Array<{ meta: { regularMarketPrice: number } }> }
-}
-
-async function fetchYahoo(ticker: string): Promise<number | null> {
-  const data = await apiFetch<YahooChart>(
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}`,
-  )
-  const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice
-  return typeof price === 'number' && price > 0 ? price : null
 }
 
 // ── Regime logic ──────────────────────────────────────────────────────────────
@@ -93,17 +72,13 @@ function buildSignal(regime: VolRegime, termStructure: TermStructure): string {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export async function getVolRegime(): Promise<VolRegimeResult> {
-  // Fetch VIX and VIX3M concurrently
-  const [vixFromFH, vix3m] = await Promise.all([
-    fetchVixFinnhub(),
-    fetchYahoo('^VIX3M'),
+  const [vix, vix3m] = await Promise.all([
+    fetchCboe('VIX'),
+    fetchCboe('VIX3M'),
   ])
 
-  // Finnhub first, Yahoo fallback for spot VIX
-  const vix = vixFromFH ?? (await fetchYahoo('^VIX'))
-
   if (vix === null) {
-    throw new Error('Unable to fetch VIX from Finnhub (CBOE:VIX) or Yahoo Finance (^VIX)')
+    throw new Error('Unable to fetch VIX from CBOE. Check your network connection.')
   }
 
   const regime = classifyRegime(vix)

@@ -154,7 +154,7 @@ export const BrainstormingScreen: React.FC = () => {
   const [wizardStep, setWizardStep] = useState<number>(0) // 0-4
   const [visiblePrompts, setVisiblePrompts] = useState(() => pickSix(PROMPT_POOL, []))
 
-  useTopBar({ title: 'Build Thesis', crumb: 'Spark an idea and build a canvas' })
+  useTopBar({ title: 'Build Thesis' })
 
   // Auto-advance wizard step when store phase changes
   useEffect(() => {
@@ -208,12 +208,9 @@ export const BrainstormingScreen: React.FC = () => {
       {/* ── Phase 0: Brainstorm ── */}
       {wizardStep === 0 && (
         <div>
-          <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em', marginBottom: 6 }}>
-            What thesis are you exploring?
+          <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.01em', marginBottom: 22 }}>
+            What's the thesis?
           </h2>
-          <p style={{ fontSize: 13, color: '#6b6960', marginBottom: 22 }}>
-            Brainstorm with AI to sharpen the idea, then generate a canvas across 13 categories.
-          </p>
 
           {/* Composer */}
           <div style={{ background: '#fbf8f1', border: '1px solid rgba(0,0,0,0.10)', borderRadius: 12, overflow: 'hidden', marginBottom: 24 }}>
@@ -223,7 +220,7 @@ export const BrainstormingScreen: React.FC = () => {
               onChange={(e) => setSpark(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleGenerate() }}
               disabled={phase === 'generating'}
-              placeholder="Drop a rough idea — e.g. 'AI power buildout repricing transmission opens up opportunities in…'"
+              placeholder="Drop an idea — e.g. 'AI power buildout repricing transmission…'"
               rows={4}
               style={{
                 width: '100%', background: 'transparent',
@@ -237,7 +234,7 @@ export const BrainstormingScreen: React.FC = () => {
               padding: '10px 16px', borderTop: '1px solid rgba(0,0,0,0.06)',
               background: '#f5f2eb',
             }}>
-              <span style={{ fontSize: 10.5, color: '#8b8980' }}>↵ to send · ⌘↵ for new line</span>
+              <span style={{ fontSize: 10.5, color: '#8b8980' }}>⌘↵ new line</span>
               <button
                 onClick={handleGenerate}
                 disabled={!spark.trim() || phase === 'generating'}

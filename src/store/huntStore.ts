@@ -10,107 +10,70 @@ import {
 } from '../api/fundHuntAgent'
 
 interface HuntStore {
-  mode: 'stocks' | 'funds'
-  focusAreas: string
-  isRunning: boolean
-  phase: string
-  progress: number
-  error: string | null
-  justCompleted: boolean
-
+  // Stock hunt — fully independent
+  stockFocusAreas: string
+  stockRunning: boolean
+  stockPhase: string
+  stockProgress: number
   stockResult: HuntResult | null
+
+  // Fund hunt — fully independent
+  fundFocusAreas: string
+  fundRunning: boolean
+  fundPhase: string
+  fundProgress: number
   fundResult: FundHuntResult | null
 
-  setMode: (mode: 'stocks' | 'funds') => void
-  setFocusAreas: (areas: string) => void
+  setStockFocusAreas: (areas: string) => void
+  setFundFocusAreas: (areas: string) => void
   startHunt: (context: HuntContext) => Promise<void>
   startFundHunt: (context: HuntContext) => Promise<void>
+  clearStockResult: () => void
+  clearFundResult: () => void
   clearResult: () => void
 }
 
-let completeTimer: ReturnType<typeof setTimeout> | null = null
-
-function markComplete(set: (partial: Partial<HuntStore>) => void) {
-  if (completeTimer) clearTimeout(completeTimer)
-  set({ justCompleted: true, progress: 100, phase: '' })
-  completeTimer = setTimeout(() => {
-    set({ justCompleted: false })
-    completeTimer = null
-  }, 5000)
-}
-
 export const useHuntStore = create<HuntStore>()((set, get) => ({
-  mode: 'stocks',
-  focusAreas: '',
-  isRunning: false,
-  phase: '',
-  progress: 0,
-  error: null,
-  justCompleted: false,
+  stockFocusAreas: '',
+  stockRunning: false,
+  stockPhase: '',
+  stockProgress: 0,
   stockResult: null,
+
+  fundFocusAreas: '',
+  fundRunning: false,
+  fundPhase: '',
+  fundProgress: 0,
   fundResult: null,
 
-  setMode: (mode) => set({ mode }),
+  setStockFocusAreas: (areas) => set({ stockFocusAreas: areas }),
+  setFundFocusAreas: (areas) => set({ fundFocusAreas: areas }),
 
-  setFocusAreas: (areas) => set({ focusAreas: areas }),
-
-  clearResult: () => set({ stockResult: null, fundResult: null, error: null }),
+  clearStockResult: () => set({ stockResult: null }),
+  clearFundResult: () => set({ fundResult: null }),
+  clearResult: () => set({ stockResult: null, fundResult: null }),
 
   startHunt: async (context) => {
-    if (get().isRunning) return
-    set({
-      isRunning: true,
-      phase: 'Generating investment signals…',
-      progress: 0,
-      error: null,
-      justCompleted: false,
-      stockResult: null,
-    })
-    const onProgress = (phase: string, progress: number) => set({ phase, progress })
+    if (get().stockRunning) return
+    set({ stockRunning: true, stockPhase: 'Generating investment signals…', stockProgress: 0, stockResult: null })
+    const onProgress = (phase: string, progress: number) => set({ stockPhase: phase, stockProgress: progress })
     try {
       const result = await runHunt(context, onProgress)
-      set({ stockResult: result, isRunning: false })
-      if (result.error) {
-        set({ error: result.error })
-      } else {
-        markComplete(set)
-      }
+      set({ stockResult: result, stockRunning: false, stockProgress: 100, stockPhase: '' })
     } catch (err) {
-      set({
-        isRunning: false,
-        phase: '',
-        progress: 0,
-        error: err instanceof Error ? err.message : 'Hunt failed',
-      })
+      set({ stockRunning: false, stockPhase: '', stockProgress: 0 })
     }
   },
 
   startFundHunt: async (context) => {
-    if (get().isRunning) return
-    set({
-      isRunning: true,
-      phase: 'Identifying fund candidates…',
-      progress: 0,
-      error: null,
-      justCompleted: false,
-      fundResult: null,
-    })
-    const onProgress = (phase: string, progress: number) => set({ phase, progress })
+    if (get().fundRunning) return
+    set({ fundRunning: true, fundPhase: 'Identifying fund candidates…', fundProgress: 0, fundResult: null })
+    const onProgress = (phase: string, progress: number) => set({ fundPhase: phase, fundProgress: progress })
     try {
       const result = await runFundHunt(context, onProgress)
-      set({ fundResult: result, isRunning: false })
-      if (result.error) {
-        set({ error: result.error })
-      } else {
-        markComplete(set)
-      }
+      set({ fundResult: result, fundRunning: false, fundProgress: 100, fundPhase: '' })
     } catch (err) {
-      set({
-        isRunning: false,
-        phase: '',
-        progress: 0,
-        error: err instanceof Error ? err.message : 'Fund hunt failed',
-      })
+      set({ fundRunning: false, fundPhase: '', fundProgress: 0 })
     }
   },
 }))
